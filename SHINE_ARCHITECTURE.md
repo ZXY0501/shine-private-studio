@@ -708,3 +708,68 @@ PUT /api/studio-settings
 6. Profile 闭环稳定后再处理 Studio Settings 和素材 PSD。
 
 在用户明确批准进入实施阶段前，不修改前端、不复制后端进仓库，也不部署新的云接口。
+
+## 15. 第一阶段本地实现记录（2026-08-09）
+
+用户已批准开始第一阶段。当前工作在 `codex/template-profile-phase1` 分支进行，尚未 push、尚未部署、尚未连接生产 OSS。
+
+### 15.1 已冻结的回滚基线
+
+- 原始 GitHub Pages 提交 `9cab6ba` 已建立本地 annotated tag：`v0.28`；
+- 后端 v0.1 ZIP 的原始文件已经归档到 `backend/`；
+- 归档提交为 `550e23d chore: archive Shine v0.28 architecture and backend v0.1`；
+- PSD 解析入口 `parsePsd()`、模板签名 `templateSig()`、重组、改色和导出核心没有修改。
+
+### 15.2 后端 v0.2 本地结构
+
+```text
+backend/
+├── server.js                    # 启动入口；保留 9000 端口
+├── src/app.js                   # HTTP 路由、认证、校验、ETag/CORS
+├── src/oss-profile-store.js     # FC 临时凭证与 OSS Profile object 适配器
+├── test/app.test.js             # API 契约与错误分支
+├── test/oss-profile-store.test.js
+├── test/frontend-contract.test.js
+├── package.json
+├── package-lock.json
+└── README.md
+```
+
+新增接口：
+
+```text
+GET /api/template-profiles/:templateSignature
+PUT /api/template-profiles/:templateSignature
+```
+
+Profile object key 固定为：
+
+```text
+template-profiles/v1/<sha256(templateSignature)>.json
+```
+
+客户端不能直接指定 OSS key。后端只接受 `shine-template-0.28-alpha`，默认请求体上限为 512 KiB。首次创建要求 `If-None-Match: *`；更新要求 `If-Match` 与最新 ETag 一致。
+
+认证使用 `SHINE_PROFILE_TOKEN`。未配置时 fail closed，不允许匿名读写。OSS AccessKey 不进入仓库；运行时读取 `shine-fc-role` 注入的临时环境变量，兼容 FC 自定义运行时的临时凭证请求头。
+
+### 15.3 前端 local-first 灰度接入
+
+- 默认 URL 不显示云端控件，也不会发送 Profile 网络请求；
+- 只有查询参数 `?cloudProfiles=1` 才显示测试面板；
+- 原“保存模板绑定”仍只调用 `saveBindingsLocal()`；
+- 云端保存和云端读取使用独立按钮；
+- 后端地址可存在 `localStorage`，测试口令只存在 `sessionStorage`；
+- 云端读取必须校验 schema 和当前模板签名，并由用户明确确认后才应用；
+- 网络/OSS 失败只显示状态，不阻断 PSD 解析、上色、预览或导出。
+
+### 15.4 当前并发限制
+
+首次创建使用 OSS `x-oss-forbid-overwrite`，可以原子防止两个首次写入互相覆盖。现阶段更新采用“读取 ETag → 临近写入前复查 → PutObject”，适合单人灰度测试，但不是多人同时编辑下的事务型 CAS。进入批量订单或多账号协作前，应把 revision/锁迁移到具备条件写能力的元数据存储。
+
+### 15.5 上线前仍需人工确认
+
+1. 在阿里云控制台只读核对 FC Node 运行时、`shine-fc-role`、Bucket region 和线上 v0.1 代码；
+2. 配置 `ALLOWED_ORIGIN` 和随机生成的 `SHINE_PROFILE_TOKEN`，不把值发到聊天或提交 Git；
+3. 部署为独立测试版本/别名，不能直接覆盖稳定版本；
+4. 用真实 v0.28 PSD 完成保存、换浏览器读取、人工确认应用、断网降级回归；
+5. 验收通过后再决定是否 push、合并和切换流量。

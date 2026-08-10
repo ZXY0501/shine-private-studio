@@ -65,7 +65,7 @@ canvas{display:block;width:auto;height:auto}
 .assetTable{border:1px solid var(--line);border-radius:11px;overflow:auto;background:#fff}
 .ar{display:grid;grid-template-columns:minmax(120px,1fr) 58px 72px 100px 42px;gap:6px;align-items:center;padding:7px;border-bottom:1px dashed #e7e1e7;font-size:10px}
 .ar:last-child{border-bottom:0}
-select,input[type=text]{height:30px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:0 6px;font-size:10px;min-width:0}
+select,input[type=text],input[type=password]{height:30px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);padding:0 6px;font-size:10px;min-width:0}
 .check{width:17px;height:17px}
 .assetHelp{font-size:11px;line-height:1.7;color:var(--muted);margin-top:8px}
 .builderTable{border:1px solid var(--line);border-radius:11px;overflow:auto;background:#fff;max-height:560px}
@@ -82,6 +82,11 @@ select,input[type=text]{height:30px;border:1px solid var(--line);border-radius:8
 .sum b{font-size:14px;display:block}.sum span{font-size:9px;color:var(--muted)}
 .inlineFile{display:none}
 .builderNote{font-size:10px;line-height:1.65;color:var(--muted);background:#f7f4f7;border:1px solid var(--line);border-radius:10px;padding:9px}
+.cloudProfileBox{margin-top:9px;padding:9px;border:1px solid var(--line);border-radius:10px;background:#f8f5f8}
+.cloudProfileBox[hidden]{display:none}
+.cloudProfileFields{display:grid;grid-template-columns:92px minmax(0,1fr);gap:6px;align-items:center}
+.cloudProfileFields label{font-size:10px;color:var(--muted)}
+.cloudProfileFields input{width:100%}
 
 .compare{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin:9px 0}
@@ -831,6 +836,22 @@ header .badge{display:none!important}
         <label class="btn">导入 template.json<input id="importTemplate" class="inlineFile" type="file" accept=".json"></label>
       </div>
       <div id="builderStatus" class="status">等主模板。</div>
+      <div id="cloudProfilePanel" class="cloudProfileBox" hidden>
+        <div class="st" style="font-size:11px;margin-bottom:7px">Template Profile 云端测试（第一阶段）</div>
+        <div class="cloudProfileFields">
+          <label for="cloudProfileEndpoint">后端地址</label>
+          <input id="cloudProfileEndpoint" type="text" inputmode="url" placeholder="https://你的函数地址">
+          <label for="cloudProfileToken">测试口令</label>
+          <input id="cloudProfileToken" type="password" autocomplete="off" placeholder="仅保留到关闭本标签页">
+        </div>
+        <div class="toolbar">
+          <button id="cloudProfileConfigure" class="btn" type="button">保存测试配置</button>
+          <button id="cloudProfileRead" class="btn" type="button" disabled>检查 / 读取云端</button>
+          <button id="cloudProfileWrite" class="btn primary" type="button" disabled>保存当前模板到云端</button>
+        </div>
+        <div id="cloudProfileStatus" class="status">测试功能未配置。默认生产页面不会显示或调用它。</div>
+        <div class="meta">地址保存在本浏览器；口令只放在当前标签页的 sessionStorage，不写入项目源码。读取到云端版本后仍需人工确认才会应用。</div>
+      </div>
       <div class="builderTable layerHealthCompact" style="margin-top:9px">
         <div class="br head"><div>图层 / 🔒</div><div>Slot</div><div>部位</div><div>语义 Role</div><div class="builderSourceCol">色源</div></div>
         <div id="builderRows"></div>
@@ -933,6 +954,10 @@ const S={
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null}
 };
 const $=s=>document.querySelector(s);
+const CLOUD_PROFILE_ENABLED=new URLSearchParams(location.search).get('cloudProfiles')==='1';
+const CLOUD_PROFILE_ENDPOINT_KEY='shine:cloud-profile-endpoint:v1';
+const CLOUD_PROFILE_TOKEN_KEY='shine:cloud-profile-token:v1';
+const cloudProfileEtags=new Map();
 
 function stat(el,msg,kind=''){el.textContent=msg;el.className='status '+kind}
 function safe(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -1551,6 +1576,100 @@ function buildTemplateJson(){
     hairInsertion:S.hairInsertion,
     bindings:S.bindings
   };
+}
+function cloudProfileConfig(){
+  return {
+    endpoint:($('#cloudProfileEndpoint')?.value||'').trim().replace(/\/+$/,''),
+    token:$('#cloudProfileToken')?.value||''
+  };
+}
+function cloudProfileErrorMessage(code,status){
+  const messages={
+    UNAUTHORIZED:'测试口令不正确。',PROFILE_AUTH_NOT_CONFIGURED:'后端还没有配置测试口令。',
+    PROFILE_NOT_FOUND:'云端还没有这个模板的 Profile。',PROFILE_CONFLICT:'云端版本已变化，请先重新读取再保存。',
+    PRECONDITION_REQUIRED:'缺少版本校验，请先读取云端版本。',PROFILE_TOO_LARGE:'模板 Profile 超过后端允许的大小。',
+    OSS_CREDENTIALS_MISSING:'后端暂未取得 OSS 临时凭证。',OSS_READ_FAILED:'OSS 读取失败。',OSS_WRITE_FAILED:'OSS 写入失败。'
+  };
+  return messages[code]||`云端请求失败（${status||'网络错误'}${code?' / '+code:''}）。`;
+}
+async function cloudProfileRequest(method,signature,{data,etag}={}){
+  const {endpoint,token}=cloudProfileConfig();
+  if(!endpoint||!token)throw new Error('请先填写后端地址和测试口令，并保存测试配置。');
+  if(!/^https:\/\//i.test(endpoint)&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(endpoint)){
+    throw new Error('后端地址必须使用 HTTPS；只有本机测试可使用 localhost HTTP。');
+  }
+  const headers={Authorization:'Bearer '+token};
+  if(method==='PUT'){
+    headers['Content-Type']='application/json';
+    if(etag)headers['If-Match']=etag;else headers['If-None-Match']='*';
+  }
+  let response;
+  try{
+    response=await fetch(`${endpoint}/api/template-profiles/${encodeURIComponent(signature)}`,{
+      method,headers,body:method==='PUT'?JSON.stringify({data}):undefined,cache:'no-store'
+    });
+  }catch{
+    throw new Error('无法连接云端；本地模板和出图功能不受影响。');
+  }
+  let body={};try{body=await response.json()}catch{}
+  if(!response.ok)throw new Error(cloudProfileErrorMessage(body.error,response.status));
+  const nextEtag=response.headers.get('ETag');if(nextEtag)cloudProfileEtags.set(signature,nextEtag);
+  return {body,etag:nextEtag};
+}
+function updateCloudProfileControls(){
+  if(!CLOUD_PROFILE_ENABLED)return;
+  const configured=!!cloudProfileConfig().endpoint&&!!cloudProfileConfig().token;
+  const ready=configured&&!!S.master&&!!S.templateSignature;
+  if($('#cloudProfileRead'))$('#cloudProfileRead').disabled=!ready;
+  if($('#cloudProfileWrite'))$('#cloudProfileWrite').disabled=!ready;
+}
+function applyCloudTemplateProfile(profile){
+  const data=profile?.data;
+  if(!S.master||!S.templateSignature)throw new Error('请先上传纯净模板 PSD。');
+  if(data?.schemaVersion!=='shine-template-0.28-alpha')throw new Error('云端 Profile 版本与 v0.28 不兼容。');
+  if(data?.template?.signature!==S.templateSignature)throw new Error('云端 Profile 与当前 PSD 签名不一致，已拒绝应用。');
+  if(!data.bindings||!Array.isArray(data.rootStackOrder)||!data.hairInsertion)throw new Error('云端 Profile 数据不完整。');
+  Object.entries(data.bindings).forEach(([p,b])=>{if(S.flat.some(n=>n.path===p))S.bindings[p]=b});
+  S.hairInsertion=JSON.parse(JSON.stringify(data.hairInsertion));
+  S.rootStackOrder=normalizeRootStackOrder(data.rootStackOrder);
+  ensureBindings(false);saveHairInsertion();saveRootStackOrder();saveBindingsLocal();
+  renderBuilder();renderEditableLayerSelectors();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();debug();
+}
+function initCloudProfiles(){
+  const panel=$('#cloudProfilePanel');if(!panel)return;
+  panel.hidden=!CLOUD_PROFILE_ENABLED;
+  if(!CLOUD_PROFILE_ENABLED)return;
+  try{$('#cloudProfileEndpoint').value=localStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||''}catch{}
+  try{$('#cloudProfileToken').value=sessionStorage.getItem(CLOUD_PROFILE_TOKEN_KEY)||''}catch{}
+  $('#cloudProfileConfigure').onclick=async()=>{
+    const config=cloudProfileConfig();
+    try{
+      if(!config.endpoint||!config.token)throw new Error('请完整填写后端地址和测试口令。');
+      if(!/^https:\/\//i.test(config.endpoint)&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(config.endpoint))throw new Error('后端地址必须使用 HTTPS。');
+      localStorage.setItem(CLOUD_PROFILE_ENDPOINT_KEY,config.endpoint);sessionStorage.setItem(CLOUD_PROFILE_TOKEN_KEY,config.token);
+      updateCloudProfileControls();stat($('#cloudProfileStatus'),'测试配置已保存。口令会在关闭当前标签页后清除。','good');
+    }catch(e){stat($('#cloudProfileStatus'),e.message||String(e),'bad')}
+  };
+  $('#cloudProfileRead').onclick=async()=>{
+    stat($('#cloudProfileStatus'),'正在检查云端 Profile…');
+    try{
+      const {body}=await cloudProfileRequest('GET',S.templateSignature);
+      const when=body.updatedAt?new Date(body.updatedAt).toLocaleString():'时间未知';
+      if(confirm(`找到云端 Profile（修订 ${body.revision||'?'}，${when}）。\n\n要应用到当前模板吗？本地版本会在确认后更新。`)){
+        applyCloudTemplateProfile(body);stat($('#cloudProfileStatus'),`已应用云端修订 ${body.revision||'?'}，并同步保存到本机。`,'good');
+      }else stat($('#cloudProfileStatus'),`已找到云端修订 ${body.revision||'?'}，未应用。`,'good');
+    }catch(e){stat($('#cloudProfileStatus'),e.message||String(e),'bad')}
+  };
+  $('#cloudProfileWrite').onclick=async()=>{
+    stat($('#cloudProfileStatus'),'正在保存当前 Template Profile…');
+    try{
+      saveBindingsLocal();
+      const etag=cloudProfileEtags.get(S.templateSignature);
+      const {body}=await cloudProfileRequest('PUT',S.templateSignature,{data:buildTemplateJson(),etag});
+      stat($('#cloudProfileStatus'),`已保存到云端，修订 ${body.revision||'?'}。本地保存和出图逻辑保持不变。`,'good');
+    }catch(e){stat($('#cloudProfileStatus'),e.message||String(e),'bad')}
+  };
+  updateCloudProfileControls();
 }
 function updateBuilderSummary(){
   const vals=Object.values(S.bindings);
@@ -3015,6 +3134,7 @@ function debug(){
 function enableMaster(on){
   ['#exportTree','#toggleHidden','#resetVisibility','#rerender','#previewFit','#preview100','#baseOriginal','#baseRecon','#exportPreview','#exportJpeg'].forEach(id=>$(id).disabled=!on);
   enableBuilder(on);
+  updateCloudProfileControls();
 }
 async function parsePsd(file){
   if(!window.agPsd)throw new Error('ag-psd 未加载，请联网刷新页面');
@@ -3271,6 +3391,7 @@ enableMaster(false);
 enableBuilder(false);
 loadProductionState();
 buildWorkspaceUI();
+initCloudProfiles();
 lockThreeColumnShell();
 window.addEventListener("resize",()=>{lockThreeColumnShell();refreshHealthScrollBars();});
 </script>
