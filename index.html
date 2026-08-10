@@ -453,6 +453,7 @@ header .badge{display:none!important}
 .rootStackHandle{font-size:10px;color:#8b8390;text-align:center}.rootStackName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:650}.rootStackMeta{font-size:7px;color:var(--muted);white-space:nowrap}
 .rootStackRow.virtualHair{background:#f5f1f8}.rootStackRow.virtualHair .rootStackName{font-weight:800}.rootStackRow.virtualAsset{background:#f2f6f7}.rootStackRow.virtualAsset .rootStackName{font-weight:800}.rootStackRow.transformSelected{outline:1px solid #786f86;outline-offset:-1px}.rootStackRow.pixelRoot{background:#fcfbfc}.rootStackEmpty{padding:8px;font-size:8px;color:var(--muted)}
 .assetTransformBox{margin-top:7px;padding:7px;border:1px solid var(--line);border-radius:9px;background:#fff}.assetTransformHead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center}.assetTransformHead select{width:100%;height:27px!important}.assetTransformGrid{display:grid;grid-template-columns:38px minmax(0,1fr) 42px;gap:4px 6px;align-items:center;margin-top:6px;font-size:8px;color:var(--muted)}.assetTransformGrid input[type=range]{width:100%;min-width:0}.assetTransformGrid output{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}.assetTransformActions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:6px}.assetTransformActions label{display:flex;align-items:center;gap:3px;font-size:8px}.previewBody.transformReady{cursor:grab}.previewBody.transformDragging{cursor:grabbing}.previewBody.transformReady:after{content:'自由变换：在预览空白处拖动也可以移动素材';position:absolute;left:10px;bottom:10px;z-index:8;padding:4px 7px;border-radius:999px;background:rgba(48,43,53,.82);color:#fff;font-size:8px;pointer-events:none}.previewBody{position:relative}
+.cloudAssetPanel{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin:7px 0;padding:7px;border:1px solid #d7ddea;border-radius:9px;background:#f3f6fb}.cloudAssetPanel[hidden]{display:none}.cloudAssetPanel .status{flex:1 1 180px;margin:0}.cloudAssetBadge{display:inline-flex;align-items:center;gap:3px;font-size:7px;color:#496555}.cloudAssetBadge:before{content:'●';color:#5f8a68}
 .layerHealthCompact .br{grid-template-columns:minmax(112px,1fr) 34px 48px 84px 31px!important}.layerHealthCompact .br>[data-k="source"],.layerHealthCompact .br.head>div:nth-child(5){display:none!important}.layerHealthCompact .br select[data-k="slot"]{font-size:7px!important}.layerHealthCompact .br select[data-k="part"]{max-width:48px}.layerHealthCompact .br select[data-k="role"]{max-width:84px}
 .swatchTools{grid-template-columns:minmax(0,1fr) 42px!important}
 #swatchTarget,#quickLayer{width:100%!important;min-width:0!important}
@@ -754,6 +755,7 @@ header .badge{display:none!important}
               </div>
               <div class="assetCategoryCreator"><input id="newAssetCategoryName" type="text" maxlength="30" placeholder="新建自己的素材大类"><button id="createAssetCategory" class="btn" type="button">＋ 新建大类</button></div>
               <div class="legendMini">所有新素材默认保留 PSD 原色。上传顺序不再决定使用哪一边；在素材卡上分别勾选 A 或 B，选错时直接取消勾选。重复下载形成的“狐狸(1).psd / 狐狸（2）.psd”仍会自动归一为同一素材名称。</div>
+              <div id="cloudAssetPanel" class="cloudAssetPanel" hidden><button id="cloudAssetRefresh" class="btn" type="button">读取云端素材</button><div id="cloudAssetStatus" class="status">测试入口：使用模板 Profile 的同一后端地址和口令。</div></div>
               <div class="assetList2" id="assetLibraryList" style="margin-top:7px"></div>
               <div id="assetRuntimeStatus" class="status assetRuntimeStatus">帽饰运行状态：等待上传。</div>
               <div id="assetBindingEditor"></div>
@@ -965,7 +967,7 @@ const S={
   liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null,
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null},
-  assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null, pendingAssetPlacements:{}
+  assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null, pendingAssetPlacements:{}, cloudAssetBusy:false
 };
 const $=s=>document.querySelector(s);
 const CLOUD_PROFILE_ENABLED=new URLSearchParams(location.search).get('cloudProfiles')==='1';
@@ -1693,7 +1695,8 @@ function cloudProfileErrorMessage(code,status){
     UNAUTHORIZED:'测试口令不正确。',PROFILE_AUTH_NOT_CONFIGURED:'后端还没有配置测试口令。',
     PROFILE_NOT_FOUND:'云端还没有这个模板的 Profile。',PROFILE_CONFLICT:'云端版本已变化，请先重新读取再保存。',
     PRECONDITION_REQUIRED:'缺少版本校验，请先读取云端版本。',PROFILE_TOO_LARGE:'模板 Profile 超过后端允许的大小。',
-    OSS_CREDENTIALS_MISSING:'后端暂未取得 OSS 临时凭证。',OSS_READ_FAILED:'OSS 读取失败。',OSS_WRITE_FAILED:'OSS 写入失败。'
+    OSS_CREDENTIALS_MISSING:'后端暂未取得 OSS 临时凭证。',OSS_READ_FAILED:'OSS 读取失败。',OSS_WRITE_FAILED:'OSS 写入失败。',OSS_SIGN_FAILED:'OSS 临时地址签发失败。',OSS_DELETE_FAILED:'OSS 删除失败。',
+    ASSET_STORE_NOT_CONFIGURED:'后端还没有启用云素材接口。',ASSET_TOO_LARGE:'素材 PSD 超过后端允许大小。',ASSET_UPLOAD_MISSING:'OSS 里还没有收到这个 PSD。',ASSET_UPLOAD_MISMATCH:'OSS 文件大小与上传申请不一致。',ASSET_NOT_FOUND:'云端找不到这个素材。',INVALID_UPLOAD_RECEIPT:'上传凭证无效，请重新保存。',UPLOAD_RECEIPT_EXPIRED:'上传凭证已过期，请重新保存。'
   };
   return messages[code]||`云端请求失败（${status||'网络错误'}${code?' / '+code:''}）。`;
 }
@@ -1721,12 +1724,80 @@ async function cloudProfileRequest(method,signature,{data,etag}={}){
   const nextEtag=response.headers.get('ETag');if(nextEtag)cloudProfileEtags.set(signature,nextEtag);
   return {body,etag:nextEtag};
 }
+async function cloudAssetRequest(path,{method='GET',body}={}){
+  const {endpoint,token}=cloudProfileConfig();
+  if(!endpoint||!token)throw new Error('请先在云端测试区保存后端地址和测试口令。');
+  let response;
+  try{response=await fetch(endpoint+path,{method,headers:{Authorization:`Bearer ${token}`,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined})}catch{throw new Error('无法连接云素材后端；本地素材和出图不受影响。')}
+  let data={};try{data=await response.json()}catch{}
+  if(!response.ok)throw new Error(cloudProfileErrorMessage(data.error,response.status));
+  return data;
+}
+function updateCloudAssetControls(){
+  const panel=$('#cloudAssetPanel');if(!panel)return;panel.hidden=!CLOUD_PROFILE_ENABLED;
+  const configured=!!cloudProfileConfig().endpoint&&!!cloudProfileConfig().token;
+  if($('#cloudAssetRefresh'))$('#cloudAssetRefresh').disabled=!configured||S.cloudAssetBusy;
+}
+function cloudMetadataToPlaceholder(meta){
+  const slot=meta.defaultSlot==='B'?'B':'A',type=rendererTypeForCategory(meta.categoryId,'PROP');
+  return ensureAssetRecordV2({schemaVersion:'shine-asset-v2',assetId:meta.assetId,file:{name:meta.fileName,size:meta.byteSize,type:meta.contentType},psd:null,composite:null,originalComposite:null,order:null,slot,type,variant:meta.variant||meta.name,name:meta.name||meta.variant,enabled:false,renderMode:'overlay',categoryId:meta.categoryId,characterCompatibility:meta.characterCompatibility||slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:meta.compatibleTemplateIds||[],defaultTransform:meta.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:meta.sourceObjectKey,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,createdAt:meta.createdAt,updatedAt:meta.updatedAt,bindings:{},cloudOnly:true});
+}
+async function refreshCloudAssetCatalog(){
+  if(S.cloudAssetBusy)return;S.cloudAssetBusy=true;updateCloudAssetControls();stat($('#cloudAssetStatus'),'正在读取云端素材目录…','');
+  try{
+    const result=await cloudAssetRequest('/api/assets'),seen=new Set();
+    (result.assets||[]).forEach(meta=>{seen.add(meta.assetId);const local=S.assets.filter(a=>a.assetId===meta.assetId);if(local.length)local.forEach(a=>{a.sourceObjectKey=meta.sourceObjectKey;a.updatedAt=meta.updatedAt||a.updatedAt;a.version=meta.version||a.version});else S.assets.push(cloudMetadataToPlaceholder(meta));});
+    stat($('#cloudAssetStatus'),`已读取 ${seen.size} 个云端素材。缩略目录先显示，勾选使用时再下载 PSD。`,'good');renderAssetRows();renderAssetLibrary();renderHairInsertionControls();
+  }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
+  finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
+}
+async function uploadAssetFamilyToCloud(familyKey){
+  if(S.cloudAssetBusy)return;const records=S.assets.filter(a=>assetFamilyKey(a)===familyKey),first=records.find(a=>a.file&&typeof a.file.arrayBuffer==='function');
+  if(!first){stat($('#cloudAssetStatus'),'这个素材当前只有云端目录信息，请先载入 PSD。','bad');return;}
+  if(records.some(a=>a.sourceObjectKey)){stat($('#cloudAssetStatus'),'这个素材已经在云端。','good');return;}
+  S.cloudAssetBusy=true;updateCloudAssetControls();stat($('#cloudAssetStatus'),`正在保存 ${first.variant||first.file.name} 到云端…`,'');
+  try{
+    const mime=first.file.type||'application/octet-stream',ticket=await cloudAssetRequest('/api/assets/upload-ticket',{method:'POST',body:{fileName:first.file.name,size:first.file.size,contentType:mime}});
+    const uploaded=await fetch(ticket.uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:first.file});if(!uploaded.ok)throw new Error(`OSS 上传失败（${uploaded.status}）。请检查 Bucket CORS 是否允许 PUT。`);
+    const slots=new Set(records.map(a=>a.slot)),compatibility=slots.has('A')&&slots.has('B')?'BOTH':(first.characterCompatibility||first.slot);
+    const completed=await cloudAssetRequest(`/api/assets/${encodeURIComponent(ticket.assetId)}/complete`,{method:'POST',body:{receipt:ticket.receipt,asset:{categoryId:first.categoryId,characterCompatibility:compatibility,defaultSlot:first.slot,variant:first.variant||first.name,name:first.name||first.variant}}});
+    records.forEach(a=>{a.assetId=completed.asset.assetId;a.sourceObjectKey=completed.asset.sourceObjectKey;a.contentHash=completed.asset.contentHash;a.version=completed.asset.version;a.createdAt=completed.asset.createdAt;a.updatedAt=completed.asset.updatedAt;a.cloudOnly=false});
+    stat($('#cloudAssetStatus'),`已保存到云端：${completed.asset.name}`,'good');renderAssetLibrary();renderHairInsertionControls();debug();
+  }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
+  finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
+}
+async function hydrateCloudAsset(record){
+  if(!record?.assetId||!record.cloudOnly)return record;if(record._loading)return record._loading;
+  record._loading=(async()=>{
+    stat($('#cloudAssetStatus'),`正在下载 ${record.name||record.variant}…`,'');
+    const source=await cloudAssetRequest(`/api/assets/${encodeURIComponent(record.assetId)}/source`),response=await fetch(source.downloadUrl);if(!response.ok)throw new Error(`云端 PSD 下载失败（${response.status}）。`);
+    const blob=await response.blob(),file=new File([blob],source.asset.fileName,{type:source.asset.contentType||'application/octet-stream'}),psd=await parsePsd(file),order=detectLayerDrawOrder(psd),pair=inferPairGroups(psd),categoryId=source.asset.categoryId,type=rendererTypeForCategory(categoryId,'PROP'),variant=source.asset.variant||source.asset.name,base={assetId:source.asset.assetId,categoryId,characterCompatibility:source.asset.characterCompatibility,createdAt:source.asset.createdAt};
+    const made=[];
+    if(source.asset.characterCompatibility==='BOTH'&&pair.a&&pair.b){made.push(makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,base),makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,base));}
+    else{const slot=source.asset.defaultSlot==='B'?'B':'A';made.push(makeAssetRecord(file,psd,order,slot,type,variant,null,{...base,characterCompatibility:source.asset.characterCompatibility||slot}));}
+    made.forEach(a=>{a.sourceObjectKey=source.asset.sourceObjectKey;a.thumbnailObjectKey=source.asset.thumbnailObjectKey||null;a.contentHash=source.asset.contentHash||null;a.version=source.asset.version||1;a.cloudOnly=false});
+    S.assets=S.assets.filter(a=>a.assetId!==record.assetId);made.forEach(upsertAssetRecord);renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#cloudAssetStatus'),`已载入：${source.asset.name}`,'good');return made;
+  })();
+  try{return await record._loading}catch(e){record._loading=null;stat($('#cloudAssetStatus'),e.message||String(e),'bad');throw e}
+}
+async function deleteCloudAsset(assetId){
+  const records=S.assets.filter(a=>a.assetId===assetId),label=records[0]?.name||records[0]?.variant||'这个素材';if(!confirm(`确定从云端彻底删除“${label}”吗？源 PSD 和目录记录都会删除。`))return;
+  S.cloudAssetBusy=true;updateCloudAssetControls();
+  try{
+    await cloudAssetRequest(`/api/assets/${encodeURIComponent(assetId)}`,{method:'DELETE'});const stackIds=new Set(records.map(assetStackId)),categoryId=records[0]?.categoryId,families=new Set(records.map(assetFamilyKey));
+    S.assets=S.assets.filter(a=>a.assetId!==assetId);S.rootStackOrder=S.rootStackOrder.filter(id=>!stackIds.has(id));saveRootStackOrder();
+    S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(families.has(selections[slot][categoryId]))selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(a=>a.slot===slot&&sameVariant(a.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();updateDecorSelects();
+    renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#cloudAssetStatus'),`已从云端删除：${label}`,'good');
+  }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
+  finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
+}
 function updateCloudProfileControls(){
   if(!CLOUD_PROFILE_ENABLED)return;
   const configured=!!cloudProfileConfig().endpoint&&!!cloudProfileConfig().token;
   const ready=configured&&!!S.master&&!!S.templateSignature;
   if($('#cloudProfileRead'))$('#cloudProfileRead').disabled=!ready;
   if($('#cloudProfileWrite'))$('#cloudProfileWrite').disabled=!ready;
+  updateCloudAssetControls();
 }
 function applyCloudTemplateProfile(profile){
   const data=profile?.data;
@@ -1744,10 +1815,11 @@ function applyCloudTemplateProfile(profile){
 }
 function initCloudProfiles(){
   const panel=$('#cloudProfilePanel');if(!panel)return;
-  panel.hidden=!CLOUD_PROFILE_ENABLED;
+  panel.hidden=!CLOUD_PROFILE_ENABLED;if($('#cloudAssetPanel'))$('#cloudAssetPanel').hidden=!CLOUD_PROFILE_ENABLED;
   if(!CLOUD_PROFILE_ENABLED)return;
   try{$('#cloudProfileEndpoint').value=localStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||''}catch{}
   try{$('#cloudProfileToken').value=sessionStorage.getItem(CLOUD_PROFILE_TOKEN_KEY)||''}catch{}
+  if($('#cloudAssetRefresh'))$('#cloudAssetRefresh').onclick=refreshCloudAssetCatalog;
   $('#cloudProfileConfigure').onclick=async()=>{
     const config=cloudProfileConfig();
     try{
@@ -2583,9 +2655,10 @@ function syncAssetEnabledFromOrder(order){
   if(!order)return;
   S.assets.forEach(a=>{ensureAssetRecordV2(a);const decided=hasAssetSelectionDecision(order,a.slot,a.categoryId),chosen=selectedAssetFamily(order,a.slot,a.categoryId);if(decided||a.categoryId==='EAR')a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
-function setAssetFamilySelection(familyKey,slot,on){
+async function setAssetFamilySelection(familyKey,slot,on){
   let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
-  const record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot);if(!record)return;
+  let record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.slot===slot||a.characterCompatibility==='BOTH'));if(!record)return;
+  if(on&&record.cloudOnly){try{await hydrateCloudAsset(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey);if(!record)return;}
   const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId;
   if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
   if(categoryId==='EAR'){
@@ -2616,7 +2689,7 @@ function renderAssetHealth(){
   if(!S.assets.length){host.innerHTML='<div class="meta" style="padding:9px">还没有外部素材。</div>';return;}
   host.innerHTML='<div class="assetHealthRow head"><div>素材 / 图层 path</div><div>剪辑</div><div>当前 Role</div></div>';
   S.assets.forEach((a,idx)=>{
-    initAssetBindings(a,false);
+    if(!a.psd){const waiting=document.createElement('div');waiting.className='assetHealthRow';waiting.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))}</div><div>云端待载入</div>`;host.appendChild(waiting);return;}initAssetBindings(a,false);
     const title=document.createElement('div');title.className='assetHealthRow';title.style.background='#fbf9fb';ensureAssetRecordV2(a);
     title.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))} / ${safe(a.slot)}</div><div>${a.groupPath?'Group '+safe(a.groupPath):'整PSD'}</div>`;host.appendChild(title);
     assetRelevantLeaves(a).forEach(n=>{
@@ -2648,12 +2721,12 @@ function renderAssetLibrary(){
     groups.forEach(group=>{
       const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
-      const hasSlot=slot=>group.records.some(x=>x.a.slot===slot),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
-      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),card=document.createElement('div');card.className='assetFamilyCard';
+      const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
+      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),card=document.createElement('div');card.className='assetFamilyCard';
       card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · 当前浏览器内存</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}">${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''}> 跟随订单配色（默认关闭）</label></div>
+        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · ${cloudOnly?'云端目录（按需载入）':cloudSaved?'云端已保存':'当前浏览器内存'}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${cloudOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${cloudOnly?'disabled':''}> 跟随订单配色（默认关闭）</label></div>
         <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
-        <div class="assetCardActions"><button class="btn" data-ak="layers" data-ai="${firstIndex}">图层</button><button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">删除</button></div>`;
+        <div class="assetCardActions">${cloudOnly?`<button class="btn" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:`<button class="btn" data-ak="layers" data-ai="${firstIndex}">图层</button>`}${CLOUD_PROFILE_ENABLED&&!cloudSaved?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">移出页面</button></div>`;
       details.appendChild(card);
     });
   });
@@ -2669,6 +2742,9 @@ function renderAssetLibrary(){
   });
   host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
   host.querySelectorAll('[data-ak="layers"]').forEach(el=>el.onclick=()=>{S.editingAssetIndex=+el.dataset.ai;renderAssetBindingEditor();});
+  host.querySelectorAll('[data-ak="load-cloud"]').forEach(el=>el.onclick=()=>hydrateCloudAsset(S.assets[+el.dataset.ai]));
+  host.querySelectorAll('[data-ak="upload-cloud"]').forEach(el=>el.onclick=()=>uploadAssetFamilyToCloud(el.dataset.family));
+  host.querySelectorAll('[data-ak="delete-cloud"]').forEach(el=>el.onclick=()=>deleteCloudAsset(el.dataset.assetId));
   host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key),categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();renderEditableLayerSelectors();
 }

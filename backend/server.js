@@ -1,11 +1,13 @@
 const http = require('http');
 const { createApp } = require('./src/app');
 const { createOssProfileStore } = require('./src/oss-profile-store');
+const { createOssAssetStore } = require('./src/oss-asset-store');
 
 const PORT = Number(process.env.PORT || 9000);
 
 const app = createApp({
-  storeFactory: req => createOssProfileStore({ req })
+  storeFactory: req => createOssProfileStore({ req }),
+  assetStoreFactory: req => createOssAssetStore({ req })
 });
 
 const server = http.createServer(app);

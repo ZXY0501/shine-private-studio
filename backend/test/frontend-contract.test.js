@@ -11,9 +11,20 @@ test('keeps the v0.28 PSD parser entry unchanged', () => {
 
 test('cloud profiles are opt-in and do not replace local save', () => {
   assert.match(html, /get\('cloudProfiles'\)===\s*'1'/);
-  assert.match(html, /panel\.hidden=!CLOUD_PROFILE_ENABLED;\s+if\(!CLOUD_PROFILE_ENABLED\)return;/);
+  assert.match(html, /panel\.hidden=!CLOUD_PROFILE_ENABLED/);
+  assert.match(html, /cloudAssetPanel'\)\)\$\('#cloudAssetPanel'\)\.hidden=!CLOUD_PROFILE_ENABLED/);
+  assert.match(html, /if\(!CLOUD_PROFILE_ENABLED\)return;/);
   assert.match(html, /\$\('#saveBindings'\)\.onclick=saveBindingsLocal;/);
   assert.match(html, /读取到云端版本后仍需人工确认才会应用/);
+});
+
+test('cloud assets use authenticated short-lived upload tickets and lazy source downloads', () => {
+  assert.match(html, /cloudAssetRequest\('\/api\/assets\/upload-ticket',\{method:'POST'/);
+  assert.match(html, /fetch\(ticket\.uploadUrl,\{method:'PUT'/);
+  assert.match(html, /cloudAssetRequest\(`\/api\/assets\/\$\{encodeURIComponent\(ticket\.assetId\)\}\/complete`/);
+  assert.match(html, /cloudAssetRequest\(`\/api\/assets\/\$\{encodeURIComponent\(record\.assetId\)\}\/source`\)/);
+  assert.match(html, /colorMode:'PRESERVE_ORIGINAL'/);
+  assert.match(html, /cloudOnly:true/);
 });
 
 test('does not embed Alibaba Cloud access keys', () => {

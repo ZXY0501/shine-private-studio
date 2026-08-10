@@ -1,6 +1,6 @@
 # Shine Backend
 
-`backend/` 先归档了已部署的阿里云函数计算 v0.1 连通性基线；当前分支在它上面增量实现 v0.2 Template Profile 测试版。v0.2 尚未部署到阿里云。
+`backend/` 先归档了已部署的阿里云函数计算 v0.1 连通性基线；当前分支在它上面增量实现 v0.2 Template Profile 与 Phase 2 素材库测试版。这里记录的 Phase 2 新接口尚未部署到阿里云。
 
 原始部署包：
 
@@ -42,6 +42,16 @@ Web 函数配置：
   - 默认 `template-profiles/v1`。
 - `PROFILE_MAX_BYTES`
   - Profile 请求体上限，默认 524288 bytes。
+- `SHINE_OSS_PUBLIC_ENDPOINT`
+  - 浏览器短时签名地址使用的公网 OSS Endpoint，默认 `https://oss-cn-hangzhou.aliyuncs.com`。FC 自己读写仍使用内网 Endpoint。
+- `SHINE_ASSET_PREFIX`
+  - 素材源 PSD 前缀，默认 `assets/v2`。
+- `SHINE_ASSET_METADATA_PREFIX`
+  - 素材目录 JSON 前缀，默认 `asset-metadata/v2`。
+- `ASSET_MAX_BYTES`
+  - 单个素材 PSD 上限，默认 200 MiB。
+- `ASSET_TICKET_SECONDS`
+  - 上传/下载签名有效期，默认 900 秒，最大 3600 秒。
 
 OSS 凭证不写入配置文件。代码优先读取 FC 角色注入的 `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIBABA_CLOUD_SECURITY_TOKEN`，并兼容自定义运行时请求头中的临时凭证。
 
@@ -69,9 +79,26 @@ npm.cmd start
 
 前端云端面板默认关闭。只在测试地址后加 `?cloudProfiles=1` 才会显示，并且读取到 Profile 后仍需人工确认才应用。
 
+## Asset Library API（Phase 2 测试版）
+
+```text
+GET    /api/assets
+POST   /api/assets/upload-ticket
+POST   /api/assets/:assetId/complete
+GET    /api/assets/:assetId/source
+DELETE /api/assets/:assetId
+```
+
+- 与 Profile API 共用临时 Bearer 口令，但不向前端返回 AccessKey。
+- 上传流程是“申请单对象短时 PUT 地址 → 浏览器直传私有 OSS → 后端核对对象大小 → 写入 metadata”。
+- 服务端生成 UUID 和固定对象路径，客户端不能指定 OSS key。
+- 所有新素材强制登记为 `PRESERVE_ORIGINAL`；分类不会触发改色。
+- `DELETE` 同时移除源 PSD 和 metadata，前端必须先做人类确认。
+- Bucket 需要只为测试/正式 GitHub Pages Origin 放行 `PUT`、`GET`、`HEAD` 所需的 CORS；不要设为公共读写。
+
 注意：
 
 - 本基线不包含任何 DeepSeek API Key。
-- v0.2 只保存 Template Profile JSON，不保存 PSD、素材或订单。
+- v0.2 基线只保存 Template Profile JSON；Phase 2 分支新增素材 PSD 与 metadata 接口，仍不保存订单。
 - 不要把 `SHINE_PROFILE_TOKEN`、AccessKey 或临时 STS 凭证提交进 Git。
 - 本地测试不会访问真实 OSS；只有实际启动并调用 Profile API 时才会创建 OSS client。
