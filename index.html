@@ -489,10 +489,11 @@ header .badge{display:none!important}
 /* ===== v0.15 asset slot handoff + unmistakable health-check pan controls ===== */
 .taskPanel .tree .tr{min-width:1180px!important;grid-template-columns:minmax(360px,1fr) 78px 72px 145px 260px!important}
 .taskPanel .builderTable .br{min-width:1160px!important;grid-template-columns:minmax(380px,1.3fr) 78px 115px 210px 160px!important}
-.healthRangeWrap{display:grid;grid-template-columns:62px minmax(150px,1fr) 62px;gap:7px;align-items:center;padding:7px 5px;margin-top:4px;background:#f7f4f7;border:1px solid var(--line);border-radius:9px;position:sticky;bottom:0;z-index:12}
+.healthRangeWrap{display:grid;grid-template-columns:62px minmax(0,1fr) 62px;gap:7px;align-items:center;padding:7px 5px;margin-top:4px;background:#f7f4f7;border:1px solid var(--line);border-radius:9px;position:sticky;bottom:0;z-index:12;min-width:0;box-sizing:border-box}
+.healthRangeWrap.inactive{opacity:.58}
 .healthPanBtn{height:28px;border:1px solid #cfc7d0;border-radius:7px;background:#fff;color:#302b35;font-size:8px;font-weight:750;cursor:pointer;padding:0 4px}
 .healthPanBtn:hover{background:#eee8ef}.healthPanBtn:disabled{opacity:.35;cursor:default}
-.healthRange{-webkit-appearance:none;appearance:none;width:100%;height:28px;margin:0;background:transparent;cursor:ew-resize}
+.healthRange{-webkit-appearance:none;appearance:none;width:100%;min-width:0;box-sizing:border-box;height:28px;margin:0;background:transparent;cursor:ew-resize}
 .healthRange::-webkit-slider-runnable-track{height:8px;background:#d7d0d8;border:1px solid #c2bac4;border-radius:999px}
 .healthRange::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:24px;height:24px;border-radius:50%;background:#302b35;border:3px solid #fff;box-shadow:0 0 0 1px #302b35;margin-top:-9px}
 .healthRange::-moz-range-track{height:8px;background:#d7d0d8;border:1px solid #c2bac4;border-radius:999px}
@@ -501,6 +502,7 @@ header .badge{display:none!important}
 .assetRuntimeStatus{margin-top:6px;font-size:8px;line-height:1.55}
 .assetRuntimeStatus b{font-weight:750}
 .assetRow2 .assetAlpha{font-size:7px;color:var(--muted)}
+.assetColorToggle{display:inline-flex;align-items:center;gap:3px;margin-top:3px;font-size:7px;color:var(--muted);cursor:pointer}.assetColorToggle input{width:13px;height:13px;margin:0}
 .assetCategoryBlock{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:8px 0;background:#fff}
 .assetCategoryHead{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#f3eff4;border-bottom:1px solid var(--line);font-size:10px;font-weight:800}
 .assetCategoryHead span{font-size:8px;color:var(--muted);font-weight:500}
@@ -810,8 +812,8 @@ header .badge{display:none!important}
         <div class="tr th"><div>图层 / 锁</div><div>类型</div><div>可见</div><div>Blend</div><div>Bounds</div><div>Slot</div><div>部位</div><div>Role</div><div>色源</div></div>
         <div id="treeRows"></div>
       </div>
-      <div class="healthRangeWrap"><button id="treeHLeft" class="healthPanBtn" type="button">◀ 左移</button><input id="treeHScroll" class="healthRange" type="range" min="0" max="100" value="0" step="1" aria-label="图层体检横向拖动"><button id="treeHRight" class="healthPanBtn" type="button">右移 ▶</button></div>
-      <div class="healthScrollHint">这次结构体检固定加宽到 1320px：往右拖能看 Slot / 部位 / Role / 色源，不再只有一根会动的空横条。</div>
+      <div class="healthRangeWrap inactive"><button id="treeHLeft" class="healthPanBtn" type="button" disabled>◀ 左移</button><input id="treeHScroll" class="healthRange" type="range" min="0" max="100" value="0" step="1" aria-label="图层体检横向拖动" disabled><button id="treeHRight" class="healthPanBtn" type="button" disabled>右移 ▶</button></div>
+      <div id="treeHScrollHint" class="healthScrollHint">请先上传纯净模板；当前没有图层内容可以横向查看。</div>
       <div class="meta">现在可以展开/收起 Group，并临时开关图层/组观察重组结果。这里只改网页预览状态，不会修改你的 PSD。下一步会在同一棵树上追加 Slot / 部位 / 功能语义。</div>
     </section>
 
@@ -856,8 +858,8 @@ header .badge{display:none!important}
         <div class="br head"><div>图层 / 🔒</div><div>Slot</div><div>部位</div><div>语义 Role</div><div class="builderSourceCol">色源</div></div>
         <div id="builderRows"></div>
       </div>
-      <div class="healthRangeWrap"><button id="builderHLeft" class="healthPanBtn" type="button">◀ 左移</button><input id="builderHScroll" class="healthRange" type="range" min="0" max="100" value="0" step="1" aria-label="语义绑定横向拖动"><button id="builderHRight" class="healthPanBtn" type="button">右移 ▶</button></div>
-      <div class="healthScrollHint">语义绑定也用这根拉条横向查看；日常只看图层名和锁即可，右侧 Slot / Role 留给高级调试。</div>
+      <div class="healthRangeWrap inactive"><button id="builderHLeft" class="healthPanBtn" type="button" disabled>◀ 左移</button><input id="builderHScroll" class="healthRange" type="range" min="0" max="100" value="0" step="1" aria-label="语义绑定横向拖动" disabled><button id="builderHRight" class="healthPanBtn" type="button" disabled>右移 ▶</button></div>
+      <div id="builderHScrollHint" class="healthScrollHint">请先上传纯净模板；当前没有语义绑定内容可以横向查看。</div>
       <div class="meta">
         beta1 只保存“机器应该如何理解这个模板”，暂不直接改色。绑定会按模板签名存到浏览器 localStorage；重新上传同一模板会自动恢复。
       </div>
@@ -999,16 +1001,24 @@ function ownVisible(layer,path,useOverride=true){
 function effectiveVisible(layer,path,parentVisible=true,useOverride=true){
   return parentVisible && ownVisible(layer,path,useOverride);
 }
-function syncHorizontalRange(scroller,range,leftBtn,rightBtn){
+function syncHorizontalRange(scroller,range,leftBtn,rightBtn,hint,readyHint,emptyHint){
   if(!scroller||!range)return;
   // v0.16: 拉条永远使用 0~100 的归一化位置。高级面板折叠时 clientWidth=0，
   // 旧版因此把 range 永久 disabled；现在即使初次在隐藏状态绑定，展开后也能立刻拖。
-  range.disabled=false;range.min='0';range.max='100';range.step='1';
+  range.min='0';range.max='100';range.step='1';
   const maxNow=()=>Math.max(0,(scroller.scrollWidth||0)-(scroller.clientWidth||0));
-  const syncFromScroll=()=>{const m=maxNow();range.value=m>0?String(Math.round(((scroller.scrollLeft||0)/m)*100)):'0';};
-  const movePct=p=>{const m=maxNow();const pct=Math.max(0,Math.min(100,Number(p)||0));scroller.scrollLeft=m*(pct/100);range.value=String(Math.round(pct));};
+  const updateEnabledState=()=>{
+    const m=maxNow(),ready=!!S.master&&m>1,pos=scroller.scrollLeft||0;
+    range.disabled=!ready;
+    if(leftBtn)leftBtn.disabled=!ready||pos<=1;
+    if(rightBtn)rightBtn.disabled=!ready||pos>=m-1;
+    range.closest('.healthRangeWrap')?.classList.toggle('inactive',!ready);
+    if(hint)hint.textContent=!S.master?emptyHint:(ready?readyHint:'当前宽度已经完整显示，不需要左右移动。');
+    return {m,ready};
+  };
+  const syncFromScroll=()=>{const {m,ready}=updateEnabledState();range.value=ready?String(Math.round(((scroller.scrollLeft||0)/m)*100)):'0';};
+  const movePct=p=>{const {m,ready}=updateEnabledState();if(!ready)return;const pct=Math.max(0,Math.min(100,Number(p)||0));scroller.scrollLeft=m*(pct/100);range.value=String(Math.round(pct));updateEnabledState();};
   syncFromScroll();
-  if(leftBtn)leftBtn.disabled=false;if(rightBtn)rightBtn.disabled=false;
   if(!range._shineBound){
     range._shineBound=true;
     range.addEventListener('input',()=>movePct(range.value));
@@ -1019,8 +1029,8 @@ function syncHorizontalRange(scroller,range,leftBtn,rightBtn){
   }
 }
 function refreshHealthScrollBars(){
-  syncHorizontalRange(document.querySelector('#treeRows')?.parentElement,$('#treeHScroll'),$('#treeHLeft'),$('#treeHRight'));
-  syncHorizontalRange(document.querySelector('#builderRows')?.parentElement,$('#builderHScroll'),$('#builderHLeft'),$('#builderHRight'));
+  syncHorizontalRange(document.querySelector('#treeRows')?.parentElement,$('#treeHScroll'),$('#treeHLeft'),$('#treeHRight'),$('#treeHScrollHint'),'拖动后，上方图层表会横向移动，可查看 Slot / 部位 / Role / 色源。','请先上传纯净模板；当前没有图层内容可以横向查看。');
+  syncHorizontalRange(document.querySelector('#builderRows')?.parentElement,$('#builderHScroll'),$('#builderHLeft'),$('#builderHRight'),$('#builderHScrollHint'),'拖动后，上方语义绑定表会横向移动，可查看 Slot / 部位 / Role / 色源。','请先上传纯净模板；当前没有语义绑定内容可以横向查看。');
 }
 function renderTree(){
   const host=$('#treeRows');host.innerHTML='';
@@ -2336,15 +2346,17 @@ function initAssetBindings(asset,force=false){
 function assetOverrideMap(asset,order){
   initAssetBindings(asset,false);const map={};
   const assetIndex=(S.assets||[]).indexOf(asset);
-  for(const [path,role] of Object.entries(asset.bindings||{})){
-    if(!role||role==='NONE'||role==='DECOR_FUR'||role==='HAIR_HIGHLIGHT_FIXED'||role==='HAIR_SKIN_AIR_FIXED')continue;
-    let c=null;
-    if(asset.type==='HAT_DECOR'||asset.type==='HAIR')c=deriveRoleColor(role,asset.slot,order);
-    if(c)map[path]=c;
-    const manualKey=assetLayerKey(asset,path);
-    if(S.manualLayerOverrides?.[manualKey])map[path]=S.manualLayerOverrides[manualKey];
+  // 分类只决定素材用途和层级，绝不代表授权改色。新上传素材默认保持 PSD 原色；
+  // 只有用户明确打开「跟随订单配色」后，才应用自动派生色。
+  if(asset.colorMode==='FOLLOW_ORDER'){
+    for(const [path,role] of Object.entries(asset.bindings||{})){
+      if(!role||role==='NONE'||role==='DECOR_FUR'||role==='HAIR_HIGHLIGHT_FIXED'||role==='HAIR_SKIN_AIR_FIXED')continue;
+      let c=null;
+      if(asset.type==='HAT_DECOR'||asset.type==='HAIR')c=deriveRoleColor(role,asset.slot,order);
+      if(c)map[path]=c;
+    }
   }
-  // 即使这个素材层原本 role=NONE / 固定，也允许“单层微调”人工覆盖，例如狐狸尾尖。
+  // 明确的单层微调始终优先；这是用户主动改色，不属于自动跟色。
   if(assetIndex>=0){
     assetRelevantLeaves(asset).forEach(n=>{
       const manualKey=assetLayerKey(asset,n.path);
@@ -2459,7 +2471,7 @@ function renderAssetLibrary(){
       const roles=new Set(Object.values(a.bindings||{}));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
       const row=document.createElement('div'); row.className='assetRow2';
-      row.innerHTML=`<div title="${safe(assetSourceName(a))}">${safe(assetSourceName(a))}<br><span class="meta">${safe(a.variant||'未命名')} · ${safe(a.slot)} · ${audit||'未识别特殊色层'} · α ${Math.round(sampledAlphaMass(a.composite||a.originalComposite))}</span></div>
+      row.innerHTML=`<div title="${safe(assetSourceName(a))}">${safe(assetSourceName(a))}<br><span class="meta">${safe(a.variant||'未命名')} · ${safe(a.slot)} · ${audit||'未识别特殊色层'} · α ${Math.round(sampledAlphaMass(a.composite||a.originalComposite))}</span><label class="assetColorToggle"><input data-ak="colorMode" data-ai="${idx}" type="checkbox" ${a.colorMode==='FOLLOW_ORDER'?'checked':''}> 跟随订单配色（默认关闭）</label></div>
         <select data-ak="type" data-ai="${idx}">${['HAIR','HAT_DECOR','TAIL','PROP','STICKER'].map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${categoryLabel(t)}</option>`).join('')}</select>
         <input data-ak="variant" data-ai="${idx}" type="text" value="${safe(a.variant||'')}"/>
         <button class="btn" data-ak="layers" data-ai="${idx}">图层</button>
@@ -2469,6 +2481,7 @@ function renderAssetLibrary(){
     host.appendChild(block);
   });
   host.querySelectorAll('[data-ak="type"]').forEach(el=>el.onchange=()=>{const a=S.assets[+el.dataset.ai];a.type=el.value;initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());renderAssetRows();updateDecorSelects();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();});
+  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{const a=S.assets[+el.dataset.ai];a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
   host.querySelectorAll('[data-ak="variant"]').forEach(el=>el.onchange=()=>{S.assets[+el.dataset.ai].variant=el.value.trim()||'未命名';renderAssetRows();updateDecorSelects();renderAssetLibrary();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   host.querySelectorAll('[data-ak="layers"]').forEach(el=>el.onclick=()=>{S.editingAssetIndex=+el.dataset.ai;renderAssetBindingEditor();});
   host.querySelectorAll('[data-ak="delete"]').forEach(el=>el.onclick=()=>{S.assets.splice(+el.dataset.ai,1);S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
@@ -2888,8 +2901,8 @@ async function loadHairAsset(file,slot){
   try{
     const psd=await parsePsd(file),order=detectLayerDrawOrder(psd);
     S.assets=S.assets.filter(a=>!(a.type==='HAIR'&&a.slot===slot));
-    const asset={file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',bindings:{}};
-    initAssetBindings(asset,true);asset.composite=renderAssetComposite(asset,getActiveOrder()||newOrderData());S.assets.push(asset);
+    const asset={file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:{}};
+    initAssetBindings(asset,true);asset.originalComposite=renderAssetComposite(asset,getActiveOrder()||newOrderData());asset.composite=asset.originalComposite;S.assets.push(asset);
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();
     stat($('#apiStatus'),`${slot} 位头发已载入；已进入“大夹子顺序”，可以直接拖动层级。`,'good');
   }catch(e){stat($('#apiStatus'),'头发 PSD 解析失败：'+(e.message||e),'bad')}
@@ -3150,7 +3163,7 @@ function debug(){
     templateSignature:S.templateSignature,
     bindingSummary:{mapped:Object.values(S.bindings).filter(b=>b.role&&b.role!=='UNKNOWN').length,editable:Object.values(S.bindings).filter(b=>!b.locked).length},
     styleSchemes:{hat:(S.styleSchemes.hat||[]).map(x=>x.name),outfit:(S.styleSchemes.outfit||[]).map(x=>x.name)},assetRenderWarnings:S.assetRenderWarnings.slice(-8),
-    assets:S.assets.map(a=>({file:a.file.name,slot:a.slot,type:a.type,variant:a.variant,enabled:a.enabled,size:[a.psd.width,a.psd.height],
+    assets:S.assets.map(a=>({file:a.file.name,slot:a.slot,type:a.type,variant:a.variant,enabled:a.enabled,colorMode:a.colorMode||'PRESERVE_ORIGINAL',size:[a.psd.width,a.psd.height],
       detectedLayerOrder:a.order}))
   };
   $('#debug').textContent=JSON.stringify(payload,null,2);
@@ -3214,7 +3227,7 @@ function inferAsset(file){
   return {slot,type,variant:familyName(file)};
 }
 function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null){
-  const a={file,psd,composite:null,originalComposite:null,order,slot,type,variant,enabled:false,groupPath,renderMode:'overlay',bindings:{}};
+  const a={file,psd,composite:null,originalComposite:null,order,slot,type,variant,enabled:false,groupPath,renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:{}};
   initAssetBindings(a,true);a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
   if(type==='HAT_DECOR'&&sampledAlphaMass(a.composite)<2000)a.composite=a.originalComposite;return a;
 }
@@ -3272,6 +3285,7 @@ function exportTree(){
 function exportManifest(){
   jdl({version:'0.28-alpha',canvas:{width:S.master?.width,height:S.master?.height},
     assets:S.assets.map(a=>({file:a.file.name,slot:a.slot,type:a.type,variant:a.variant,enabled:a.enabled,
+      colorMode:a.colorMode||'PRESERVE_ORIGINAL',
       width:a.psd.width,height:a.psd.height,sameCanvas:!!S.master&&a.psd.width===S.master.width&&a.psd.height===S.master.height,
       detectedLayerOrder:a.order}))},
     'variant_manifest.json');
@@ -3419,6 +3433,7 @@ loadProductionState();
 buildWorkspaceUI();
 initCloudProfiles();
 lockThreeColumnShell();
+requestAnimationFrame(refreshHealthScrollBars);
 window.addEventListener("resize",()=>{lockThreeColumnShell();refreshHealthScrollBars();});
 </script>
 </body>

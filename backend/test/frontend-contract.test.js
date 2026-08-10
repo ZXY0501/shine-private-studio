@@ -36,3 +36,19 @@ test('heavy PSD color previews are debounced and final changes are flushed', () 
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:false\}\)/);
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:true\}\)/);
 });
+
+test('advanced horizontal controls stay disabled until a template can scroll', () => {
+  assert.match(html, /id="treeHScroll"[^>]+disabled/);
+  assert.match(html, /id="builderHScroll"[^>]+disabled/);
+  assert.match(html, /const m=maxNow\(\),ready=!!S\.master&&m>1/);
+  assert.match(html, /scroller\.scrollLeft=m\*\(pct\/100\)/);
+  assert.match(html, /请先上传纯净模板；当前没有图层内容可以横向查看/);
+});
+
+test('newly uploaded assets preserve their PSD colors by default', () => {
+  assert.match(html, /renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:\{\}/);
+  assert.match(html, /if\(asset\.colorMode==='FOLLOW_ORDER'\)\{/);
+  assert.match(html, /data-ak="colorMode"[^>]+type="checkbox"/);
+  assert.match(html, /跟随订单配色（默认关闭）/);
+  assert.match(html, /asset\.originalComposite=renderAssetComposite[^;]+;asset\.composite=asset\.originalComposite/);
+});
