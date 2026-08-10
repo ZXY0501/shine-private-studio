@@ -46,9 +46,41 @@ test('advanced horizontal controls stay disabled until a template can scroll', (
 });
 
 test('newly uploaded assets preserve their PSD colors by default', () => {
-  assert.match(html, /renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:\{\}/);
+  assert.match(html, /schemaVersion:'shine-asset-v2'/);
+  assert.match(html, /renderMode:'overlay'[^;]+colorMode:'PRESERVE_ORIGINAL'/);
   assert.match(html, /if\(asset\.colorMode==='FOLLOW_ORDER'\)\{/);
   assert.match(html, /data-ak="colorMode"[^>]+type="checkbox"/);
   assert.match(html, /跟随订单配色（默认关闭）/);
   assert.match(html, /asset\.originalComposite=renderAssetComposite[^;]+;asset\.composite=asset\.originalComposite/);
+});
+
+test('phase two library exposes reusable categories and custom groups', () => {
+  assert.match(html, /const ASSET_CATEGORY_KEY='shine:asset-categories:v2'/);
+  assert.match(html, /id:'CLEAN_TEMPLATE',name:'纯净模板'/);
+  assert.match(html, /id:'EAR',name:'耳朵'/);
+  assert.match(html, /id:'MOUTH',name:'嘴巴表情'/);
+  assert.match(html, /id:'ACCESSORY',name:'配饰'/);
+  assert.match(html, /function persistAssetCategories\(\)/);
+  assert.match(html, /data-ak="category"/);
+});
+
+test('asset families can be selected independently for A and B', () => {
+  assert.match(html, /assetSelections:\{A:\{\},B:\{\}\}/);
+  assert.match(html, /data-ak="slot-check"/);
+  assert.match(html, /function setAssetFamilySelection\(familyKey,slot,on\)/);
+  assert.match(html, /characterCompatibility/);
+});
+
+test('hat presets keep ear anchoring and allow a manual color', () => {
+  assert.match(html, /hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B'/);
+  assert.match(html, /kind==='hat'\)html\+='[^']*__DECOR_ANCHOR__[^']*__CUSTOM__/);
+  assert.match(html, /hatCustom\?order\[slot\]\?\.hatManual/);
+});
+
+test('the main inline browser program parses as JavaScript', () => {
+  const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
+    .map(match => match[1])
+    .filter(source => source.trim());
+  assert.ok(scripts.length > 0);
+  assert.doesNotThrow(() => new Function(scripts.at(-1)));
 });

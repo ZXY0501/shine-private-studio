@@ -507,6 +507,11 @@ header .badge{display:none!important}
 .assetCategoryHead{display:flex;justify-content:space-between;align-items:center;padding:7px 9px;background:#f3eff4;border-bottom:1px solid var(--line);font-size:10px;font-weight:800}
 .assetCategoryHead span{font-size:8px;color:var(--muted);font-weight:500}
 .assetCategoryBlock .assetRow2:last-child{border-bottom:0}
+.phase2Badge{display:inline-flex;align-items:center;margin-left:7px;padding:3px 7px;border-radius:999px;background:#efe8f7;color:#5f4a76;font-size:8px;font-weight:800;vertical-align:middle}
+.assetCategoryCreator{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;margin:7px 0}.assetCategoryCreator input{height:29px}
+.assetCategoryDetails{border:1px solid var(--line);border-radius:11px;background:#fff;margin:8px 0;overflow:hidden}.assetCategoryDetails>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f3eff4;font-size:10px;font-weight:800}.assetCategoryDetails>summary::-webkit-details-marker{display:none}.assetCategoryDetails>summary:before{content:'▶';font-size:7px;margin-right:6px;color:var(--muted)}.assetCategoryDetails[open]>summary:before{content:'▼'}.assetCategoryDetails>summary span{margin-left:auto;font-size:8px;color:var(--muted);font-weight:500}
+.assetFamilyCard{display:grid;grid-template-columns:66px minmax(118px,1fr) 112px 68px;gap:7px;align-items:center;padding:8px;border-top:1px dashed #e7e1e7}.assetFamilyCard:first-of-type{border-top:0}.assetThumb{width:64px;height:64px;border:1px solid var(--line);border-radius:9px;background:linear-gradient(135deg,#faf8fa,#eee9ef);display:block}.assetFamilyInfo{min-width:0}.assetFamilyInfo b{display:block;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.assetFamilyMeta{font-size:7px;color:var(--muted);line-height:1.5;margin-top:3px}.assetSlotChecks{display:grid;grid-template-columns:1fr 1fr;gap:4px}.assetSlotCheck{display:flex;align-items:center;justify-content:center;gap:3px;height:27px;border:1px solid var(--line);border-radius:7px;background:#faf8fa;font-size:8px;cursor:pointer}.assetSlotCheck input{width:13px;height:13px;margin:0}.assetSlotCheck.unavailable{opacity:.35;cursor:not-allowed}.assetCardActions{display:flex;gap:4px;flex-wrap:wrap}.assetCardActions .btn{padding:4px 6px;font-size:7px}.assetCategorySelect{width:100%;height:26px!important;font-size:7px!important;margin-top:4px}.cleanTemplateCard{grid-template-columns:66px minmax(0,1fr) auto}.assetEmptyCategory{padding:9px;font-size:8px;color:var(--muted)}
+@media(max-width:720px){.assetFamilyCard{grid-template-columns:58px minmax(0,1fr)}.assetThumb{width:56px;height:56px}.assetSlotChecks,.assetCardActions{grid-column:2}}
 .assetManagerDetails>summary{display:none!important}.assetManagerDetails{display:block!important}.assetManagerDetails[open]>div{margin-top:0!important}
 .schemeApplyState{font-size:7px;color:var(--muted);padding:5px 6px;background:#f7f4f7;border-radius:7px;margin-top:5px}
 .healthRange{pointer-events:auto!important;touch-action:none!important;position:relative;z-index:20}
@@ -530,7 +535,7 @@ header .badge{display:none!important}
 <div class="app">
 <header>
   <div>
-    <h1>Shine 私人制图台 <span style="font-size:11px;color:#8c8590">v0.28-alpha</span></h1>
+    <h1>Shine 私人制图台 <span style="font-size:11px;color:#8c8590">v0.28-alpha</span><span class="phase2Badge">Phase 2 Preview</span></h1>
     <p class="sub">左预览固定 · 中间索引固定 · 右工作台滚动。</p>
   </div>
   <div class="badge">私人后台 · PSD 本地解析</div>
@@ -634,6 +639,7 @@ header .badge{display:none!important}
             <label>衣服颜色</label><select id="aOutfitPreset"></select>
             <label id="aOutfitManualLabel" style="display:none">衣服自选色</label><div id="aOutfitManualWrap" class="colorLine" style="display:none"><input id="aOutfitManualHex" type="text" value="#D7BCC4"/><input id="aOutfitManualColor" type="color" value="#d7bcc4"/></div>
             <label>帽子预设</label><select id="aHatPreset"></select>
+            <label id="aHatManualLabel" style="display:none">帽子手动色</label><div id="aHatManualWrap" class="colorLine" style="display:none"><input id="aHatManualHex" type="text" value="#C85B5B"/><input id="aHatManualColor" type="color" value="#c85b5b"/></div>
             <label>帽饰</label><select id="aDecor"><option value="NONE">无</option></select>
             <label>帽饰底色覆写</label><div class="colorLine"><input id="aDecorBaseHex" type="text" value=""/><input id="aDecorBase" type="color" value="#000000"/></div>
             <label>帽饰重色覆写</label><div class="colorLine"><input id="aDecorShadeHex" type="text" value=""/><input id="aDecorShade" type="color" value="#B34040"/></div>
@@ -651,6 +657,7 @@ header .badge{display:none!important}
             <label>衣服颜色</label><select id="bOutfitPreset"></select>
             <label id="bOutfitManualLabel" style="display:none">衣服自选色</label><div id="bOutfitManualWrap" class="colorLine" style="display:none"><input id="bOutfitManualHex" type="text" value="#C9D4E7"/><input id="bOutfitManualColor" type="color" value="#c9d4e7"/></div>
             <label>帽子预设</label><select id="bHatPreset"></select>
+            <label id="bHatManualLabel" style="display:none">帽子手动色</label><div id="bHatManualWrap" class="colorLine" style="display:none"><input id="bHatManualHex" type="text" value="#C85B5B"/><input id="bHatManualColor" type="color" value="#c85b5b"/></div>
             <label>帽饰</label><select id="bDecor"><option value="NONE">无</option></select>
             <label>帽饰底色覆写</label><div class="colorLine"><input id="bDecorBaseHex" type="text" value=""/><input id="bDecorBase" type="color" value="#FFFFFF"/></div>
             <label>帽饰重色覆写</label><div class="colorLine"><input id="bDecorShadeHex" type="text" value=""/><input id="bDecorShade" type="color" value="#F2C7D8"/></div>
@@ -729,21 +736,23 @@ header .badge{display:none!important}
             <div style="margin-top:8px">
               <div id="libraryDrop" class="libraryDrop">
                 <b>把素材 PSD 直接拖到这里</b>
-                <div class="meta">耳朵 / 尾巴 / 小物 / 旧头发都可以。拖进来前先在下面选分类。</div>
+                <div class="meta">头发、耳朵、嘴巴表情、尾巴、配饰和小物都可以。分类只负责整理，不会自动改色。</div>
                 <div class="libraryClassRow">
                   <select id="libraryType">
                     <option value="AUTO">自动识别分类</option>
                     <option value="HAIR">头发</option>
-                    <option value="HAT_DECOR">帽饰 / 耳朵 / 角</option>
+                    <option value="EAR">耳朵</option>
+                    <option value="MOUTH">嘴巴表情</option>
                     <option value="TAIL">尾巴</option>
+                    <option value="ACCESSORY">配饰</option>
                     <option value="PROP">小物 / 手持物</option>
-                    <option value="STICKER">自由贴纸</option>
                   </select>
                   <select id="librarySlot"><option value="AUTO">自动识别 A/B</option><option value="A">A 左位</option><option value="B">B 右位</option></select>
                   <label class="btn">选择 PSD<input id="libraryFiles" type="file" multiple accept=".psd,image/vnd.adobe.photoshop"></label>
                 </div>
               </div>
-              <div class="legendMini">上传前先选分类，也可以直接保持“自动识别分类”。上传后每个素材条目都能再手动改分类：头发 / 帽饰 / 尾巴 / 小物。当前参与预览的素材会出现在“单层颜色微调”的 PSD 下拉框里。重复下载形成的“狐狸(1).psd / 狐狸（2）.psd”会自动归一为“狐狸”，不会再因为文件名后缀导致订单找不到素材。</div>
+              <div class="assetCategoryCreator"><input id="newAssetCategoryName" type="text" maxlength="30" placeholder="新建自己的素材大类"><button id="createAssetCategory" class="btn" type="button">＋ 新建大类</button></div>
+              <div class="legendMini">所有新素材默认保留 PSD 原色。上传顺序不再决定使用哪一边；在素材卡上分别勾选 A 或 B，选错时直接取消勾选。重复下载形成的“狐狸(1).psd / 狐狸（2）.psd”仍会自动归一为同一素材名称。</div>
               <div class="assetList2" id="assetLibraryList" style="margin-top:7px"></div>
               <div id="assetRuntimeStatus" class="status assetRuntimeStatus">帽饰运行状态：等待上传。</div>
               <div id="assetBindingEditor"></div>
@@ -954,13 +963,25 @@ const S={
   rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(),
   liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null,
-  styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null}
+  styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null},
+  assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null
 };
 const $=s=>document.querySelector(s);
 const CLOUD_PROFILE_ENABLED=new URLSearchParams(location.search).get('cloudProfiles')==='1';
 const CLOUD_PROFILE_ENDPOINT_KEY='shine:cloud-profile-endpoint:v1';
 const CLOUD_PROFILE_TOKEN_KEY='shine:cloud-profile-token:v1';
 const cloudProfileEtags=new Map();
+const ASSET_CATEGORY_KEY='shine:asset-categories:v2';
+const ASSET_CATEGORY_COLLAPSE_KEY='shine:asset-category-collapse:v2';
+const BUILTIN_ASSET_CATEGORIES=Object.freeze([
+  {id:'CLEAN_TEMPLATE',name:'纯净模板',builtin:true},
+  {id:'HAIR',name:'头发',builtin:true},
+  {id:'EAR',name:'耳朵',builtin:true},
+  {id:'MOUTH',name:'嘴巴表情',builtin:true},
+  {id:'TAIL',name:'尾巴',builtin:true},
+  {id:'ACCESSORY',name:'配饰',builtin:true},
+  {id:'PROP',name:'小物',builtin:true}
+]);
 
 function stat(el,msg,kind=''){el.textContent=msg;el.className='status '+kind}
 function safe(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
@@ -1373,11 +1394,13 @@ function renderOverlay(){
   ctx.drawImage(base,0,0);
   let on=0;
   const z=(a)=>{
-    if(a.type==='HAIR') return a.slot==='A'?12:14;
-    if(a.type==='TAIL') return a.slot==='A'?18:19;
-    if(a.type==='PROP') return 30;
-    if(a.type==='HAT_DECOR') return a.slot==='A'?80:96; // A帽子在后，B帽子在前
-    if(a.type==='STICKER') return 110;
+    ensureAssetRecordV2(a);
+    if(a.categoryId==='HAIR') return a.slot==='A'?12:14;
+    if(a.categoryId==='TAIL') return a.slot==='A'?18:19;
+    if(a.categoryId==='PROP') return 30;
+    if(a.categoryId==='MOUTH') return a.slot==='A'?70:72;
+    if(a.categoryId==='EAR') return a.slot==='A'?80:96; // A帽子在后，B帽子在前
+    if(a.categoryId==='ACCESSORY') return 110;
     return 50;
   };
   const sorted=[...S.assets].sort((a,b)=>z(a)-z(b));
@@ -1854,7 +1877,7 @@ function resolveStyleScheme(kind,value){
   const arr=S.styleSchemes?.[kind]||[];if(!arr.length)return null;
   return arr.find(x=>x.id===value)||arr.find(x=>x.name===value)||arr[0]||null;
 }
-function styleSchemeName(kind,value){if(kind==='hat'&&value==='__DECOR_ANCHOR__')return '★ 帽子底色锚定耳朵底色';if(kind==='outfit'&&value==='__CUSTOM__')return '★ 自选';return resolveStyleScheme(kind,value)?.name||String(value||'');}
+function styleSchemeName(kind,value){if(kind==='hat'&&value==='__DECOR_ANCHOR__')return '★ 帽子底色锚定耳朵底色';if(value==='__CUSTOM__')return '★ 自选';return resolveStyleScheme(kind,value)?.name||String(value||'');}
 function styleSchemeCatalog(){return {hat:(S.styleSchemes.hat||[]).map(x=>x.name),outfit:(S.styleSchemes.outfit||[]).map(x=>x.name),background:Object.keys(S.presets?.background||{})}}
 function styleSchemeIdFromName(kind,name){return (S.styleSchemes?.[kind]||[]).find(x=>x.name===name)?.id||null}
 function makeBlankScheme(kind){
@@ -1950,7 +1973,9 @@ function migrateLogicDefaultsV21(){
   if(changed)persistLogic();
 }
 function loadProductionState(){
+  loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
+  S.orders.forEach(ensureOrderAssetSelections);
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')||defaultStyleSchemesFromLegacy()}catch{S.styleSchemes=defaultStyleSchemesFromLegacy()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=defaultStyleSchemesFromLegacy();
@@ -1984,14 +2009,15 @@ function newOrderData(){
     createdAt:new Date().toISOString(),
     status:'待处理',
     formText:'',
-    A:{name:'A宝宝',eye:'#B9853E',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',decor:'NONE',decorBase:'',decorShade:''},
-    B:{name:'B宝宝',eye:'#3A353A',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',decor:'NONE',decorBase:'',decorShade:''},
+    A:{name:'A宝宝',eye:'#B9853E',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
+    B:{name:'B宝宝',eye:'#3A353A',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
     background:'暖粉',
     backgroundManual:'',
     backgroundSource:'preset',
     backgroundReason:'',
     backgroundBaseVisible:true,
     backgroundLaceVisible:true,
+    assetSelections:{A:{},B:{}},
     layerOverrides:{},
     notes:''
   };
@@ -2014,6 +2040,10 @@ function syncOutfitManualVisibility(slot){
   if(on){const o=getActiveOrder();const current=o?.[slot];if(current&&!current.outfitManual){const prev=resolveStyleScheme('outfit',current.outfit);setLinkedColor(low+'OutfitManual',prev?.base||(slot==='A'?'#D7BCC4':'#C9D4E7'));}}
 }
 function syncAllOutfitManualVisibility(){syncOutfitManualVisibility('A');syncOutfitManualVisibility('B');}
+function syncHatManualVisibility(slot){
+  const low=slot.toLowerCase(),on=$('#'+low+'HatPreset')?.value==='__CUSTOM__',lab=$('#'+low+'HatManualLabel'),wrap=$('#'+low+'HatManualWrap');if(lab)lab.style.display=on?'':'none';if(wrap)wrap.style.display=on?'grid':'none';
+}
+function syncAllHatManualVisibility(){syncHatManualVisibility('A');syncHatManualVisibility('B')}
 function selectOrder(id){
   const o=S.orders.find(x=>x.id===id);if(!o)return;
   S.activeOrderId=id;S.manualLayerOverrides=clone(o.layerOverrides||{});rebuildLayerOverrideMap();renderOrders();
@@ -2024,10 +2054,10 @@ function selectOrder(id){
   renderPresetOptions();
   $('#aOutfitPreset').value=!o.A?.outfit?'__CUSTOM__':(o.A.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('aOutfitManual',o.A?.outfitManual||'#D7BCC4');
-  $('#aHatPreset').value=!o.A?.hat?'__DECOR_ANCHOR__':(o.A.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.A.hat)?.id||S.styleSchemes.hat[0]?.id||''));
+  $('#aHatPreset').value=!o.A?.hat?'__DECOR_ANCHOR__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.A.hat)?o.A.hat:(resolveStyleScheme('hat',o.A.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('aHatManual',o.A?.hatManual||'#C85B5B');
   $('#bOutfitPreset').value=!o.B?.outfit?'__CUSTOM__':(o.B.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.B.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('bOutfitManual',o.B?.outfitManual||'#C9D4E7');
-  $('#bHatPreset').value=!o.B?.hat?'__DECOR_ANCHOR__':(o.B.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.B.hat)?.id||S.styleSchemes.hat[0]?.id||''));
+  $('#bHatPreset').value=!o.B?.hat?'__DECOR_ANCHOR__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.B.hat)?o.B.hat:(resolveStyleScheme('hat',o.B.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('bHatManual',o.B?.hatManual||'#C85B5B');
   updateDecorSelects();$('#aDecor').value=o.A?.decor||'NONE';$('#bDecor').value=o.B?.decor||'NONE';
   setLinkedColor('aDecorBase',o.A?.decorBase||'', true);
   setLinkedColor('aDecorShade',o.A?.decorShade||'', true);
@@ -2039,16 +2069,17 @@ function selectOrder(id){
   if($('#bgLaceToggleQuick'))$('#bgLaceToggleQuick').checked=o.backgroundLaceVisible!==false;
   $('#orderStatus').value=o.status||'待处理';
   syncAllOutfitManualVisibility();
+  syncAllHatManualVisibility();
   updateBackgroundRecommendationMeta(o);
 }
 function captureActiveOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
   o.formText=$('#orderForm').value;
   o.A={name:$('#aName').value||'A宝宝',eye:safeHex($('#aEyeHex').value,'#918DCB'),eyeSchemeId:$('#aEyeScheme').value||'AUTO',hair:safeHex($('#aHairHex').value,'#7D718C'),
-       outfit:$('#aOutfitPreset').value,outfitManual:safeHex($('#aOutfitManualHex').value,o.A?.outfitManual||'#D7BCC4'),hat:$('#aHatPreset').value,decor:$('#aDecor').value,
+       outfit:$('#aOutfitPreset').value,outfitManual:safeHex($('#aOutfitManualHex').value,o.A?.outfitManual||'#D7BCC4'),hat:$('#aHatPreset').value,hatManual:safeHex($('#aHatManualHex').value,o.A?.hatManual||'#C85B5B'),decor:$('#aDecor').value,
        decorBase:($('#aDecorBaseHex').value||'').trim(),decorShade:($('#aDecorShadeHex').value||'').trim()};
   o.B={name:$('#bName').value||'B宝宝',eye:safeHex($('#bEyeHex').value,'#B990A0'),eyeSchemeId:$('#bEyeScheme').value||'AUTO',hair:safeHex($('#bHairHex').value,'#8A6F72'),
-       outfit:$('#bOutfitPreset').value,outfitManual:safeHex($('#bOutfitManualHex').value,o.B?.outfitManual||'#C9D4E7'),hat:$('#bHatPreset').value,decor:$('#bDecor').value,
+       outfit:$('#bOutfitPreset').value,outfitManual:safeHex($('#bOutfitManualHex').value,o.B?.outfitManual||'#C9D4E7'),hat:$('#bHatPreset').value,hatManual:safeHex($('#bHatManualHex').value,o.B?.hatManual||'#C85B5B'),decor:$('#bDecor').value,
        decorBase:($('#bDecorBaseHex').value||'').trim(),decorShade:($('#bDecorShadeHex').value||'').trim()};
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');o.backgroundBaseVisible=$('#bgBaseToggleQuick')?$('#bgBaseToggleQuick').checked:true;o.backgroundLaceVisible=$('#bgLaceToggleQuick')?$('#bgLaceToggleQuick').checked:true;o.status=$('#orderStatus').value;o.layerOverrides=clone(S.manualLayerOverrides||{});
   o.customerName=parseCustomerName(o.formText)||o.customerName||'未命名顾客';
@@ -2164,13 +2195,13 @@ function setLinkedColor(prefix,hex,allowBlank=false){
   color.value=((allowBlank && !v)?fallback:(v||fallback)).toLowerCase();
 }
 function fallbackFor(prefix){
-  return ({aEye:'#918DCB',aHair:'#7D718C',bEye:'#B990A0',bHair:'#8A6F72',aOutfitManual:'#D7BCC4',bOutfitManual:'#C9D4E7',aDecorBase:'#000000',aDecorShade:'#B34040',bDecorBase:'#FFFFFF',bDecorShade:'#F2C7D8'}[prefix]||'#888888');
+  return ({aEye:'#918DCB',aHair:'#7D718C',bEye:'#B990A0',bHair:'#8A6F72',aOutfitManual:'#D7BCC4',bOutfitManual:'#C9D4E7',aHatManual:'#C85B5B',bHatManual:'#C85B5B',aDecorBase:'#000000',aDecorShade:'#B34040',bDecorBase:'#FFFFFF',bDecorShade:'#F2C7D8'}[prefix]||'#888888');
 }
 function syncLiveControlsToOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;}
   o.A=o.A||{};o.B=o.B||{};
-  o.A.eye=safeHex($('#aEyeHex').value,o.A.eye||'#918DCB');o.A.hair=safeHex($('#aHairHex').value,o.A.hair||'#7D718C');o.A.outfit=$('#aOutfitPreset').value;o.A.outfitManual=safeHex($('#aOutfitManualHex').value,o.A.outfitManual||'#D7BCC4');o.A.hat=$('#aHatPreset').value;o.A.decor=$('#aDecor').value;o.A.decorBase=($('#aDecorBaseHex').value||'').trim();o.A.decorShade=($('#aDecorShadeHex').value||'').trim();
-  o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
+  o.A.eye=safeHex($('#aEyeHex').value,o.A.eye||'#918DCB');o.A.hair=safeHex($('#aHairHex').value,o.A.hair||'#7D718C');o.A.outfit=$('#aOutfitPreset').value;o.A.outfitManual=safeHex($('#aOutfitManualHex').value,o.A.outfitManual||'#D7BCC4');o.A.hat=$('#aHatPreset').value;o.A.hatManual=safeHex($('#aHatManualHex').value,o.A.hatManual||'#C85B5B');o.A.decor=$('#aDecor').value;o.A.decorBase=($('#aDecorBaseHex').value||'').trim();o.A.decorShade=($('#aDecorShadeHex').value||'').trim();
+  o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.hatManual=safeHex($('#bHatManualHex').value,o.B.hatManual||'#C85B5B');o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');return o;
 }
 const LIVE_COLOR_PREVIEW_DELAY=110;
@@ -2204,7 +2235,7 @@ function firstPreset(kind){if(kind==='hat'||kind==='outfit')return S.styleScheme
 function renderPresetOptions(){
   [['aHatPreset','hat'],['bHatPreset','hat'],['aOutfitPreset','outfit'],['bOutfitPreset','outfit']].forEach(([id,kind])=>{
     const el=$('#'+id),old=el.value;let html='';
-    if(kind==='hat')html+='<option value="__DECOR_ANCHOR__">★ 帽子底色锚定耳朵底色</option>';
+    if(kind==='hat')html+='<option value="__DECOR_ANCHOR__">★ 帽子底色锚定耳朵底色</option><option value="__CUSTOM__">★ 自选（手动拖色）</option>';
     if(kind==='outfit')html+='<option value="__CUSTOM__">★ 自选（手动拖色）</option>';
     html+=(S.styleSchemes?.[kind]||[]).map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('');el.innerHTML=html;
     const oldId=resolveStyleScheme(kind,old)?.id;if(old==='__DECOR_ANCHOR__'||old==='__CUSTOM__')el.value=old;else if(oldId&&[...el.options].some(o=>o.value===oldId))el.value=oldId;
@@ -2282,7 +2313,7 @@ const ASSET_ROLE_OPTIONS={
   HAT_DECOR:['NONE','DECOR_BASE','DECOR_SHADOW','DECOR_INNER','DECOR_OUTLINE','DECOR_ACCENT','DECOR_FUR'],
   HAIR:['NONE','HAIR_BASE','HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','HAIR_HIGHLIGHT_FIXED','HAIR_SKIN_AIR_FIXED'],
   TAIL:['NONE','TAIL_BASE','TAIL_TIP','TAIL_OUTLINE'],
-  PROP:['NONE'],STICKER:['NONE']
+  PROP:['NONE'],STICKER:['NONE'],MOUTH:['NONE'],ACCESSORY:['NONE']
 };
 function inferAssetLayerRole(path,type){
   const leaf=(String(path||'').split('/').pop()||'').toLowerCase();
@@ -2427,7 +2458,73 @@ function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
   }});
 }
 function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',TAIL_BASE:'尾巴底色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿'}[role]||role);}
-function categoryLabel(t){return ({HAIR:'头发',HAT_DECOR:'耳朵 / 帽饰',TAIL:'尾巴',PROP:'小物',STICKER:'贴纸'}[t]||t);}
+function loadAssetCategories(){
+  let saved=[];try{saved=JSON.parse(localStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
+  const builtinIds=new Set(BUILTIN_ASSET_CATEGORIES.map(x=>x.id));
+  const custom=Array.isArray(saved)?saved.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&!builtinIds.has(x.id)).map(x=>({id:x.id,name:x.name,builtin:false})):[];
+  S.assetCategories=[...BUILTIN_ASSET_CATEGORIES.map(x=>({...x})),...custom];
+  try{S.assetCategoryCollapsed=JSON.parse(localStorage.getItem(ASSET_CATEGORY_COLLAPSE_KEY)||'{}')||{}}catch{S.assetCategoryCollapsed={}}
+}
+function persistAssetCategories(){try{localStorage.setItem(ASSET_CATEGORY_KEY,JSON.stringify(S.assetCategories.filter(x=>!x.builtin)))}catch{}}
+function persistAssetCategoryCollapse(){try{localStorage.setItem(ASSET_CATEGORY_COLLAPSE_KEY,JSON.stringify(S.assetCategoryCollapsed))}catch{}}
+function renderLibraryCategoryOptions(){const el=$('#libraryType');if(!el)return;const old=el.value||'AUTO';el.innerHTML='<option value="AUTO">自动识别分类</option>'+S.assetCategories.filter(x=>x.id!=='CLEAN_TEMPLATE').map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('');el.value=[...el.options].some(x=>x.value===old)?old:'AUTO'}
+function categoryLabel(t){
+  const aliases={HAT_DECOR:'EAR',STICKER:'ACCESSORY'};const id=aliases[t]||t;
+  return S.assetCategories.find(x=>x.id===id)?.name||({CLEAN_TEMPLATE:'纯净模板',HAIR:'头发',EAR:'耳朵',MOUTH:'嘴巴表情',TAIL:'尾巴',ACCESSORY:'配饰',PROP:'小物'}[id]||id);
+}
+function categoryIdForType(type){return ({HAT_DECOR:'EAR',STICKER:'ACCESSORY',HAIR:'HAIR',TAIL:'TAIL',PROP:'PROP',MOUTH:'MOUTH',ACCESSORY:'ACCESSORY'}[type]||'ACCESSORY');}
+function rendererTypeForCategory(categoryId,fallback='PROP'){
+  return ({HAIR:'HAIR',EAR:'HAT_DECOR',MOUTH:'MOUTH',TAIL:'TAIL',ACCESSORY:'ACCESSORY',PROP:'PROP'}[categoryId]||fallback);
+}
+function assetCategoryOptions(selected){return S.assetCategories.filter(x=>x.id!=='CLEAN_TEMPLATE').map(x=>`<option value="${safe(x.id)}" ${x.id===selected?'selected':''}>${safe(x.name)}</option>`).join('')}
+function ensureAssetRecordV2(a){
+  if(!a)return a;
+  a.schemaVersion=a.schemaVersion||'shine-asset-v2';
+  a.assetId=a.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8));
+  a.categoryId=a.categoryId||categoryIdForType(a.type);
+  a.name=a.name||a.variant||assetSourceName(a).replace(/\.psd$/i,'');
+  a.characterCompatibility=a.characterCompatibility||a.slot||'BOTH';
+  a.defaultSlot=a.defaultSlot||a.slot||'A';
+  a.colorMode=a.colorMode||'PRESERVE_ORIGINAL';
+  a.defaultTransform=a.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false};
+  a.compatibleTemplateIds=Array.isArray(a.compatibleTemplateIds)?a.compatibleTemplateIds:[];
+  a.createdAt=a.createdAt||new Date().toISOString();a.updatedAt=a.updatedAt||a.createdAt;
+  return a;
+}
+function assetFamilyKey(a){ensureAssetRecordV2(a);return `${a.categoryId}::${normalizeVariantName(a.variant||a.name)}`}
+function ensureOrderAssetSelections(order){
+  if(!order)return {A:{},B:{}};
+  if(!order.assetSelections||typeof order.assetSelections!=='object')order.assetSelections={A:{},B:{}};
+  ['A','B'].forEach(slot=>{if(!order.assetSelections[slot]||typeof order.assetSelections[slot]!=='object')order.assetSelections[slot]={}});
+  return order.assetSelections;
+}
+function hasAssetSelectionDecision(order,slot,categoryId){return !!order&&Object.prototype.hasOwnProperty.call(ensureOrderAssetSelections(order)[slot],categoryId)}
+function selectedAssetFamily(order,slot,categoryId){
+  const selections=ensureOrderAssetSelections(order);if(order&&Object.prototype.hasOwnProperty.call(selections[slot],categoryId))return selections[slot][categoryId]||null;
+  if(categoryId==='EAR'){
+    const wanted=order?.[slot]?.decor||'NONE';if(wanted!=='NONE')return `EAR::${normalizeVariantName(wanted)}`;
+  }
+  return null;
+}
+function syncAssetEnabledFromOrder(order){
+  if(!order)return;
+  S.assets.forEach(a=>{ensureAssetRecordV2(a);const decided=hasAssetSelectionDecision(order,a.slot,a.categoryId),chosen=selectedAssetFamily(order,a.slot,a.categoryId);if(decided||a.categoryId==='EAR')a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
+}
+function setAssetFamilySelection(familyKey,slot,on){
+  let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
+  const record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot);if(!record)return;
+  const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId;
+  if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
+  if(categoryId==='EAR'){
+    order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
+  }
+  syncAssetEnabledFromOrder(order);persistOrders();refreshAllAssetComposites(order);
+  if(categoryId==='HAIR')reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
+}
+function paintAssetThumbnail(canvas,source){
+  if(!canvas||!source)return;const ctx=canvas.getContext('2d'),w=64,h=64;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
+  const sw=source.width||1,sh=source.height||1,scale=Math.min(w/sw,h/sh),dw=Math.max(1,sw*scale),dh=Math.max(1,sh*scale);ctx.drawImage(source,(w-dw)/2,(h-dh)/2,dw,dh);
+}
 function assetSourceName(a){return a?.file?.name||((a?.variant||'未命名')+'.psd');}
 function renderAssetBindingEditor(){
   const host=$('#assetBindingEditor');if(!host)return;host.innerHTML='';
@@ -2447,8 +2544,8 @@ function renderAssetHealth(){
   host.innerHTML='<div class="assetHealthRow head"><div>素材 / 图层 path</div><div>剪辑</div><div>当前 Role</div></div>';
   S.assets.forEach((a,idx)=>{
     initAssetBindings(a,false);
-    const title=document.createElement('div');title.className='assetHealthRow';title.style.background='#fbf9fb';
-    title.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.type))} / ${safe(a.slot)}</div><div>${a.groupPath?'Group '+safe(a.groupPath):'整PSD'}</div>`;host.appendChild(title);
+    const title=document.createElement('div');title.className='assetHealthRow';title.style.background='#fbf9fb';ensureAssetRecordV2(a);
+    title.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))} / ${safe(a.slot)}</div><div>${a.groupPath?'Group '+safe(a.groupPath):'整PSD'}</div>`;host.appendChild(title);
     assetRelevantLeaves(a).forEach(n=>{
       const role=a.bindings?.[n.path]||'NONE';const row=document.createElement('div');row.className='assetHealthRow';
       const clipText=n.layer?.clipping?'CLIP':(role==='HAIR_SKIN_AIR_FIXED'?'⚠ 未剪辑':'PIXEL');
@@ -2458,33 +2555,48 @@ function renderAssetHealth(){
 }
 function renderAssetLibrary(){
   const host=$('#assetLibraryList'); if(!host) return;
-  host.innerHTML='';
-  if(!S.assets.length){host.innerHTML='<div class="meta" style="padding:10px">还没有上传素材库 PSD。</div>';renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();return;}
-  const order=['HAIR','HAT_DECOR','TAIL','PROP','STICKER'];
-  order.forEach(type=>{
-    const items=S.assets.map((a,idx)=>({a,idx})).filter(x=>x.a.type===type);if(!items.length)return;
-    const block=document.createElement('div');block.className='assetCategoryBlock';
-    const head=document.createElement('div');head.className='assetCategoryHead';head.innerHTML=`<b>${safe(categoryLabel(type))}</b><span>${items.length} 条素材</span>`;block.appendChild(head);
-    items.forEach(({a,idx})=>{
-      initAssetBindings(a,false);
-      const linked=Object.values(a.bindings||{}).filter(x=>x&&x!=='NONE').length;
-      const roles=new Set(Object.values(a.bindings||{}));
-      const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
-      const row=document.createElement('div'); row.className='assetRow2';
-      row.innerHTML=`<div title="${safe(assetSourceName(a))}">${safe(assetSourceName(a))}<br><span class="meta">${safe(a.variant||'未命名')} · ${safe(a.slot)} · ${audit||'未识别特殊色层'} · α ${Math.round(sampledAlphaMass(a.composite||a.originalComposite))}</span><label class="assetColorToggle"><input data-ak="colorMode" data-ai="${idx}" type="checkbox" ${a.colorMode==='FOLLOW_ORDER'?'checked':''}> 跟随订单配色（默认关闭）</label></div>
-        <select data-ak="type" data-ai="${idx}">${['HAIR','HAT_DECOR','TAIL','PROP','STICKER'].map(t=>`<option value="${t}" ${a.type===t?'selected':''}>${categoryLabel(t)}</option>`).join('')}</select>
-        <input data-ak="variant" data-ai="${idx}" type="text" value="${safe(a.variant||'')}"/>
-        <button class="btn" data-ak="layers" data-ai="${idx}">图层</button>
-        <button class="btn" data-ak="delete" data-ai="${idx}">删</button>`;
-      block.appendChild(row);
-    });
-    host.appendChild(block);
+  if(!S.assetCategories.length)loadAssetCategories();host.innerHTML='';S.assets.forEach(ensureAssetRecordV2);
+  const order=getActiveOrder(),groupsByCategory=new Map();
+  S.assetCategories.forEach(category=>groupsByCategory.set(category.id,new Map()));
+  S.assets.forEach((a,idx)=>{
+    if(!groupsByCategory.has(a.categoryId))groupsByCategory.set(a.categoryId,new Map());
+    const key=assetFamilyKey(a),map=groupsByCategory.get(a.categoryId);if(!map.has(key))map.set(key,{key,records:[]});map.get(key).records.push({a,idx});
   });
-  host.querySelectorAll('[data-ak="type"]').forEach(el=>el.onchange=()=>{const a=S.assets[+el.dataset.ai];a.type=el.value;initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());renderAssetRows();updateDecorSelects();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();});
-  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{const a=S.assets[+el.dataset.ai];a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
-  host.querySelectorAll('[data-ak="variant"]').forEach(el=>el.onchange=()=>{S.assets[+el.dataset.ai].variant=el.value.trim()||'未命名';renderAssetRows();updateDecorSelects();renderAssetLibrary();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
+  S.assetCategories.forEach(category=>{
+    const groups=[...(groupsByCategory.get(category.id)?.values()||[])],count=category.id==='CLEAN_TEMPLATE'?(S.master?1:0):groups.length;
+    const details=document.createElement('details');details.className='assetCategoryDetails';details.open=!S.assetCategoryCollapsed[category.id];details.dataset.categoryId=category.id;
+    details.innerHTML=`<summary>${safe(category.name)}<span>${count} 项</span></summary>`;host.appendChild(details);
+    details.addEventListener('toggle',()=>{S.assetCategoryCollapsed[category.id]=!details.open;persistAssetCategoryCollapse()});
+    if(category.id==='CLEAN_TEMPLATE'){
+      if(!S.master){details.insertAdjacentHTML('beforeend','<div class="assetEmptyCategory">还没有载入纯净模板。请在“模板上传”中选择 PSD。</div>');return;}
+      const card=document.createElement('div');card.className='assetFamilyCard cleanTemplateCard';card.innerHTML=`<canvas class="assetThumb" data-master-thumb></canvas><div class="assetFamilyInfo"><b>${safe(S.masterFile?.name||'当前纯净模板')}</b><div class="assetFamilyMeta">${S.master.width}×${S.master.height} · 当前模板签名已建立<br>云端模板文件保存将在 Phase 2 云素材接口接通后启用</div></div><button class="btn" type="button" data-open-template-tab>查看模板</button>`;details.appendChild(card);return;
+    }
+    if(!groups.length){details.insertAdjacentHTML('beforeend','<div class="assetEmptyCategory">这个大类还是空的。</div>');return;}
+    groups.forEach(group=>{
+      const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
+      const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
+      const hasSlot=slot=>group.records.some(x=>x.a.slot===slot),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
+      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),card=document.createElement('div');card.className='assetFamilyCard';
+      card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
+        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · 当前浏览器内存</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}">${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''}> 跟随订单配色（默认关闭）</label></div>
+        <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
+        <div class="assetCardActions"><button class="btn" data-ak="layers" data-ai="${firstIndex}">图层</button><button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">删除</button></div>`;
+      details.appendChild(card);
+    });
+  });
+  host.querySelectorAll('[data-master-thumb]').forEach(c=>paintAssetThumbnail(c,$('#reconCanvas')?.width?$('#reconCanvas'):S.master?.canvas));
+  host.querySelectorAll('[data-thumb-family]').forEach(c=>{const a=S.assets.find(x=>assetFamilyKey(x)===c.dataset.thumbFamily);paintAssetThumbnail(c,a?.originalComposite||a?.composite)});
+  host.querySelectorAll('[data-open-template-tab]').forEach(b=>b.onclick=()=>document.querySelector('.taskTab[data-tab="upload"]')?.click());
+  host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>el.onchange=()=>setAssetFamilySelection(el.dataset.family,el.dataset.slot,el.checked));
+  host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
+    const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;
+    S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));
+    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);a.updatedAt=new Date().toISOString();initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});
+    syncAssetEnabledFromOrder(getActiveOrder());persistOrders();renderAssetRows();updateDecorSelects();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();
+  });
+  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
   host.querySelectorAll('[data-ak="layers"]').forEach(el=>el.onclick=()=>{S.editingAssetIndex=+el.dataset.ai;renderAssetBindingEditor();});
-  host.querySelectorAll('[data-ak="delete"]').forEach(el=>el.onclick=()=>{S.assets.splice(+el.dataset.ai,1);S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
+  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key),categoryId=records[0]?.categoryId;S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();renderEditableLayerSelectors();
 }
 function loadSwatchImage(file){
@@ -2550,7 +2662,7 @@ function isNearGray(hex){const o=rgbToOklch(hex);return o.C<.045}
 function selectedDecorAsset(slot,order){
   const wanted=order?.[slot]?.decor;
   if(!wanted||wanted==='NONE')return null;
-  return S.assets.find(a=>a.type==='HAT_DECOR'&&a.slot===slot&&sameVariant(a.variant,wanted))||null;
+  return S.assets.find(a=>{ensureAssetRecordV2(a);return a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,wanted)})||null;
 }
 function assetOriginalRoleColor(asset,role){
   if(!asset)return null;initAssetBindings(asset,false);
@@ -2581,9 +2693,9 @@ function deriveRoleColor(role,slot,order){
   const eye=safeHex(order[slot]?.eye,'#918DCB');
   const hair=safeHex(order[slot]?.hair,'#7D718C');
   const hatAnchor=order[slot]?.hat==='__DECOR_ANCHOR__';
-  const hatScheme=hatAnchor?null:resolveStyleScheme('hat',order[slot]?.hat), outfitCustom=order[slot]?.outfit==='__CUSTOM__', outfitScheme=outfitCustom?null:resolveStyleScheme('outfit',order[slot]?.outfit);
+  const hatCustom=order[slot]?.hat==='__CUSTOM__',hatScheme=(hatAnchor||hatCustom)?null:resolveStyleScheme('hat',order[slot]?.hat), outfitCustom=order[slot]?.outfit==='__CUSTOM__', outfitScheme=outfitCustom?null:resolveStyleScheme('outfit',order[slot]?.outfit);
   const decorBase=activeDecorBaseColor(slot,order);
-  const hat=safeHex((hatAnchor&&decorBase)?decorBase:(hatScheme?.base||DEFAULT_PRESETS.hat['红色']),'#C85B5B');
+  const hat=safeHex(hatCustom?order[slot]?.hatManual:((hatAnchor&&decorBase)?decorBase:(hatScheme?.base||DEFAULT_PRESETS.hat['红色'])),'#C85B5B');
   const outfit=safeHex((outfitCustom&&order[slot]?.outfitManual)?order[slot].outfitManual:(outfitScheme?.base||DEFAULT_PRESETS.outfit['红白']),'#E8CDD3');
   const decorShade=normalizeHex(order[slot]?.decorShade || '');
   const g=S.logic||DEFAULT_LOGIC;
@@ -2853,7 +2965,7 @@ function renderAssetRuntimeStatus(){
   box.className='status assetRuntimeStatus '+(mismatch?'bad':'good');box.innerHTML=one('A')+'<br>'+one('B');
 }
 function updateDecorSelects(){
-  const families=[...new Set(S.assets.filter(a=>a.type==='HAT_DECOR').map(a=>normalizeVariantName(a.variant)))],o=getActiveOrder();
+  const families=[...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId==='EAR'}).map(a=>normalizeVariantName(a.variant)))],o=getActiveOrder();
   [['aDecor','A'],['bDecor','B']].forEach(([id,slot])=>{
     const el=$('#'+id);if(!el)return;
     const raw=o?.[slot]?.decor||el.value||'NONE';
@@ -2869,7 +2981,7 @@ function updateDecorSelects(){
 function applyDecorSelection(){
   const o=getActiveOrder();if(!o)return;updateDecorSelects();
   S.assets.forEach(a=>{
-    if(a.type!=='HAT_DECOR')return;
+    ensureAssetRecordV2(a);if(a.categoryId!=='EAR')return;
     const wanted=a.slot==='A'?o.A.decor:o.B.decor;
     a.enabled=wanted!=='NONE'&&sameVariant(a.variant,wanted);
   });
@@ -2893,6 +3005,9 @@ function normalizeVariantName(name){
   n=n.replace(/[（(]\s*\d+\s*[）)]$/,'').trim();
   n=n.replace(/\s+(copy|副本)$/i,'').trim();
   n=n.replace(/[_\-\s]*(帽饰|HAT_DECOR|DECOR)$/i,'').trim();
+  n=n.replace(/^[AB](?:位)?[_\-\s]*/i,'').trim();
+  n=n.replace(/[_\-\s]*(?:[AB](?:位)?|左位|右位)$/i,'').trim();
+  n=n.replace(/[AB](?=(?:耳|尾|头发|嘴|表情)$)/i,'').trim();
   return n||'帽饰';
 }
 function familyName(file){return normalizeVariantName(file?.name||file);}
@@ -2901,7 +3016,7 @@ async function loadHairAsset(file,slot){
   try{
     const psd=await parsePsd(file),order=detectLayerDrawOrder(psd);
     S.assets=S.assets.filter(a=>!(a.type==='HAIR'&&a.slot===slot));
-    const asset={file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:{}};
+    const now=new Date().toISOString(),asset={schemaVersion:'shine-asset-v2',assetId:'asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),name:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',categoryId:'HAIR',characterCompatibility:slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:now,updatedAt:now,bindings:{}};
     initAssetBindings(asset,true);asset.originalComposite=renderAssetComposite(asset,getActiveOrder()||newOrderData());asset.composite=asset.originalComposite;S.assets.push(asset);
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();
     stat($('#apiStatus'),`${slot} 位头发已载入；已进入“大夹子顺序”，可以直接拖动层级。`,'good');
@@ -3083,7 +3198,7 @@ function buildWorkspaceUI(){
   wireFormBackgroundQuick();syncBackgroundQuickFromOrder(getActiveOrder());updateBackgroundRecommendationMeta(getActiveOrder());
 
   const assetPanel=$('#assetLibraryList')?.closest('.softPanel'); if(assetPanel)tabs.assets.appendChild(assetPanel);
-  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">耳朵、尾巴、小物、旧头发都从这里管理。素材管理区默认常驻展开，不需要再点一次。</div><div class="assetNamingGuide"><b>帽饰特殊变色层命名（v0.16）</b>：明确含「底色」→ 底色覆写；「重色」→ 重色覆写；「线稿/轮廓」→ 由耳朵底色自动压暗，并强制与同位帽子线稿同色；「内耳/耳内/内侧」→ 由耳朵底色自动计算较浅的协调色。耳毛 / 绒毛 / 尾尖 / 普通阴影默认固定。现有狐狸继续兼容“狐A/B耳=底色、狐A/B耳尖=重色”。</div>');
+  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 2 素材库：纯净模板、头发、耳朵、嘴巴表情、尾巴、配饰和小物分开管理；A/B 直接在素材卡上勾选。</div><div class="assetNamingGuide"><b>原色保护</b>：素材归类后仍保持上传 PSD 原色。只有主动打开“跟随订单配色”才会使用相应颜色逻辑；耳朵的底色/线稿/内耳命名规则继续兼容一期。</div>');
 
   // v0.27 背景独立大类撤掉：日常只使用“表单清洗”里的背景衬底色盘。
   // 旧 bgPreset / orderStatus / watermark 控件继续留在 DOM 中供订单兼容，但不再展示成工作区页面。
@@ -3104,7 +3219,7 @@ function buildWorkspaceUI(){
   const oldSample=$('#exportSampleJpeg'), oldDelivery=$('#exportDeliveryJpeg'); if(oldSample)oldSample.style.display='none';if(oldDelivery)oldDelivery.style.display='none';
 
   const titleMap={
-    upload:['模板上传','纯净模板 + 本单新头发'], assets:['素材库','耳朵 / 尾巴 / 小物 / 头发'], form:['表单清洗','订单 + A/B 规范化 + 吸色'],
+    upload:['模板上传','纯净模板 + 本单新头发'], assets:['素材库','模板 / 头发 / 耳朵 / 嘴巴 / 配饰'], form:['表单清洗','订单 + A/B 规范化 + 吸色'],
     quick:['单层颜色微调','审稿时直接色盘修改'], logic:['衍生色逻辑','眼睛方案 + 通用配色公式']
   };
   $('#taskTabs').querySelectorAll('.taskTab').forEach(b=>b.onclick=()=>{
@@ -3122,6 +3237,9 @@ function buildWorkspaceUI(){
     libraryDrop.addEventListener('drop',e=>{const fs=[...e.dataTransfer.files].filter(f=>/\.psd$/i.test(f.name));if(fs.length)loadAssets(fs,$('#libraryType').value,$('#librarySlot').value);});
   }
   if($('#libraryFiles'))$('#libraryFiles').onchange=e=>{const fs=[...e.target.files];if(fs.length)loadAssets(fs,$('#libraryType').value,$('#librarySlot').value);};
+  renderLibraryCategoryOptions();
+  if($('#createAssetCategory'))$('#createAssetCategory').onclick=()=>{const input=$('#newAssetCategoryName'),name=(input?.value||'').trim();if(!name)return;const existing=S.assetCategories.find(x=>x.name.toLowerCase()===name.toLowerCase());if(existing){input.value='';stat($('#assetRuntimeStatus'),`“${existing.name}”大类已经存在。`,'');return}S.assetCategories.push({id:'CUSTOM_'+Date.now()+'_'+Math.random().toString(16).slice(2,6),name,builtin:false});persistAssetCategories();renderLibraryCategoryOptions();input.value='';renderAssetLibrary();};
+  if($('#newAssetCategoryName'))$('#newAssetCategoryName').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();$('#createAssetCategory')?.click()}};
   $('#openAdvancedTemplate').onclick=()=>{const d=tabs.upload.querySelector('.devPanel');if(!d)return;d.open=!d.open;if(d.open)d.scrollIntoView({block:'nearest'});requestAnimationFrame(()=>requestAnimationFrame(refreshHealthScrollBars));setTimeout(refreshHealthScrollBars,120);};
   const advancedHealth=tabs.upload.querySelector('.devPanel');if(advancedHealth)advancedHealth.addEventListener('toggle',()=>{requestAnimationFrame(()=>requestAnimationFrame(refreshHealthScrollBars));setTimeout(refreshHealthScrollBars,120);});
 
@@ -3139,7 +3257,7 @@ function lockThreeColumnShell(){
   const shell=$('#workspaceShell');
   if(!shell)return;
   shell.style.display='grid';
-  shell.style.gridTemplateColumns='minmax(0,1.08fr) 92px minmax(0,.92fr)';
+  shell.style.gridTemplateColumns='minmax(0,.88fr) 92px minmax(0,1.12fr)';
   shell.style.gridTemplateRows='minmax(0,1fr)';
   shell.style.height='100%';
   shell.style.minHeight='0';
@@ -3163,7 +3281,7 @@ function debug(){
     templateSignature:S.templateSignature,
     bindingSummary:{mapped:Object.values(S.bindings).filter(b=>b.role&&b.role!=='UNKNOWN').length,editable:Object.values(S.bindings).filter(b=>!b.locked).length},
     styleSchemes:{hat:(S.styleSchemes.hat||[]).map(x=>x.name),outfit:(S.styleSchemes.outfit||[]).map(x=>x.name)},assetRenderWarnings:S.assetRenderWarnings.slice(-8),
-    assets:S.assets.map(a=>({file:a.file.name,slot:a.slot,type:a.type,variant:a.variant,enabled:a.enabled,colorMode:a.colorMode||'PRESERVE_ORIGINAL',size:[a.psd.width,a.psd.height],
+    assets:S.assets.map(a=>({assetId:a.assetId,file:a.file.name,slot:a.slot,type:a.type,categoryId:a.categoryId,variant:a.variant,enabled:a.enabled,colorMode:a.colorMode||'PRESERVE_ORIGINAL',size:[a.psd.width,a.psd.height],
       detectedLayerOrder:a.order}))
   };
   $('#debug').textContent=JSON.stringify(payload,null,2);
@@ -3186,7 +3304,7 @@ async function loadMaster(file){
     ensureBindings(false);
     const restored=loadStoredBindings();loadHairInsertion();
     $('#masterMeta').textContent=`${file.name} · ${psd.width}×${psd.height} · ${(file.size/1024/1024).toFixed(1)} MB`;
-    renderTree();renderBuilder();updateKPIs();original();reconstruct();enableMaster(true);debug();
+    renderTree();renderBuilder();updateKPIs();original();reconstruct();enableMaster(true);renderAssetLibrary();debug();
     stat($('#masterStatus'),'纯净主模板解析完成。A 固定左位 / B 固定右位；大夹子顺序可在模板上传页直接拖动。','good');
     stat($('#builderStatus'),restored?`✅ 已从${S._lastRestoreSource||'保存记录'}恢复模板绑定。`:'已建立默认绑定：全部锁定。未命名子层可用「子层继承父夹子部位」。',restored?'good':'');
     $('#showAllAssets').disabled=S.assets.length===0;$('#hideAllAssets').disabled=S.assets.length===0;$('#exportAssetJson').disabled=S.assets.length===0;renderEditableLayerSelectors();renderHairInsertionControls();syncProductionPreview();
@@ -3195,12 +3313,13 @@ async function loadMaster(file){
 function renderAssetRows(){
   const host=$('#assetRows');host.innerHTML='';
   S.assets.forEach((a,i)=>{
+    ensureAssetRecordV2(a);
     const r=document.createElement('div');r.className='ar';
     r.innerHTML=`
       <div title="${safe(a.file.name)} · 层序:${a.order?.mode||'—'}">${safe(a.file.name)}<br><span style="color:#8b8490;font-size:9px">层序:${a.order?.mode==='direct'?'原序':'反序'}${a.order?.confidence==='low'?' ?':''}</span></div>
       <select data-k="slot" data-i="${i}"><option ${a.slot==='A'?'selected':''}>A</option><option ${a.slot==='B'?'selected':''}>B</option></select>
       <select data-k="type" data-i="${i}">
-        ${['HAT_DECOR','HAIR','TAIL','PROP','STICKER'].map(v=>`<option ${a.type===v?'selected':''}>${v}</option>`).join('')}
+        ${['HAT_DECOR','HAIR','MOUTH','TAIL','ACCESSORY','PROP','STICKER'].map(v=>`<option ${a.type===v?'selected':''}>${v}</option>`).join('')}
       </select>
       <input type="text" data-k="variant" data-i="${i}" value="${safe(a.variant)}"/>
       <input class="check" type="checkbox" data-k="enabled" data-i="${i}" ${a.enabled?'checked':''}/>`;
@@ -3209,7 +3328,7 @@ function renderAssetRows(){
   host.querySelectorAll('[data-k]').forEach(el=>{
     el.onchange=()=>{
       const a=S.assets[+el.dataset.i],k=el.dataset.k;
-      a[k]=k==='enabled'?el.checked:el.value;renderOverlay();debug();
+      a[k]=k==='enabled'?el.checked:el.value;if(k==='type')a.categoryId=categoryIdForType(a.type);if(k==='slot'){a.defaultSlot=a.slot;a.characterCompatibility=a.slot}a.updatedAt=new Date().toISOString();renderAssetLibrary();renderOverlay();debug();
     };
     if(el.tagName==='INPUT'&&el.type==='text')el.oninput=el.onchange;
   });
@@ -3218,16 +3337,17 @@ function renderAssetRows(){
 }
 function inferAsset(file){
   const n=file.name.toUpperCase();
-  let slot=n.includes('_B')||n.includes('-B')?'B':'A';
-  let type='HAT_DECOR';
-  if(n.includes('TAIL')||n.includes('尾'))type='TAIL';
-  else if(n.includes('HAIR')||n.includes('头发'))type='HAIR';
-  else if(n.includes('PROP')||n.includes('小物')||n.includes('手持'))type='PROP';
-  else if(n.includes('STICKER')||n.includes('贴纸'))type='STICKER';
-  return {slot,type,variant:familyName(file)};
+  let slot=/(?:^|[_\-\s])B(?:$|[_\-\s])|B位|右位|B(?:耳|尾|头发|嘴|表情)/i.test(n)?'B':'A';
+  let categoryId='EAR';
+  if(n.includes('TAIL')||n.includes('尾'))categoryId='TAIL';
+  else if(n.includes('HAIR')||n.includes('头发'))categoryId='HAIR';
+  else if(n.includes('MOUTH')||n.includes('嘴')||n.includes('表情'))categoryId='MOUTH';
+  else if(n.includes('ACCESSORY')||n.includes('配饰')||n.includes('发卡')||n.includes('耳钉')||n.includes('蝴蝶结')||n.includes('项链')||n.includes('胸针'))categoryId='ACCESSORY';
+  else if(n.includes('PROP')||n.includes('小物')||n.includes('手持')||n.includes('贴纸'))categoryId='PROP';
+  return {slot,categoryId,type:rendererTypeForCategory(categoryId,'PROP'),variant:familyName(file)};
 }
-function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null){
-  const a={file,psd,composite:null,originalComposite:null,order,slot,type,variant,enabled:false,groupPath,renderMode:'overlay',colorMode:'PRESERVE_ORIGINAL',bindings:{}};
+function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null,metadata={}){
+  const now=new Date().toISOString(),a={schemaVersion:'shine-asset-v2',assetId:metadata.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd,composite:null,originalComposite:null,order,slot,type,variant,name:variant,enabled:false,groupPath,renderMode:'overlay',categoryId:metadata.categoryId||categoryIdForType(type),characterCompatibility:metadata.characterCompatibility||slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:metadata.createdAt||now,updatedAt:now,bindings:{}};
   initAssetBindings(a,true);a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
   if(type==='HAT_DECOR'&&sampledAlphaMass(a.composite)<2000)a.composite=a.originalComposite;return a;
 }
@@ -3239,26 +3359,26 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
   const loaded=[];
   for(const file of files){
     try{
-      const psd=await parsePsd(file),inf=inferAsset(file),order=detectLayerDrawOrder(psd),type=(forcedType&&forcedType!=='AUTO')?forcedType:inf.type,variant=familyName(file),pair=inferPairGroups(psd);
+      const psd=await parsePsd(file),inf=inferAsset(file),order=detectLayerDrawOrder(psd),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),pair=inferPairGroups(psd),assetId='asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),createdAt=new Date().toISOString();
       if(forcedSlot==='AUTO'&&pair.a&&pair.b){
-        const a=makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path),b=makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path);
+        const metadata={assetId,categoryId,characterCompatibility:'BOTH',createdAt},a=makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,metadata),b=makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,metadata);
         upsertAssetRecord(a);upsertAssetRecord(b);loaded.push(a,b);
       }else{
-        const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot,rec=makeAssetRecord(file,psd,order,slot,type,variant,null);
+        const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot,rec=makeAssetRecord(file,psd,order,slot,type,variant,null,{assetId,categoryId,characterCompatibility:slot,createdAt});
         upsertAssetRecord(rec);loaded.push(rec);
       }
     }catch(e){alert(file.name+' 解析失败：'+(e.message||e))}
   }
   // 自用工作流：第一次上传某个帽饰时直接试戴；已有明确选择则绝不擅自覆盖。
   let o=getActiveOrder();
-  if(!o&&loaded.some(a=>a.type==='HAT_DECOR')){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders();}
+  if(!o&&loaded.some(a=>a.categoryId==='EAR')){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders();}
   if(o){
-    const freshBySlot={A:loaded.find(a=>a.type==='HAT_DECOR'&&a.slot==='A'),B:loaded.find(a=>a.type==='HAT_DECOR'&&a.slot==='B')};
+    const freshBySlot={A:loaded.find(a=>a.categoryId==='EAR'&&a.slot==='A'),B:loaded.find(a=>a.categoryId==='EAR'&&a.slot==='B')};
     let changed=[];
     ['A','B'].forEach(slot=>{
       const fresh=freshBySlot[slot];if(!fresh)return;
       const wanted=o[slot]?.decor||'NONE';
-      const stillExists=wanted!=='NONE'&&S.assets.some(a=>a.type==='HAT_DECOR'&&a.slot===slot&&sameVariant(a.variant,wanted));
+      const stillExists=wanted!=='NONE'&&S.assets.some(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,wanted));
       if(wanted==='NONE'||!stillExists){o[slot].decor=fresh.variant;S.autoDecorSlots[slot]=normalizeVariantName(fresh.variant);changed.push(slot);}
     });
     if(!changed.length&&freshBySlot.B){
@@ -3283,9 +3403,10 @@ function exportTree(){
       (S.masterFile?.name||'master').replace(/\.psd$/i,'')+'_layer_tree.json');
 }
 function exportManifest(){
-  jdl({version:'0.28-alpha',canvas:{width:S.master?.width,height:S.master?.height},
-    assets:S.assets.map(a=>({file:a.file.name,slot:a.slot,type:a.type,variant:a.variant,enabled:a.enabled,
+  jdl({version:'phase2-preview',schemaVersion:'shine-asset-manifest-v2',canvas:{width:S.master?.width,height:S.master?.height},
+    assets:S.assets.map(a=>({assetId:a.assetId,file:a.file.name,slot:a.slot,type:a.type,categoryId:a.categoryId,variant:a.variant,enabled:a.enabled,
       colorMode:a.colorMode||'PRESERVE_ORIGINAL',
+      characterCompatibility:a.characterCompatibility,defaultTransform:a.defaultTransform,compatibleTemplateIds:a.compatibleTemplateIds||[],
       width:a.psd.width,height:a.psd.height,sameCanvas:!!S.master&&a.psd.width===S.master.width&&a.psd.height===S.master.height,
       detectedLayerOrder:a.order}))},
     'variant_manifest.json');
@@ -3395,8 +3516,8 @@ $('#swatchCanvas').onclick=e=>{
   const hex=rgbToHex(data[0],data[1],data[2]);
   $('#swatchPickedHex').value=hex; $('#swatchPickedColor').value=hex.toLowerCase();
 };
-['aEye','aHair','bEye','bHair','aOutfitManual','bOutfitManual'].forEach(p=>hookLinkedColor(p,false)); ['aDecorBase','aDecorShade','bDecorBase','bDecorShade'].forEach(p=>hookLinkedColor(p,true));
-['aOutfitPreset','bOutfitPreset','aHatPreset','bHatPreset'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{if(id==='aOutfitPreset')syncOutfitManualVisibility('A');if(id==='bOutfitPreset')syncOutfitManualVisibility('B');syncLiveControlsToOrder();captureActiveOrder();scheduleLiveProductionColors({persist:true});};});
+['aEye','aHair','bEye','bHair','aOutfitManual','bOutfitManual','aHatManual','bHatManual'].forEach(p=>hookLinkedColor(p,false)); ['aDecorBase','aDecorShade','bDecorBase','bDecorShade'].forEach(p=>hookLinkedColor(p,true));
+['aOutfitPreset','bOutfitPreset','aHatPreset','bHatPreset'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{if(id==='aOutfitPreset')syncOutfitManualVisibility('A');if(id==='bOutfitPreset')syncOutfitManualVisibility('B');if(id==='aHatPreset')syncHatManualVisibility('A');if(id==='bHatPreset')syncHatManualVisibility('B');syncLiveControlsToOrder();captureActiveOrder();scheduleLiveProductionColors({persist:true});};});
 // 帽饰颜色变化只重绘颜色，不再碰素材启用/停用状态；避免颜色输入把已选狐狸/兔耳误关掉。
 
 hookDrop('#masterDrop','#masterFile',loadMaster,false);
