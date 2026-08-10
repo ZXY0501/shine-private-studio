@@ -82,6 +82,26 @@ test('asset families can be selected independently for A and B', () => {
   assert.match(html, /characterCompatibility/);
 });
 
+test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
+  assert.match(html, /function assetLayerVisible\(asset,layer,path\)/);
+  assert.match(html, /data-avpath=/);
+  assert.match(html, /恢复 PSD 显隐/);
+  assert.match(html, /a\.layerVisibility\[el\.dataset\.avpath\]=el\.checked/);
+  assert.match(html, /renderAssetSiblingStack\(asset,psd,ctx/);
+  assert.match(html, /familyLayerVisibility=Object\.assign\(\{\},\.\.\.records\.map\(a=>a\.layerVisibility\|\|\{\}\)\)/);
+  assert.match(html, /function assetLayerEffectivelyVisible\(asset,node\)/);
+  assert.doesNotMatch(html, /\.layer\.hidden\s*=/);
+});
+
+test('ear assets keep original colors until an explicit form color anchors the ear and hat', () => {
+  assert.match(html, /耳朵底色（空=原色）/);
+  assert.match(html, /function fillDecorFallbackBindings\(asset\)/);
+  assert.match(html, /asset\.bindings\[base\.n\.path\]='DECOR_BASE'/);
+  assert.match(html, /asset\.categoryId==='EAR'&&\(explicitDecorBase\|\|explicitDecorShade\)/);
+  assert.match(html, /function syncEarColorAnchorUi\(slot,order=getActiveOrder\(\)\)/);
+  assert.match(html, /hatAnchor=order\[slot\]\?\.hat==='__DECOR_ANCHOR__'/);
+});
+
 test('phase two uses manual virtual slots instead of PSD slot markers', () => {
   assert.match(html, /模板插槽 \/ 大夹子顺序 · 可直接拖动/);
   assert.match(html, /无需在 PSD 里写插槽提示/);

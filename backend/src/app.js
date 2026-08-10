@@ -206,7 +206,18 @@ function validateAssetMetadataInput(input, claim) {
   const name = requiredText(input.name || variant, 'INVALID_ASSET_NAME', 255);
   const contentHash = input.contentHash == null ? null : String(input.contentHash).toLowerCase();
   if (contentHash !== null && !/^[a-f0-9]{64}$/.test(contentHash)) throw new HttpError(400, 'INVALID_ASSET_HASH');
-  return { categoryId, characterCompatibility, defaultSlot, variant, name, contentHash };
+  const rawVisibility = input.layerVisibility == null ? {} : input.layerVisibility;
+  if (!isPlainObject(rawVisibility)) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+  const visibilityEntries = Object.entries(rawVisibility);
+  if (visibilityEntries.length > 2000) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+  const layerVisibility = {};
+  for (const [path, visible] of visibilityEntries) {
+    if (!path || path.length > 1024 || /\0/.test(path) || typeof visible !== 'boolean') {
+      throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+    }
+    layerVisibility[path] = visible;
+  }
+  return { categoryId, characterCompatibility, defaultSlot, variant, name, contentHash, layerVisibility };
 }
 
 function createAssetReceipt(claim, secret) {

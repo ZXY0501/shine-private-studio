@@ -68,6 +68,10 @@
   "characterCompatibility": "BOTH",
   "defaultSlot": "A",
   "colorMode": "PRESERVE_ORIGINAL",
+  "layerVisibility": {
+    "A头发/刘海": true,
+    "A头发/备用发饰": false
+  },
   "compatibleTemplateIds": [],
   "defaultTransform": {
     "x": 0,
@@ -89,6 +93,7 @@
 约束：
 
 - `colorMode` 默认必须是 `PRESERVE_ORIGINAL`。
+- `layerVisibility` 只保存网页端的显隐覆盖；空对象表示完全沿用 PSD 原始显隐，不得改写 PSD 的 `hidden` 字段。
 - 只有用户主动开启“跟随订单配色”后才切换为 `FOLLOW_ORDER`。
 - 改分类、改名称、切换 A/B、移动层级都不得自动切换 `colorMode`。
 - 素材源 PSD 不保存订单中的位置、旋转和缩放。

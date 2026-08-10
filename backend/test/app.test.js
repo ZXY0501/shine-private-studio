@@ -267,13 +267,14 @@ test('creates, completes, lists, downloads, and deletes a cloud asset', async ()
       headers: authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({
         receipt: ticket.receipt,
-        asset: { categoryId: 'EAR', characterCompatibility: 'BOTH', defaultSlot: 'A', variant: '狐狸耳朵', name: '狐狸耳朵' }
+        asset: { categoryId: 'EAR', characterCompatibility: 'BOTH', defaultSlot: 'A', variant: '狐狸耳朵', name: '狐狸耳朵', layerVisibility: { 'A耳朵/耳毛': false } }
       })
     });
     assert.equal(complete.status, 201);
     const completedAsset = (await complete.json()).asset;
     assert.equal(completedAsset.colorMode, 'PRESERVE_ORIGINAL');
     assert.equal(completedAsset.categoryId, 'EAR');
+    assert.deepEqual(completedAsset.layerVisibility, { 'A耳朵/耳毛': false });
 
     const list = await fetch(`${baseUrl}/api/assets`, { headers: authHeaders() });
     assert.equal(list.status, 200);
@@ -315,6 +316,14 @@ test('cloud asset upload validates size, metadata, and signed completion receipt
     });
     assert.equal(tampered.status, 400);
     assert.equal((await tampered.json()).error, 'INVALID_UPLOAD_RECEIPT');
+
+    const invalidVisibility = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'MOUTH', defaultSlot: 'A', layerVisibility: { '嘴巴/笑脸': 'yes' } } })
+    });
+    assert.equal(invalidVisibility.status, 400);
+    assert.equal((await invalidVisibility.json()).error, 'INVALID_ASSET_LAYER_VISIBILITY');
 
     const cleanTemplate = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
       method: 'POST',
