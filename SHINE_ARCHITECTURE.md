@@ -3,7 +3,17 @@
 > 审查日期：2026-08-09  
 > 审查基线：`main` / `9cab6bafa92e75ee9464ab53019d98573bcb1ab9`  
 > 当前产品基线：v0.28-alpha  
-> 本次变更：只新增本文档；未修改 `index.html`、线上部署、后端或云资源。
+> Phase 1 状态：Template Profile 云端测试已实现并完成真实模板读写验证。
+> Phase 2 状态：在 `codex/phase2` 独立分支实施；`main` 与生产 v0.28 保持不变。
+> Phase 2 详细契约：见 `SHINE_PHASE2_ASSET_SYSTEM.md`；部署与回滚见 `SHINE_DEPLOYMENT.md`。
+
+### 2026-08-10 Phase 2 架构决定
+
+- 不要求 PSD 增加 `@SLOT_*` 提示层；网页在 Template Profile 中维护可拖动的虚拟插槽。
+- 素材分类、A/B 选择、Z 层级和画布变换彼此解耦。
+- 所有上传素材默认 `PRESERVE_ORIGINAL`，只有用户主动打开“跟随订单配色”才允许自动改色。
+- 纯净模板、素材 PSD、缩略图、metadata、工作室设置和订单使用不同的数据生命周期。
+- Phase 2 继续保持当前单文件前端，避免在功能迁移期间同时进行大规模框架重构。
 
 ## 1. 项目约束
 
