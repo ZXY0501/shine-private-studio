@@ -71,6 +71,26 @@ test('asset families can be selected independently for A and B', () => {
   assert.match(html, /characterCompatibility/);
 });
 
+test('phase two uses manual virtual slots instead of PSD slot markers', () => {
+  assert.match(html, /模板插槽 \/ 大夹子顺序 · 可直接拖动/);
+  assert.match(html, /无需在 PSD 里写插槽提示/);
+  assert.match(html, /function assetStackId\(a\)/);
+  assert.match(html, /function assetIsInternallyInserted\(asset\)/);
+  assert.match(html, /const asset=assetFromStackId\(id\)/);
+  assert.doesNotMatch(html, /@SLOT/);
+});
+
+test('asset free transform works from the whole preview area and persists per template', () => {
+  assert.match(html, /function wirePreviewFreeTransform\(\)/);
+  assert.match(html, /body\.addEventListener\('pointerdown'/);
+  assert.match(html, /body\.addEventListener\('pointermove'/);
+  assert.match(html, /shine:asset-transform:/);
+  assert.match(html, /assetPlacements:Object\.fromEntries/);
+  assert.match(html, /function drawAssetTransformed\(ctx,a\)/);
+  assert.match(html, /id="assetTransformScale"/);
+  assert.match(html, /id="assetTransformRotation"/);
+});
+
 test('hat presets keep ear anchoring and allow a manual color', () => {
   assert.match(html, /hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B'/);
   assert.match(html, /kind==='hat'\)html\+='[^']*__DECOR_ANCHOR__[^']*__CUSTOM__/);

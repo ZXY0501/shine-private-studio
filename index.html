@@ -279,7 +279,7 @@ header .badge{display:none!important}
   overflow:hidden!important;
   display:grid!important;
   /* left preview | fixed vertical index | right workbench */
-  grid-template-columns:minmax(0,1.08fr) 92px minmax(0,.92fr)!important;
+  grid-template-columns:minmax(0,.88fr) 92px minmax(0,1.12fr)!important;
   grid-template-rows:minmax(0,1fr)!important;
   gap:7px!important;
   align-items:stretch!important;
@@ -413,7 +413,7 @@ header .badge{display:none!important}
   .app{height:100dvh!important;min-height:0!important;overflow:hidden!important}
   .workspaceShell{
     display:grid!important;
-    grid-template-columns:minmax(0,1.08fr) 92px minmax(0,.92fr)!important;
+    grid-template-columns:minmax(0,.88fr) 92px minmax(0,1.12fr)!important;
     grid-template-rows:minmax(0,1fr)!important;
     overflow:hidden!important;
   }
@@ -451,7 +451,8 @@ header .badge{display:none!important}
 .rootStackRow{display:grid;grid-template-columns:18px minmax(0,1fr) auto;gap:5px;align-items:center;padding:5px 6px;border-bottom:1px dashed #ece6ec;font-size:8px;cursor:grab;user-select:none;background:#fff}
 .rootStackRow:last-child{border-bottom:0}.rootStackRow.dragging{opacity:.42}.rootStackRow.dropBefore{box-shadow:inset 0 2px 0 #6d6680}.rootStackRow.dropAfter{box-shadow:inset 0 -2px 0 #6d6680}
 .rootStackHandle{font-size:10px;color:#8b8390;text-align:center}.rootStackName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:650}.rootStackMeta{font-size:7px;color:var(--muted);white-space:nowrap}
-.rootStackRow.virtualHair{background:#f5f1f8}.rootStackRow.virtualHair .rootStackName{font-weight:800}.rootStackRow.pixelRoot{background:#fcfbfc}.rootStackEmpty{padding:8px;font-size:8px;color:var(--muted)}
+.rootStackRow.virtualHair{background:#f5f1f8}.rootStackRow.virtualHair .rootStackName{font-weight:800}.rootStackRow.virtualAsset{background:#f2f6f7}.rootStackRow.virtualAsset .rootStackName{font-weight:800}.rootStackRow.transformSelected{outline:1px solid #786f86;outline-offset:-1px}.rootStackRow.pixelRoot{background:#fcfbfc}.rootStackEmpty{padding:8px;font-size:8px;color:var(--muted)}
+.assetTransformBox{margin-top:7px;padding:7px;border:1px solid var(--line);border-radius:9px;background:#fff}.assetTransformHead{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;align-items:center}.assetTransformHead select{width:100%;height:27px!important}.assetTransformGrid{display:grid;grid-template-columns:38px minmax(0,1fr) 42px;gap:4px 6px;align-items:center;margin-top:6px;font-size:8px;color:var(--muted)}.assetTransformGrid input[type=range]{width:100%;min-width:0}.assetTransformGrid output{font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}.assetTransformActions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:6px}.assetTransformActions label{display:flex;align-items:center;gap:3px;font-size:8px}.previewBody.transformReady{cursor:grab}.previewBody.transformDragging{cursor:grabbing}.previewBody.transformReady:after{content:'自由变换：在预览空白处拖动也可以移动素材';position:absolute;left:10px;bottom:10px;z-index:8;padding:4px 7px;border-radius:999px;background:rgba(48,43,53,.82);color:#fff;font-size:8px;pointer-events:none}.previewBody{position:relative}
 .layerHealthCompact .br{grid-template-columns:minmax(112px,1fr) 34px 48px 84px 31px!important}.layerHealthCompact .br>[data-k="source"],.layerHealthCompact .br.head>div:nth-child(5){display:none!important}.layerHealthCompact .br select[data-k="slot"]{font-size:7px!important}.layerHealthCompact .br select[data-k="part"]{max-width:48px}.layerHealthCompact .br select[data-k="role"]{max-width:84px}
 .swatchTools{grid-template-columns:minmax(0,1fr) 42px!important}
 #swatchTarget,#quickLayer{width:100%!important;min-width:0!important}
@@ -960,11 +961,11 @@ const S={
   collapsed:{}, visOverride:{}, masterOrder:null, bindings:{}, templateSignature:null, builderCollapsed:{},
   layerColorOverrides:{}, ruleColorOverrides:{}, manualLayerOverrides:{}, recolorCache:new Map(),
   orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:'',model:'deepseek-v4-flash'}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
-  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(),
+  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), selectedTransformStackId:null, transformDrag:null, transformFrame:0,
   liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null,
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null},
-  assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null
+  assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null, pendingAssetPlacements:{}
 };
 const $=s=>document.querySelector(s);
 const CLOUD_PROFILE_ENABLED=new URLSearchParams(location.search).get('cloudProfiles')==='1';
@@ -1126,6 +1127,23 @@ function hairInsertionStorageKey(){return 'shine:hair-insertion:'+String(S.templ
 function rootStackStorageKey(){return 'shine:root-stack:'+String(S.templateSignature||'none');}
 function rootLayerId(name){return 'layer:'+String(name||'');}
 function hairStackId(slot){return 'hair:'+slot;}
+function assetDefaultZ(a){
+  ensureAssetRecordV2(a);
+  if(a.categoryId==='HAIR')return a.slot==='A'?12:14;
+  if(a.categoryId==='TAIL')return a.slot==='A'?18:19;
+  if(a.categoryId==='PROP')return 30;
+  if(a.categoryId==='MOUTH')return a.slot==='A'?70:72;
+  if(a.categoryId==='EAR')return a.slot==='A'?80:96;
+  if(a.categoryId==='ACCESSORY')return 110;
+  return 50;
+}
+function assetStackId(a){ensureAssetRecordV2(a);return a.categoryId==='HAIR'?hairStackId(a.slot):`asset:${a.categoryId}:${encodeURIComponent(normalizeVariantName(a.variant||a.name))}:${a.slot}`;}
+function assetFromStackId(id){
+  if(!id?.startsWith('asset:'))return null;
+  return S.assets.find(a=>assetStackId(a)===id)||null;
+}
+function anyAssetFromStackId(id){return assetFromStackId(id)||(id?.startsWith('hair:')?(S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===id.slice(5)&&a.enabled)||S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===id.slice(5))):null)||null;}
+function stackAssetIds(){return [...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId!=='HAIR'}).sort((a,b)=>assetDefaultZ(b)-assetDefaultZ(a)).map(assetStackId))];}
 function rootLayerFromId(id){
   if(!id?.startsWith('layer:')||!S.master)return null;
   const name=id.slice(6);return (S.master.children||[]).find((l,i)=>(l.name||('Layer '+i))===name)||null;
@@ -1144,17 +1162,23 @@ function defaultRootStackOrder(){
   if(bEye>=0){ids.splice(bEye+1,0,...hairs);}
   else if(bFace>=0){ids.splice(bFace,0,...hairs);}
   else {ids.unshift(...hairs);}
-  return ids;
+  return [...stackAssetIds(),...ids];
 }
 function normalizeRootStackOrder(order){
   const validLayers=new Set(baseRootPanelOrder());
-  const wanted=[...validLayers,hairStackId('A'),hairStackId('B')];
+  const validAssets=new Set(stackAssetIds()),rememberedAssets=(Array.isArray(order)?order:[]).filter(id=>typeof id==='string'&&id.startsWith('asset:')),wanted=[...validLayers,hairStackId('A'),hairStackId('B'),...validAssets,...rememberedAssets];
   const out=[];
   (Array.isArray(order)?order:[]).forEach(id=>{if(wanted.includes(id)&&!out.includes(id))out.push(id)});
-  // 新模板新增的根层优先按模板原顺序补回；头发占位如果缺失则按默认习惯补回。
+  // 新模板根层或刚上传素材按默认相邻位置补回，同时保留用户已经拖好的层级。
   const def=defaultRootStackOrder();
-  def.forEach(id=>{if(!out.includes(id))out.push(id)});
-  const cleaned=out.filter(id=>validLayers.has(id)||id===hairStackId('A')||id===hairStackId('B'));
+  def.forEach((id,index)=>{
+    if(out.includes(id))return;
+    const next=def.slice(index+1).find(x=>out.includes(x));
+    if(next){out.splice(out.indexOf(next),0,id);return;}
+    const prev=def.slice(0,index).reverse().find(x=>out.includes(x));
+    if(prev)out.splice(out.indexOf(prev)+1,0,id);else out.push(id);
+  });
+  const cleaned=out.filter(id=>validLayers.has(id)||validAssets.has(id)||id.startsWith('asset:')||id===hairStackId('A')||id===hairStackId('B'));
   // v0.25：背景三根层是固定底座，不允许被历史拖拽顺序抬到人物上面。
   // 图层面板这里是“上→下”：蕾丝在底色上方；旧的整张「背景」层保持 PSD 原隐藏，只放最底兜底。
   const legacy=cleaned.find(id=>/^layer:背景$/i.test(id));
@@ -1178,13 +1202,60 @@ function loadHairInsertion(){
 function saveHairInsertion(){try{localStorage.setItem(hairInsertionStorageKey(),JSON.stringify(S.hairInsertion))}catch{}}
 function hairAnchorOptions(slot){return S.flat.filter(n=>{const b=S.bindings[n.path];const ss=b?.slot==='A'||b?.slot==='B'?b.slot:guessSlot(n.path,n.name);return ss===slot;});}
 function makeHairInsertionPanel(){
-  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。A/B 头发是虚拟大夹子，未上传时只是占位。当前模板默认习惯：<b>B眼睛 → B头发 → A头发 → B脸部</b>。</div><div id="rootStackList" class="rootStackList"></div>`;return box;
+  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示：勾选的头发、耳朵、嘴巴、尾巴和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.1" max="3" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><span class="layerLinkHint">选中素材后，可直接在左侧预览任意空白处拖动，不必按住素材本身。</span></div></div>`;return box;
 }
 function rootStackLabel(id){
   if(id===hairStackId('A')){const a=S.assets.find(x=>x.type==='HAIR'&&x.slot==='A');return {name:'A头发',meta:a?'已上传':'未上传 · 占位',kind:'hair'};}
   if(id===hairStackId('B')){const a=S.assets.find(x=>x.type==='HAIR'&&x.slot==='B');return {name:'B头发',meta:a?'已上传':'未上传 · 占位',kind:'hair'};}
+  const a=assetFromStackId(id);if(a)return {name:`${a.slot} · ${a.variant||a.name||categoryLabel(a.categoryId)}`,meta:`${categoryLabel(a.categoryId)} · ${a.enabled?'已勾选':'未勾选'}`,kind:'asset'};
+  if(id?.startsWith('asset:'))return {name:'已保存的素材插槽',meta:'等待载入对应素材',kind:'asset'};
   const l=rootLayerFromId(id);if(!l)return {name:id,meta:'未知',kind:'pixel'};
   const group=!!(l.children&&l.children.length);return {name:l.name||id.slice(6),meta:group?'大夹子':'顶层图层',kind:group?'group':'pixel'};
+}
+function assetTransformForTemplate(a){
+  ensureAssetRecordV2(a);const key=String(S.templateSignature||'default');
+  if(!a.templateTransforms||typeof a.templateTransforms!=='object')a.templateTransforms={};
+  if(!a.templateTransforms[key]){
+    let saved=null;try{saved=JSON.parse(localStorage.getItem('shine:asset-transform:'+key+':'+assetStackId(a))||'null')}catch{}
+    a.templateTransforms[key]=saved&&typeof saved==='object'?saved:{...(a.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false})};
+  }
+  return a.templateTransforms[key];
+}
+function persistAssetTransform(a){if(!a)return;const key=String(S.templateSignature||'default');try{localStorage.setItem('shine:asset-transform:'+key+':'+assetStackId(a),JSON.stringify(assetTransformForTemplate(a)))}catch{}}
+function applyPendingAssetPlacement(a){
+  const saved=S.pendingAssetPlacements?.[assetStackId(a)];if(!saved||typeof saved!=='object')return;
+  const key=String(S.templateSignature||'default');a.templateTransforms=a.templateTransforms||{};a.templateTransforms[key]={x:Number(saved.x)||0,y:Number(saved.y)||0,scale:Math.max(.1,Number(saved.scale)||1),rotation:Number(saved.rotation)||0,flipX:!!saved.flipX};persistAssetTransform(a);
+}
+function selectedTransformAsset(){return anyAssetFromStackId(S.selectedTransformStackId)||S.assets.find(a=>a.enabled)||S.assets[0]||null;}
+function syncTransformControlValues(a=selectedTransformAsset()){
+  const body=$('#previewBody');if(body)body.classList.toggle('transformReady',!!a?.enabled&&!!S.master);
+  if(!a)return;
+  const t=assetTransformForTemplate(a),w=Math.max(100,S.master?.width||a.psd?.width||1500),h=Math.max(100,S.master?.height||a.psd?.height||1500);
+  const x=$('#assetTransformX'),y=$('#assetTransformY'),scale=$('#assetTransformScale'),rotation=$('#assetTransformRotation'),flip=$('#assetTransformFlip');
+  if(!x||!y||!scale||!rotation||!flip)return;
+  x.min=-w;x.max=w;y.min=-h;y.max=h;x.value=Math.round(t.x||0);y.value=Math.round(t.y||0);scale.value=t.scale||1;rotation.value=t.rotation||0;flip.checked=!!t.flipX;
+  $('#assetTransformXOut').value=Math.round(t.x||0);$('#assetTransformYOut').value=Math.round(t.y||0);$('#assetTransformScaleOut').value=Number(t.scale||1).toFixed(2);$('#assetTransformRotationOut').value=Math.round(t.rotation||0)+'°';
+}
+function scheduleAssetTransformRender(){
+  if(S.transformFrame)return;S.transformFrame=requestAnimationFrame(()=>{S.transformFrame=0;if(S.master)reconstruct();});
+}
+function renderTransformControls(){
+  const select=$('#transformAssetSelect');if(!select)return;const byStack=new Map();S.assets.forEach(a=>{ensureAssetRecordV2(a);const id=assetStackId(a),old=byStack.get(id);if(!old||(!old.enabled&&a.enabled))byStack.set(id,a)});const assets=[...byStack.values()];
+  if(S.selectedTransformStackId&&!assets.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;
+  const preferred=selectedTransformAsset();if(preferred)S.selectedTransformStackId=assetStackId(preferred);
+  select.innerHTML=assets.length?assets.map(a=>`<option value="${safe(assetStackId(a))}" ${assetStackId(a)===S.selectedTransformStackId?'selected':''}>${safe(a.slot+' · '+categoryLabel(a.categoryId)+' · '+(a.variant||a.name||'未命名')+(a.enabled?'':'（未勾选）'))}</option>`).join(''):'<option value="">先在素材库勾选素材</option>';
+  select.disabled=!assets.length;$('#resetAssetTransform').disabled=!assets.length;['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation','assetTransformFlip'].forEach(id=>{$('#'+id).disabled=!assets.length});
+  select.onchange=()=>{S.selectedTransformStackId=select.value;renderHairInsertionControls();};
+  const update=(persist=false)=>{const a=selectedTransformAsset();if(!a)return;const t=assetTransformForTemplate(a);t.x=Number($('#assetTransformX').value)||0;t.y=Number($('#assetTransformY').value)||0;t.scale=Math.max(.1,Number($('#assetTransformScale').value)||1);t.rotation=Number($('#assetTransformRotation').value)||0;t.flipX=$('#assetTransformFlip').checked;a.updatedAt=new Date().toISOString();if(persist)persistAssetTransform(a);syncTransformControlValues(a);scheduleAssetTransformRender();};
+  ['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation'].forEach(id=>{$('#'+id).oninput=()=>update(false);$('#'+id).onchange=()=>update(true)});$('#assetTransformFlip').onchange=()=>update(true);
+  $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;a.templateTransforms[String(S.templateSignature||'default')]={x:0,y:0,scale:1,rotation:0,flipX:false};a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);scheduleAssetTransformRender();};
+  syncTransformControlValues(preferred);
+}
+function wirePreviewFreeTransform(){
+  const body=$('#previewBody');if(!body||body._phase2TransformWired)return;body._phase2TransformWired=true;
+  body.addEventListener('pointerdown',e=>{if(e.button!==0||!S.master)return;const a=selectedTransformAsset();if(!a?.enabled)return;S.selectedTransformStackId=assetStackId(a);const t=assetTransformForTemplate(a);S.transformDrag={pointerId:e.pointerId,startClientX:e.clientX,startClientY:e.clientY,startX:Number(t.x)||0,startY:Number(t.y)||0};body.classList.add('transformDragging');try{body.setPointerCapture(e.pointerId)}catch{}e.preventDefault();});
+  body.addEventListener('pointermove',e=>{const d=S.transformDrag;if(!d||d.pointerId!==e.pointerId)return;const cv=$('#productionCanvas'),rect=cv?.getBoundingClientRect(),sx=rect?.width?cv.width/rect.width:1,sy=rect?.height?cv.height/rect.height:1,a=selectedTransformAsset();if(!a)return;const t=assetTransformForTemplate(a);t.x=d.startX+(e.clientX-d.startClientX)*sx;t.y=d.startY+(e.clientY-d.startClientY)*sy;a.updatedAt=new Date().toISOString();syncTransformControlValues(a);scheduleAssetTransformRender();e.preventDefault();});
+  const finish=e=>{if(!S.transformDrag||S.transformDrag.pointerId!==e.pointerId)return;const a=selectedTransformAsset();if(a)persistAssetTransform(a);S.transformDrag=null;body.classList.remove('transformDragging');renderAssetLibrary();};body.addEventListener('pointerup',finish);body.addEventListener('pointercancel',finish);
 }
 function applyRootStackMove(dragId,targetId,after=false){
   if(!dragId||!targetId||dragId===targetId)return;
@@ -1193,13 +1264,14 @@ function applyRootStackMove(dragId,targetId,after=false){
 }
 function renderHairInsertionControls(){
   const host=$('#rootStackList');if(!host)return;host.innerHTML='';
-  if(!S.master){host.innerHTML='<div class="rootStackEmpty">上传纯净模板后，这里会出现大夹子顺序。</div>';return;}
+  if(!S.master){host.innerHTML='<div class="rootStackEmpty">上传纯净模板后，这里会出现大夹子顺序。</div>';renderTransformControls();return;}
   S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder?.length?S.rootStackOrder:defaultRootStackOrder());
   S.rootStackOrder.forEach(id=>{
-    const x=rootStackLabel(id),row=document.createElement('div');row.className='rootStackRow '+(x.kind==='hair'?'virtualHair':x.kind==='pixel'?'pixelRoot':'');row.draggable=true;row.dataset.stackId=id;
-    row.innerHTML=`<div class="rootStackHandle">⋮⋮</div><div class="rootStackName" title="${safe(x.name)}">${x.kind==='group'?'📁 ':x.kind==='hair'?'✂️ ':'▧ '}${safe(x.name)}</div><div class="rootStackMeta">${safe(x.meta)}</div>`;host.appendChild(row);
+    const x=rootStackLabel(id),row=document.createElement('div');row.className='rootStackRow '+(x.kind==='hair'?'virtualHair':x.kind==='asset'?'virtualAsset':x.kind==='pixel'?'pixelRoot':'')+(id===S.selectedTransformStackId?' transformSelected':'');row.draggable=true;row.dataset.stackId=id;
+    row.innerHTML=`<div class="rootStackHandle">⋮⋮</div><div class="rootStackName" title="${safe(x.name)}">${x.kind==='group'?'📁 ':x.kind==='hair'?'✂️ ':x.kind==='asset'?'◆ ':'▧ '}${safe(x.name)}</div><div class="rootStackMeta">${safe(x.meta)}</div>`;host.appendChild(row);
   });
   host.querySelectorAll('.rootStackRow').forEach(row=>{
+    row.addEventListener('click',()=>{const a=assetFromStackId(row.dataset.stackId)||(row.dataset.stackId?.startsWith('hair:')?rootStackHairAsset(row.dataset.stackId.slice(5)):null);if(a){S.selectedTransformStackId=assetStackId(a);renderHairInsertionControls();}});
     row.addEventListener('dragstart',e=>{S.rootStackDragId=row.dataset.stackId;row.classList.add('dragging');try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',S.rootStackDragId)}catch{}});
     row.addEventListener('dragend',()=>{S.rootStackDragId=null;host.querySelectorAll('.rootStackRow').forEach(r=>r.classList.remove('dragging','dropBefore','dropAfter'))});
     row.addEventListener('dragover',e=>{e.preventDefault();const rect=row.getBoundingClientRect(),after=e.clientY>rect.top+rect.height/2;row.classList.toggle('dropAfter',after);row.classList.toggle('dropBefore',!after);if(e.dataTransfer)e.dataTransfer.dropEffect='move';});
@@ -1207,9 +1279,11 @@ function renderHairInsertionControls(){
     row.addEventListener('drop',e=>{e.preventDefault();const rect=row.getBoundingClientRect(),after=e.clientY>rect.top+rect.height/2;const drag=S.rootStackDragId||e.dataTransfer?.getData('text/plain');row.classList.remove('dropBefore','dropAfter');applyRootStackMove(drag,row.dataset.stackId,after);});
   });
   const reset=$('#resetRootStack');if(reset&&!reset._wired){reset._wired=true;reset.onclick=resetRootStackOrder;}
+  renderTransformControls();
 }
 function rootStackHairAsset(slot){return S.assets.find(a=>a.type==='HAIR'&&a.slot===slot&&a.enabled)||null;}
 function hairIsInternallyInserted(asset){return asset.type==='HAIR'&&S.rootStackOrder?.includes(hairStackId(asset.slot));}
+function assetIsInternallyInserted(asset){return S.rootStackOrder?.includes(assetStackId(asset));}
 function insertedHairFor(path,phase){return S.assets.filter(a=>a.type==='HAIR'&&a.enabled&&!S.rootStackOrder?.length&&S.hairInsertion?.[a.slot]?.path===path&&S.hairInsertion[a.slot].position===phase);}
 function drawInsertedHair(ctx,path,phase){insertedHairFor(path,phase).forEach(a=>{if(a.composite){ctx.save();ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over';ctx.drawImage(a.composite,0,0);ctx.restore();}});}
 
@@ -1322,6 +1396,11 @@ function sampledCanvasError(a,b){
   }
   return n?err/n:Infinity;
 }
+function drawAssetTransformed(ctx,a){
+  const src=a?.composite||a?.originalComposite;if(!src)return;
+  const t=assetTransformForTemplate(a),cx=src.width/2,cy=src.height/2,scale=Math.max(.1,Number(t.scale)||1);
+  ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.translate((Number(t.x)||0)+cx,(Number(t.y)||0)+cy);ctx.rotate((Number(t.rotation)||0)*Math.PI/180);ctx.scale((t.flipX?-1:1)*scale,scale);ctx.drawImage(src,-cx,-cy);ctx.restore();
+}
 function renderMasterWithRootStack(){
   const psd=S.master,c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
   const panel=normalizeRootStackOrder(S.rootStackOrder?.length?S.rootStackOrder:defaultRootStackOrder());
@@ -1329,8 +1408,9 @@ function renderMasterWithRootStack(){
   const draw=[...panel].reverse();let clipBase=null;
   draw.forEach(id=>{
     if(id===hairStackId('A')||id===hairStackId('B')){
-      const a=rootStackHairAsset(id.slice(5));if(a?.composite){ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.drawImage(a.composite,0,0);ctx.restore();clipBase=a.composite;}return;
+      const a=rootStackHairAsset(id.slice(5));if(a?.composite){drawAssetTransformed(ctx,a);clipBase=a.composite;}return;
     }
+    const asset=assetFromStackId(id);if(asset){if(asset.enabled)drawAssetTransformed(ctx,asset);clipBase=null;return;}
     const layer=rootLayerFromId(id);if(!layer)return;const path=layer.name||id.slice(6);if(!effectiveVisible(layer,path,true,true))return;
     const isGroup=!!(layer.children&&layer.children.length),bm=(layer.blendMode||'normal').toLowerCase(),opacity=typeof layer.opacity==='number'?layer.opacity:1;
     if(isGroup&&bm==='pass through'&&opacity>=.999&&!layer.clipping){renderSiblingStack(psd,ctx,layer.children,path,S.masterOrder?.mode||'reverse',false,true,true);clipBase=null;return;}
@@ -1393,21 +1473,11 @@ function renderOverlay(){
   const base=S.overlayBase==='original'&&S.master.canvas?S.master.canvas:$('#reconCanvas');
   ctx.drawImage(base,0,0);
   let on=0;
-  const z=(a)=>{
-    ensureAssetRecordV2(a);
-    if(a.categoryId==='HAIR') return a.slot==='A'?12:14;
-    if(a.categoryId==='TAIL') return a.slot==='A'?18:19;
-    if(a.categoryId==='PROP') return 30;
-    if(a.categoryId==='MOUTH') return a.slot==='A'?70:72;
-    if(a.categoryId==='EAR') return a.slot==='A'?80:96; // A帽子在后，B帽子在前
-    if(a.categoryId==='ACCESSORY') return 110;
-    return 50;
-  };
-  const sorted=[...S.assets].sort((a,b)=>z(a)-z(b));
+  const sorted=[...S.assets].sort((a,b)=>assetDefaultZ(a)-assetDefaultZ(b));
   sorted.forEach(a=>{
     if(!a.enabled)return;
-    if(hairIsInternallyInserted(a)){on++;return;}
-    on++;const src=a.composite;if(src)ctx.drawImage(src,0,0);
+    if(S.overlayBase!=='original'&&assetIsInternallyInserted(a)){on++;return;}
+    on++;drawAssetTransformed(ctx,a);
   });
   $('#overlayInfo').textContent=`${on} 个外挂资产开启 · ${dst.width}×${dst.height}`;
   if($('#productionCanvas'))syncProductionPreview();
@@ -1608,6 +1678,7 @@ function buildTemplateJson(){
     },
     rootStackOrder:S.rootStackOrder,
     hairInsertion:S.hairInsertion,
+    assetPlacements:Object.fromEntries(S.assets.map(a=>[assetStackId(a),{...assetTransformForTemplate(a)}])),
     bindings:S.bindings
   };
 }
@@ -1665,6 +1736,8 @@ function applyCloudTemplateProfile(profile){
   if(!data.bindings||!Array.isArray(data.rootStackOrder)||!data.hairInsertion)throw new Error('云端 Profile 数据不完整。');
   Object.entries(data.bindings).forEach(([p,b])=>{if(S.flat.some(n=>n.path===p))S.bindings[p]=b});
   S.hairInsertion=JSON.parse(JSON.stringify(data.hairInsertion));
+  S.pendingAssetPlacements=data.assetPlacements&&typeof data.assetPlacements==='object'?JSON.parse(JSON.stringify(data.assetPlacements)):{};
+  S.assets.forEach(applyPendingAssetPlacement);
   S.rootStackOrder=normalizeRootStackOrder(data.rootStackOrder);
   ensureBindings(false);saveHairInsertion();saveRootStackOrder();saveBindingsLocal();
   renderBuilder();renderEditableLayerSelectors();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();debug();
@@ -2519,7 +2592,7 @@ function setAssetFamilySelection(familyKey,slot,on){
     order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
   }
   syncAssetEnabledFromOrder(order);persistOrders();refreshAllAssetComposites(order);
-  if(categoryId==='HAIR')reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
+  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
 }
 function paintAssetThumbnail(canvas,source){
   if(!canvas||!source)return;const ctx=canvas.getContext('2d'),w=64,h=64;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
@@ -2589,14 +2662,14 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-open-template-tab]').forEach(b=>b.onclick=()=>document.querySelector('.taskTab[data-tab="upload"]')?.click());
   host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>el.onchange=()=>setAssetFamilySelection(el.dataset.family,el.dataset.slot,el.checked));
   host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
-    const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;
+    const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;const oldStackIds=new Set(records.map(assetStackId));
     S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));
-    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);a.updatedAt=new Date().toISOString();initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});
-    syncAssetEnabledFromOrder(getActiveOrder());persistOrders();renderAssetRows();updateDecorSelects();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();
+    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);a.updatedAt=new Date().toISOString();initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder.filter(id=>!oldStackIds.has(id)));saveRootStackOrder();
+    syncAssetEnabledFromOrder(getActiveOrder());persistOrders();renderAssetRows();updateDecorSelects();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();
   });
-  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
+  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
   host.querySelectorAll('[data-ak="layers"]').forEach(el=>el.onclick=()=>{S.editingAssetIndex=+el.dataset.ai;renderAssetBindingEditor();});
-  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key),categoryId=records[0]?.categoryId;S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
+  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key),categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();renderEditableLayerSelectors();
 }
 function loadSwatchImage(file){
@@ -2985,7 +3058,7 @@ function applyDecorSelection(){
     const wanted=a.slot==='A'?o.A.decor:o.B.decor;
     a.enabled=wanted!=='NONE'&&sameVariant(a.variant,wanted);
   });
-  refreshAllAssetComposites(o);renderAssetRows();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
+  refreshAllAssetComposites(o);renderHairInsertionControls();reconstruct();renderAssetRows();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
 }
 
 function renderGroupAsset(psd,node,mode){
@@ -3016,7 +3089,7 @@ async function loadHairAsset(file,slot){
   try{
     const psd=await parsePsd(file),order=detectLayerDrawOrder(psd);
     S.assets=S.assets.filter(a=>!(a.type==='HAIR'&&a.slot===slot));
-    const now=new Date().toISOString(),asset={schemaVersion:'shine-asset-v2',assetId:'asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),name:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',categoryId:'HAIR',characterCompatibility:slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:now,updatedAt:now,bindings:{}};
+    const now=new Date().toISOString(),asset={schemaVersion:'shine-asset-v2',assetId:'asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant:file.name.replace(/\.psd$/i,''),name:file.name.replace(/\.psd$/i,''),enabled:true,renderMode:'overlay',categoryId:'HAIR',characterCompatibility:slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:now,updatedAt:now,bindings:{}};applyPendingAssetPlacement(asset);
     initAssetBindings(asset,true);asset.originalComposite=renderAssetComposite(asset,getActiveOrder()||newOrderData());asset.composite=asset.originalComposite;S.assets.push(asset);
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();
     stat($('#apiStatus'),`${slot} 位头发已载入；已进入“大夹子顺序”，可以直接拖动层级。`,'good');
@@ -3182,7 +3255,7 @@ function wireFormBackgroundQuick(){
 
 function buildWorkspaceUI(){
   const prod=document.querySelector('section.card.prod'); if(!prod)return;
-  const preview=$('#productionCanvas')?.closest('.prodPreview'); if(preview)$('#previewBody').appendChild(preview); setPreviewInspect(false);
+  const preview=$('#productionCanvas')?.closest('.prodPreview'); if(preview)$('#previewBody').appendChild(preview); setPreviewInspect(false);wirePreviewFreeTransform();
   const tabs={upload:$('#tab-upload'),assets:$('#tab-assets'),form:$('#tab-form'),background:$('#tab-background'),quick:$('#tab-quick'),logic:$('#tab-logic')};
 
   // 模板上传页是静态 HTML：即使后续某个可选功能报错，主模板入口也永远看得见。
@@ -3328,7 +3401,7 @@ function renderAssetRows(){
   host.querySelectorAll('[data-k]').forEach(el=>{
     el.onchange=()=>{
       const a=S.assets[+el.dataset.i],k=el.dataset.k;
-      a[k]=k==='enabled'?el.checked:el.value;if(k==='type')a.categoryId=categoryIdForType(a.type);if(k==='slot'){a.defaultSlot=a.slot;a.characterCompatibility=a.slot}a.updatedAt=new Date().toISOString();renderAssetLibrary();renderOverlay();debug();
+      a[k]=k==='enabled'?el.checked:el.value;if(k==='type')a.categoryId=categoryIdForType(a.type);if(k==='slot'){a.defaultSlot=a.slot;a.characterCompatibility=a.slot}a.updatedAt=new Date().toISOString();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();debug();
     };
     if(el.tagName==='INPUT'&&el.type==='text')el.oninput=el.onchange;
   });
@@ -3348,7 +3421,7 @@ function inferAsset(file){
 }
 function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null,metadata={}){
   const now=new Date().toISOString(),a={schemaVersion:'shine-asset-v2',assetId:metadata.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd,composite:null,originalComposite:null,order,slot,type,variant,name:variant,enabled:false,groupPath,renderMode:'overlay',categoryId:metadata.categoryId||categoryIdForType(type),characterCompatibility:metadata.characterCompatibility||slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:metadata.createdAt||now,updatedAt:now,bindings:{}};
-  initAssetBindings(a,true);a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
+  applyPendingAssetPlacement(a);initAssetBindings(a,true);a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
   if(type==='HAT_DECOR'&&sampledAlphaMass(a.composite)<2000)a.composite=a.originalComposite;return a;
 }
 function upsertAssetRecord(rec){
@@ -3389,7 +3462,7 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
     }
     persistOrders();
   }
-  renderAssetRows();updateDecorSelects();applyDecorSelection();renderAssetLibrary();reconstruct();renderOverlay();syncProductionPreview();debug();
+  renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();renderOverlay();syncProductionPreview();debug();
 }
 function exportTree(){
   const nodes=S.flat.map(n=>{
@@ -3452,7 +3525,7 @@ $('#importTemplate').onchange=async e=>{
   const f=e.target.files?.[0];if(!f||!S.master)return;
   try{
     const data=JSON.parse(await f.text());
-    if(!data.bindings)throw new Error('文件中没有 bindings');if(data.hairInsertion)S.hairInsertion=data.hairInsertion;if(data.rootStackOrder)S.rootStackOrder=normalizeRootStackOrder(data.rootStackOrder);
+    if(!data.bindings)throw new Error('文件中没有 bindings');if(data.hairInsertion)S.hairInsertion=data.hairInsertion;if(data.assetPlacements&&typeof data.assetPlacements==='object'){S.pendingAssetPlacements=JSON.parse(JSON.stringify(data.assetPlacements));S.assets.forEach(applyPendingAssetPlacement)}if(data.rootStackOrder)S.rootStackOrder=normalizeRootStackOrder(data.rootStackOrder);
     Object.entries(data.bindings).forEach(([p,b])=>{if(S.flat.some(n=>n.path===p))S.bindings[p]=b});
     ensureBindings(false);saveRootStackOrder();renderBuilder();renderEditableLayerSelectors();renderHairInsertionControls();reconstruct();
     stat($('#builderStatus'),'已导入 template.json；大夹子顺序也已恢复。请检查后点击“保存模板绑定”。','good');
@@ -3526,8 +3599,8 @@ $('#toggleHidden').onclick=()=>{S.showHidden=!S.showHidden;$('#toggleHidden').te
 $('#resetVisibility').onclick=()=>{S.visOverride={};renderTree();reconstruct();};
 $('#rerender').onclick=reconstruct;
 $('#exportTree').onclick=exportTree;
-$('#showAllAssets').onclick=()=>{S.assets.forEach(a=>a.enabled=true);renderAssetRows();renderOverlay();debug()};
-$('#hideAllAssets').onclick=()=>{S.assets.forEach(a=>a.enabled=false);renderAssetRows();renderOverlay();debug()};
+$('#showAllAssets').onclick=()=>{S.assets.forEach(a=>a.enabled=true);renderHairInsertionControls();reconstruct();renderAssetRows();renderOverlay();debug()};
+$('#hideAllAssets').onclick=()=>{S.assets.forEach(a=>a.enabled=false);renderHairInsertionControls();reconstruct();renderAssetRows();renderOverlay();debug()};
 $('#exportAssetJson').onclick=exportManifest;
 $('#baseOriginal').onclick=()=>{S.overlayBase='original';renderOverlay()};
 $('#baseRecon').onclick=()=>{S.overlayBase='recon';renderOverlay()};
