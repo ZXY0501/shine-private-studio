@@ -133,6 +133,16 @@ test('Eye Scheme v2 uses two anchors, complete field modes, and protects fixed h
   assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);
 });
 
+test('Eye Scheme keeps the phase-one one-color pupil workflow as a built-in option', () => {
+  assert.match(html, /value="LEGACY_AUTO">一期傻瓜模式（瞳孔跟随主色）/);
+  assert.match(html, /function legacyEyeRoleColor\(role,slot,order\)/);
+  assert.match(html, /shiftColor\(eye,g\.eyePupilL,g\.eyePupilC\)/);
+  assert.match(html, /eyeSchemeId==='LEGACY_AUTO'/);
+  assert.match(html, /advanced\.hidden=legacy/);
+  assert.match(html, /syncEyeSchemeModeUi\('A'\)/);
+  assert.match(html, /syncEyeSchemeModeUi\('B'\)/);
+});
+
 test('the main inline browser program parses as JavaScript', () => {
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
     .map(match => match[1])

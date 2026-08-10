@@ -642,7 +642,7 @@ header .badge{display:none!important}
             <label>宝宝名字</label><input id="aName" type="text" placeholder="顾客填写的角色名"/>
             <label>眼睛主色</label><div class="colorLine"><input id="aEyeHex" type="text" value="#918DCB"/><input id="aEyeColor" type="color" value="#918dcb"/></div>
             <label>眼睛方案</label><select id="aEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
-            <details class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="aPupilAccentHex" type="text" value="#E6F9FF"/><input id="aPupilAccentColor" type="color" value="#e6f9ff"/></div></details>
+            <details id="aPupilAdvanced" class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="aPupilAccentHex" type="text" value="#E6F9FF"/><input id="aPupilAccentColor" type="color" value="#e6f9ff"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="aHairHex" type="text" value="#7D718C"/><input id="aHairColor" type="color" value="#7d718c"/></div>
             <label>衣服颜色</label><select id="aOutfitPreset"></select>
             <label id="aOutfitManualLabel" style="display:none">衣服自选色</label><div id="aOutfitManualWrap" class="colorLine" style="display:none"><input id="aOutfitManualHex" type="text" value="#D7BCC4"/><input id="aOutfitManualColor" type="color" value="#d7bcc4"/></div>
@@ -661,7 +661,7 @@ header .badge{display:none!important}
             <label>宝宝名字</label><input id="bName" type="text" placeholder="顾客填写的角色名"/>
             <label>眼睛主色</label><div class="colorLine"><input id="bEyeHex" type="text" value="#B990A0"/><input id="bEyeColor" type="color" value="#b990a0"/></div>
             <label>眼睛方案</label><select id="bEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
-            <details class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="bPupilAccentHex" type="text" value="#FFD6A6"/><input id="bPupilAccentColor" type="color" value="#ffd6a6"/></div></details>
+            <details id="bPupilAdvanced" class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="bPupilAccentHex" type="text" value="#FFD6A6"/><input id="bPupilAccentColor" type="color" value="#ffd6a6"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="bHairHex" type="text" value="#8A6F72"/><input id="bHairColor" type="color" value="#8a6f72"/></div>
             <label>衣服颜色</label><select id="bOutfitPreset"></select>
             <label id="bOutfitManualLabel" style="display:none">衣服自选色</label><div id="bOutfitManualWrap" class="colorLine" style="display:none"><input id="bOutfitManualHex" type="text" value="#C9D4E7"/><input id="bOutfitManualColor" type="color" value="#c9d4e7"/></div>
@@ -2235,8 +2235,8 @@ function selectOrder(id){
   S.activeOrderId=id;S.manualLayerOverrides=clone(o.layerOverrides||{});rebuildLayerOverrideMap();renderOrders();
   $('#orderForm').value=o.formText||'';
   $('#aName').value=o.A?.name||'';$('#bName').value=o.B?.name||'';
-  setLinkedColor('aEye',o.A?.eye||'#918DCB');setLinkedColor('aPupilAccent',o.A?.pupilAccent||'#E6F9FF');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';setLinkedColor('aHair',o.A?.hair||'#7D718C');
-  setLinkedColor('bEye',o.B?.eye||'#B990A0');setLinkedColor('bPupilAccent',o.B?.pupilAccent||'#FFD6A6');$('#bEyeScheme').value=o.B?.eyeSchemeId||'AUTO';setLinkedColor('bHair',o.B?.hair||'#8A6F72');
+  setLinkedColor('aEye',o.A?.eye||'#918DCB');setLinkedColor('aPupilAccent',o.A?.pupilAccent||'#E6F9FF');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';syncEyeSchemeModeUi('A');setLinkedColor('aHair',o.A?.hair||'#7D718C');
+  setLinkedColor('bEye',o.B?.eye||'#B990A0');setLinkedColor('bPupilAccent',o.B?.pupilAccent||'#FFD6A6');$('#bEyeScheme').value=o.B?.eyeSchemeId||'AUTO';syncEyeSchemeModeUi('B');setLinkedColor('bHair',o.B?.hair||'#8A6F72');
   renderPresetOptions();
   $('#aOutfitPreset').value=!o.A?.outfit?'__CUSTOM__':(o.A.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('aOutfitManual',o.A?.outfitManual||'#D7BCC4');
@@ -2904,7 +2904,19 @@ function eyeSchemeFieldColor(scheme,key,slot,order,seen=new Set()){
   if(field.mode==='INDEPENDENT')return key==='pupil'?safeHex(order?.[slot]?.pupilAccent,field.value):key==='irisBase'?safeHex(order?.[slot]?.eye,field.value):safeHex(field.value,'#888888');
   const derive=field.derive||{},source=eyeSchemeFieldColor(scheme,derive.source||'irisBase',slot,order,seen);return source?deriveEyeHsl(source,derive):safeHex(field.value,'#888888');
 }
-function eyeRoleColorV2(role,slot,order){const key=EYE_ROLE_FIELD[role];return key?eyeSchemeFieldColor(selectedEyeScheme(slot,order),key,slot,order):null}
+function legacyEyeRoleColor(role,slot,order){
+  const eye=safeHex(order?.[slot]?.eye,'#918DCB'),g=S.logic||DEFAULT_LOGIC;
+  if(role==='EYE_IRIS_BASE')return eye;
+  if(['EYE_IRIS_DARK','EYE_DARK','EYE_IRIS_DEEP','EYE_PUPIL_DARK'].includes(role))return shiftColor(eye,g.eyeDarkL,g.eyeDarkC);
+  if(role==='EYE_PUPIL')return shiftColor(eye,g.eyePupilL,g.eyePupilC);
+  if(['EYE_IRIS_HIGHLIGHT','EYE_HIGHLIGHT','EYE_LASH_HIGHLIGHT','LASH_HIGHLIGHT'].includes(role))return shiftColor(eye,g.eyeHighL,g.eyeHighC);
+  if(role==='EYE_OUTLINE')return shiftColor(eye,g.eyeOutlineL,g.eyeOutlineC);
+  return null;
+}
+function eyeRoleColorV2(role,slot,order){
+  if(order?.[slot]?.eyeSchemeId==='LEGACY_AUTO')return legacyEyeRoleColor(role,slot,order);
+  const key=EYE_ROLE_FIELD[role];return key?eyeSchemeFieldColor(selectedEyeScheme(slot,order),key,slot,order):null;
+}
 
 function selectedDecorAsset(slot,order){
   const wanted=order?.[slot]?.decor;
@@ -3286,9 +3298,14 @@ function eyeRoleHex(slot,role){
 function renderEyeSchemeOptions(){
   ['aEyeScheme','bEyeScheme'].forEach(id=>{
     const el=$('#'+id); if(!el)return; const old=el.value||'AUTO';
-    el.innerHTML='<option value="AUTO">双锚点自动方案</option>'+S.eyeSchemes.map(normalizeEyeSchemeV2).map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
+    el.innerHTML='<option value="AUTO">双锚点自动方案</option><option value="LEGACY_AUTO">一期傻瓜模式（瞳孔跟随主色）</option>'+S.eyeSchemes.map(normalizeEyeSchemeV2).map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
     el.value=[...el.options].some(o=>o.value===old)?old:'AUTO';
+    syncEyeSchemeModeUi(id[0].toUpperCase());
   });
+}
+function syncEyeSchemeModeUi(slot){
+  const low=slot.toLowerCase(),legacy=$('#'+low+'EyeScheme')?.value==='LEGACY_AUTO',advanced=$('#'+low+'PupilAdvanced');
+  if(advanced){advanced.hidden=legacy;if(legacy)advanced.open=false;}
 }
 function setEyeSchemeEditor(s){
   const auto=autoEyeScheme('A'),d=s?normalizeEyeSchemeV2(s):{...auto,id:null,name:'新眼睛方案',fields:Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,{...auto.fields[key],mode:'FIXED'}]))};
@@ -3493,7 +3510,7 @@ function buildWorkspaceUI(){
   $('#leftApplyColors').onclick=()=>{applyOrderColors();applyDecorSelection();}; $('#leftBgInspect').onclick=()=>setPreviewInspect(!S.previewInspect); $('#leftExportPng').onclick=e=>exportProduction('png',$('#leftWatermarkMode').value==='preview',!!e.shiftKey); $('#leftExportJpeg').onclick=e=>exportProduction('jpeg',$('#leftWatermarkMode').value==='preview',!!e.shiftKey);
   $('#grabEyeA').onclick=()=>grabEyeSchemeFromSlot('A'); $('#grabEyeB').onclick=()=>grabEyeSchemeFromSlot('B'); $('#newEyeScheme').onclick=()=>{S.editingEyeSchemeId=null;setEyeSchemeEditor(null);}; $('#saveEyeSchemeBtn').onclick=saveEyeSchemeFromEditor;
   setEyeSchemeEditor(null);renderEyeSchemeOptions();renderEyeSchemeList();
-  ['aEyeScheme','bEyeScheme'].forEach(id=>$('#'+id).onchange=()=>{captureActiveOrder();applyOrderColors();});
+  ['aEyeScheme','bEyeScheme'].forEach(id=>$('#'+id).onchange=()=>{syncEyeSchemeModeUi(id[0].toUpperCase());captureActiveOrder();applyOrderColors();});
   syncProductionPreview();
 }
 
