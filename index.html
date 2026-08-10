@@ -949,7 +949,8 @@ const S={
   collapsed:{}, visOverride:{}, masterOrder:null, bindings:{}, templateSignature:null, builderCollapsed:{},
   layerColorOverrides:{}, ruleColorOverrides:{}, manualLayerOverrides:{}, recolorCache:new Map(),
   orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:'',model:'deepseek-v4-flash'}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
-  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), liveColorRAF:0,
+  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(),
+  liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null,
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null}
 };
@@ -1973,8 +1974,8 @@ function newOrderData(){
     createdAt:new Date().toISOString(),
     status:'待处理',
     formText:'',
-    A:{name:'A宝宝',eye:'#B9853E',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'红白',outfitManual:'#D7BCC4',hat:'红色',decor:'NONE',decorBase:'',decorShade:''},
-    B:{name:'B宝宝',eye:'#3A353A',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'蓝白',outfitManual:'#C9D4E7',hat:'蓝色',decor:'NONE',decorBase:'',decorShade:''},
+    A:{name:'A宝宝',eye:'#B9853E',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',decor:'NONE',decorBase:'',decorShade:''},
+    B:{name:'B宝宝',eye:'#3A353A',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',decor:'NONE',decorBase:'',decorShade:''},
     background:'暖粉',
     backgroundManual:'',
     backgroundSource:'preset',
@@ -2011,12 +2012,12 @@ function selectOrder(id){
   setLinkedColor('aEye',o.A?.eye||'#918DCB');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';setLinkedColor('aHair',o.A?.hair||'#7D718C');
   setLinkedColor('bEye',o.B?.eye||'#B990A0');$('#bEyeScheme').value=o.B?.eyeSchemeId||'AUTO';setLinkedColor('bHair',o.B?.hair||'#8A6F72');
   renderPresetOptions();
-  $('#aOutfitPreset').value=o.A?.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A?.outfit)?.id||S.styleSchemes.outfit[0]?.id||'');
+  $('#aOutfitPreset').value=!o.A?.outfit?'__CUSTOM__':(o.A.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('aOutfitManual',o.A?.outfitManual||'#D7BCC4');
-  $('#aHatPreset').value=o.A?.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.A?.hat)?.id||S.styleSchemes.hat[0]?.id||'');
-  $('#bOutfitPreset').value=o.B?.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.B?.outfit)?.id||S.styleSchemes.outfit[0]?.id||'');
+  $('#aHatPreset').value=!o.A?.hat?'__DECOR_ANCHOR__':(o.A.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.A.hat)?.id||S.styleSchemes.hat[0]?.id||''));
+  $('#bOutfitPreset').value=!o.B?.outfit?'__CUSTOM__':(o.B.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.B.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('bOutfitManual',o.B?.outfitManual||'#C9D4E7');
-  $('#bHatPreset').value=o.B?.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.B?.hat)?.id||S.styleSchemes.hat[0]?.id||'');
+  $('#bHatPreset').value=!o.B?.hat?'__DECOR_ANCHOR__':(o.B.hat==='__DECOR_ANCHOR__'?'__DECOR_ANCHOR__':(resolveStyleScheme('hat',o.B.hat)?.id||S.styleSchemes.hat[0]?.id||''));
   updateDecorSelects();$('#aDecor').value=o.A?.decor||'NONE';$('#bDecor').value=o.B?.decor||'NONE';
   setLinkedColor('aDecorBase',o.A?.decorBase||'', true);
   setLinkedColor('aDecorShade',o.A?.decorShade||'', true);
@@ -2162,16 +2163,31 @@ function syncLiveControlsToOrder(){
   o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');return o;
 }
+const LIVE_COLOR_PREVIEW_DELAY=110;
+function paintPendingLiveProductionColors(){
+  if(S.liveColorTimer){clearTimeout(S.liveColorTimer);S.liveColorTimer=0;}
+  const job=S.liveColorPending||{};S.liveColorPending=null;
+  if(!S.master)return;
+  syncLiveControlsToOrder();
+  applyOrderColors({live:true,persist:!!job.persist});
+}
 function scheduleLiveProductionColors({decor=false,persist=false}={}){
-  if(S.liveColorRAF)cancelAnimationFrame(S.liveColorRAF);
-  S.liveColorRAF=requestAnimationFrame(()=>{S.liveColorRAF=0;if(!S.master)return;syncLiveControlsToOrder();applyOrderColors({live:true,persist});});
+  const old=S.liveColorPending||{};
+  S.liveColorPending={decor:!!(old.decor||decor),persist:!!(old.persist||persist)};
+  if(S.liveColorTimer)clearTimeout(S.liveColorTimer);
+  S.liveColorTimer=setTimeout(paintPendingLiveProductionColors,LIVE_COLOR_PREVIEW_DELAY);
+}
+function flushLiveProductionColors({decor=false,persist=false}={}){
+  const old=S.liveColorPending||{};
+  S.liveColorPending={decor:!!(old.decor||decor),persist:!!(old.persist||persist)};
+  paintPendingLiveProductionColors();
 }
 function hookLinkedColor(prefix,allowBlank=false){
   const color=linkedColorEl(prefix), text=$('#'+prefix+'Hex');if(!color||!text)return;
   const isDecor=/Decor/.test(prefix);
   color.oninput=e=>{text.value=e.target.value.toUpperCase();scheduleLiveProductionColors({decor:isDecor,persist:false});};
-  color.onchange=()=>{captureActiveOrder();scheduleLiveProductionColors({decor:isDecor,persist:true});};
-  text.onchange=e=>{setLinkedColor(prefix,e.target.value,allowBlank);captureActiveOrder();scheduleLiveProductionColors({decor:isDecor,persist:true});};
+  color.onchange=()=>{captureActiveOrder();flushLiveProductionColors({decor:isDecor,persist:true});};
+  text.onchange=e=>{setLinkedColor(prefix,e.target.value,allowBlank);captureActiveOrder();flushLiveProductionColors({decor:isDecor,persist:true});};
 }
 
 function firstPreset(kind){if(kind==='hat'||kind==='outfit')return S.styleSchemes?.[kind]?.[0]?.id||'';return Object.keys(S.presets?.[kind]||{})[0]||''}
@@ -2191,7 +2207,11 @@ function renderPresetEditor(){
   const host=$('#presetEditor');host.innerHTML='<b style="font-size:10px">背景 preset（帽子/衣服已改用上面的方案工作室）</b>';
   Object.entries(S.presets.background||{}).forEach(([name,color])=>{const r=document.createElement('div');r.className='presetEdit';r.innerHTML=`<span style="font-size:10px">${safe(name)}</span><input data-pk="background" data-pn="${safe(name)}" type="text" value="${safe(color)}"/><input data-pkc="background" data-pnc="${safe(name)}" type="color" value="${color.toLowerCase()}"/>`;host.appendChild(r)});
   host.querySelectorAll('input[data-pk]').forEach(el=>el.onchange=()=>{const name=el.dataset.pn,val=normalizeHex(el.value);if(!val)return;S.presets.background[name]=val;persistPresets();renderPresetEditor();renderPresetOptions();scheduleLiveProductionColors({persist:true})});
-  host.querySelectorAll('input[data-pkc]').forEach(el=>el.oninput=()=>{const name=el.dataset.pnc;S.presets.background[name]=el.value.toUpperCase();persistPresets();const peer=[...host.querySelectorAll('input[data-pk]')].find(x=>x.dataset.pn===name);if(peer)peer.value=S.presets.background[name];scheduleLiveProductionColors({persist:false})});
+  host.querySelectorAll('input[data-pkc]').forEach(el=>{
+    const sync=()=>{const name=el.dataset.pnc;S.presets.background[name]=el.value.toUpperCase();const peer=[...host.querySelectorAll('input[data-pk]')].find(x=>x.dataset.pn===name);if(peer)peer.value=S.presets.background[name];};
+    el.oninput=()=>{sync();scheduleLiveProductionColors({persist:false})};
+    el.onchange=()=>{sync();persistPresets();flushLiveProductionColors({persist:true})};
+  });
 }
 
 
@@ -2207,8 +2227,12 @@ function renderStyleSchemeEditor(kind){
   const colorRow=(label,key)=>`<label>${label}</label><div class="schemeColorLine"><input data-sk="${key}" type="text" value="${safe(sc[key]||'#888888')}"><input data-skc="${key}" type="color" value="${safe((sc[key]||'#888888').toLowerCase())}"></div>`;
   host.innerHTML=`<div class="schemeGrid"><label>编辑方案</label><select data-style-select>${selectOpts}</select><label>方案名</label><input data-sk="name" type="text" value="${safe(sc.name)}">${colorRow(kind==='hat'?'帽子底色':'衣服底色','base')}${colorRow(kind==='hat'?'帽子线稿':'衣服线稿',kind==='hat'?'outline':'line')}${kind==='hat'?colorRow('帽子绒边/辅色','trim'):''}</div><div class="schemeToolbar"><button class="btn" data-style-new>新建</button><button class="btn primary" data-style-save>保存 / 更新方案</button><button class="btn" data-style-apply="A">试到 A</button><button class="btn" data-style-apply="B">试到 B</button><button class="btn" data-style-capture="A">从 A${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-capture="B">从 B${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-delete>删除</button></div><div class="schemeApplyState">先点“试到 A/B”，之后拖色盘会直接在左侧预览实时变化。${kind==='hat'?'有耳朵底色时，帽子线稿强制跟耳朵线稿；方案里的帽子线稿保留给无耳朵/无覆写订单。':''}</div><div class="schemeNote">“读取”只抓纯净模板大夹子里的代表色作为起点，不修改你的 PSD。保存后方案会立即出现在表单清洗的 A/B 下拉框里。当前先保存在本机 localStorage，后端接好后会迁移为账号/项目级保存，不需要重做方案。</div>`;
   host.querySelector('[data-style-select]').onchange=e=>{S.editingStyleScheme[kind]=e.target.value;renderStyleSchemeEditor(kind)};
-  const syncDraftToScheme=(persist=false)=>{const target=S.styleSchemes[kind].find(x=>x.id===S.editingStyleScheme[kind]);if(!target)return;target.name=(host.querySelector('input[data-sk="name"]')?.value||target.name).trim();['base',kind==='hat'?'outline':'line',...(kind==='hat'?['trim']:[])].forEach(k=>{target[k]=safeHex(host.querySelector(`input[data-sk="${k}"]`)?.value,target[k])});if(persist)persistStyleSchemes();renderPresetOptions();scheduleLiveProductionColors({persist:false});};
-  host.querySelectorAll('input[data-skc]').forEach(el=>el.oninput=()=>{const peer=host.querySelector(`input[data-sk="${el.dataset.skc}"]`);if(peer)peer.value=el.value.toUpperCase();syncDraftToScheme(false)});
+  const syncDraftToScheme=(persist=false)=>{const target=S.styleSchemes[kind].find(x=>x.id===S.editingStyleScheme[kind]);if(!target)return;target.name=(host.querySelector('input[data-sk="name"]')?.value||target.name).trim();['base',kind==='hat'?'outline':'line',...(kind==='hat'?['trim']:[])].forEach(k=>{target[k]=safeHex(host.querySelector(`input[data-sk="${k}"]`)?.value,target[k])});if(persist){persistStyleSchemes();renderPresetOptions();flushLiveProductionColors({persist:true})}else scheduleLiveProductionColors({persist:false});};
+  host.querySelectorAll('input[data-skc]').forEach(el=>{
+    const sync=()=>{const peer=host.querySelector(`input[data-sk="${el.dataset.skc}"]`);if(peer)peer.value=el.value.toUpperCase();};
+    el.oninput=()=>{sync();syncDraftToScheme(false)};
+    el.onchange=()=>{sync();syncDraftToScheme(true)};
+  });
   host.querySelectorAll('input[data-sk]:not([data-sk="name"])').forEach(el=>el.onchange=()=>{const v=normalizeHex(el.value);if(v){el.value=v;const c=host.querySelector(`input[data-skc="${el.dataset.sk}"]`);if(c)c.value=v.toLowerCase();syncDraftToScheme(true)}});
   host.querySelector('[data-style-new]').onclick=()=>{const n=makeBlankScheme(kind);S.styleSchemes[kind].push(n);S.editingStyleScheme[kind]=n.id;persistStyleSchemes();renderStyleSchemeEditor(kind);renderPresetOptions()};
   host.querySelectorAll('[data-style-apply]').forEach(b=>b.onclick=()=>{let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders()}const slot=b.dataset.styleApply;if(kind==='hat')o[slot].hat=sc.id;else o[slot].outfit=sc.id;persistOrders();selectOrder(o.id);applyOrderColors({live:true,persist:true});stat($('#apiStatus'),`已把“${sc.name}”试到 ${slot}${kind==='hat'?'帽子':'衣服'}；现在拖色盘会实时看结果。`,'good')});
@@ -2684,18 +2708,18 @@ function syncQuickColorFromSelection(){
   const p=$('#quickLayer')?.value;if(!p)return;
   const v=currentLayerColor(p);$('#quickHex').value=v;$('#quickColor').value=v.toLowerCase();
 }
-function setManualLayerOverride(path,hex){
+function setManualLayerOverride(path,hex,{persist=true}={}){
   const v=safeHex(hex,'');if(!path||!v)return false;
   const assetSel=parseAssetLayerKey(path);
   if(assetSel){
     S.manualLayerOverrides[path]=v;rebuildLayerOverrideMap();S.recolorCache.clear();
-    const o=getActiveOrder();if(o){o.layerOverrides=clone(S.manualLayerOverrides);persistOrders();}
+    const o=getActiveOrder();if(o){o.layerOverrides=clone(S.manualLayerOverrides);if(persist)persistOrders();}
     const asset=assetFromLayerKey(assetSel);if(asset)refreshOneAssetComposite(asset,o||getActiveOrder()||newOrderData());
     reconstruct();renderOverlay();syncProductionPreview();return true;
   }
   if(!S.bindings[path]||S.bindings[path].locked)return false;
   S.manualLayerOverrides[path]=v;rebuildLayerOverrideMap();S.recolorCache.clear();
-  const o=getActiveOrder();if(o){o.layerOverrides=clone(S.manualLayerOverrides);persistOrders();}
+  const o=getActiveOrder();if(o){o.layerOverrides=clone(S.manualLayerOverrides);if(persist)persistOrders();}
   reconstruct();renderOverlay();syncProductionPreview();return true;
 }
 
@@ -3017,8 +3041,8 @@ function wireFormBackgroundQuick(){
   syncBackgroundQuickOptions();updateBackgroundAnchorMeta();
   q.onchange=()=>{if($('#bgPreset'))$('#bgPreset').value=q.value;hex.value='';col.value=safeHex(S.presets.background[q.value],'#F2DEE6').toLowerCase();const o=captureActiveOrder();o.backgroundSource='manualPreset';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);scheduleLiveProductionColors({persist:true});};
   col.oninput=()=>{hex.value=col.value.toUpperCase();scheduleLiveProductionColors({persist:false});};
-  col.onchange=()=>{const o=captureActiveOrder();o.backgroundSource='manual';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);scheduleLiveProductionColors({persist:true});};
-  hex.onchange=()=>{const v=normalizeHex(hex.value);hex.value=v;if(v)col.value=v.toLowerCase();const o=captureActiveOrder();o.backgroundSource=v?'manual':'manualPreset';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);scheduleLiveProductionColors({persist:true});};
+  col.onchange=()=>{const o=captureActiveOrder();o.backgroundSource='manual';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);flushLiveProductionColors({persist:true});};
+  hex.onchange=()=>{const v=normalizeHex(hex.value);hex.value=v;if(v)col.value=v.toLowerCase();const o=captureActiveOrder();o.backgroundSource=v?'manual':'manualPreset';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);flushLiveProductionColors({persist:true});};
   reset.onclick=()=>{hex.value='';col.value=safeHex(S.presets.background[q.value],'#F2DEE6').toLowerCase();const o=captureActiveOrder();o.backgroundSource='manualPreset';o.backgroundReason='';persistOrders();updateBackgroundRecommendationMeta(o);scheduleLiveProductionColors({persist:true});};
   if(baseT)baseT.onchange=syncToggleState;
   if(laceT)laceT.onchange=syncToggleState;
@@ -3316,17 +3340,19 @@ $('#exportDeliveryJpeg').onclick=()=>exportModeJpeg(false);
 $('#applyQuickColor').onclick=applyQuickColor;
 $('#clearQuickColor').onclick=clearQuickColor;
 let quickColorPending=null,quickColorTimer=null;
+const QUICK_COLOR_PREVIEW_DELAY=110;
 function scheduleQuickColorPreview(path,hex){
   quickColorPending={path,hex};
-  if(quickColorTimer)return;
+  if(quickColorTimer)clearTimeout(quickColorTimer);
   quickColorTimer=setTimeout(()=>{
     const job=quickColorPending;quickColorPending=null;quickColorTimer=null;
-    if(job?.path)setManualLayerOverride(job.path,job.hex);
-  },32);
+    if(job?.path)setManualLayerOverride(job.path,job.hex,{persist:false});
+  },QUICK_COLOR_PREVIEW_DELAY);
 }
 function flushQuickColorPreview(){
   if(quickColorTimer){clearTimeout(quickColorTimer);quickColorTimer=null;}
-  const job=quickColorPending;quickColorPending=null;if(job?.path)setManualLayerOverride(job.path,job.hex);
+  const job=quickColorPending||{path:$('#quickLayer').value,hex:$('#quickColor').value.toUpperCase()};quickColorPending=null;
+  if(job?.path)setManualLayerOverride(job.path,job.hex,{persist:true});
 }
 $('#quickColor').oninput=e=>{$('#quickHex').value=e.target.value.toUpperCase();const p=$('#quickLayer').value;if(p)scheduleQuickColorPreview(p,e.target.value.toUpperCase());};
 $('#quickColor').onchange=flushQuickColorPreview;
