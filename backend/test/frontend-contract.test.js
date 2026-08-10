@@ -108,6 +108,31 @@ test('hat presets keep ear anchoring and allow a manual color', () => {
   assert.match(html, /hatCustom\?order\[slot\]\?\.hatManual/);
 });
 
+test('session export history stays in tab memory and records every PNG or JPEG output', () => {
+  assert.match(html, /exportHistory:\[\]/);
+  assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
+  assert.match(html, /while\(mine\.length>8\)/);
+  assert.match(html, /recordSessionExport\(o,requested,format,showWatermark,fileName\)/);
+  assert.match(html, /recordSessionExport\(order,blob,'png'/);
+  assert.match(html, /recordSessionExport\(order,blob,'jpeg'/);
+  assert.match(html, /beforeunload[^\n]+S\.exportHistory\.forEach\(releaseSessionExport\)/);
+  assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*exportHistory/);
+});
+
+test('Eye Scheme v2 uses two anchors, complete field modes, and protects fixed highlights', () => {
+  assert.match(html, /schemaVersion:'shine-eye-scheme-v2'/);
+  assert.match(html, /\['irisBase','虹膜主色'\]/);
+  assert.match(html, /\['pupil','瞳孔点缀'\]/);
+  assert.match(html, /\['pupilDark','瞳孔暗部'\]/);
+  assert.match(html, /\['lashHighlight','睫毛高光'\]/);
+  assert.match(html, /\['DERIVED','FIXED','INDEPENDENT'\]/);
+  assert.match(html, /pupilAccent:'#E6F9FF'/);
+  assert.match(html, /pupilAccent:'#FFD6A6'/);
+  assert.match(html, /space:'HSL'/);
+  assert.match(html, /saturationMultiplier:left\?0\.38:0\.52/);
+  assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);
+});
+
 test('the main inline browser program parses as JavaScript', () => {
   const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)]
     .map(match => match[1])

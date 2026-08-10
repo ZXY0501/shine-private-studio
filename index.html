@@ -105,6 +105,7 @@ select,input[type=text],input[type=password]{height:30px;border:1px solid var(--
 .orderItem:hover{background:#faf7fa}.orderItem.active{background:#f1edf8}
 .orderName{font-size:11px;font-weight:650}.orderMeta{font-size:9px;color:var(--muted);margin-top:3px}
 .statusDot{font-size:9px;border:1px solid var(--line);border-radius:999px;padding:3px 6px;align-self:start}
+.sessionHistory{border-top:1px solid var(--line);padding:8px;background:#faf8fa}.sessionHistoryHead{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:10px;font-weight:700}.sessionHistoryList{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-top:7px}.sessionShot{border:1px solid var(--line);border-radius:8px;background:#fff;overflow:hidden;min-width:0}.sessionShot img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:#eee9ed}.sessionShotMeta{padding:4px;font-size:8px;color:var(--muted);line-height:1.35}.sessionShotActions{display:flex;gap:3px;padding:0 4px 4px}.sessionShotActions .btn{flex:1;padding:4px 3px;font-size:8px}
 .prodControls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .babyCard{border:1px solid var(--line);border-radius:12px;background:#fff;padding:10px}
 .babyTitle{font-size:12px;font-weight:750;margin-bottom:8px;display:flex;justify-content:space-between}
@@ -607,6 +608,10 @@ header .badge{display:none!important}
           <button id="newOrder" class="btn primary">+ 新订单</button>
         </div>
         <div id="orderList" class="orderList"></div>
+        <div class="sessionHistory">
+          <div class="sessionHistoryHead"><span>本标签页临时出图</span><button id="clearOrderHistory" class="btn">清本单</button></div>
+          <div id="sessionExportHistory" class="sessionHistoryList"><div class="meta">本单还没有出图。</div></div>
+        </div>
       </div>
 
       <div class="softPanel" style="margin-top:9px">
@@ -635,8 +640,9 @@ header .badge{display:none!important}
           <div class="babyTitle"><span>A 宝宝</span><span class="sideTag">固定左位</span></div>
           <div class="fieldGrid">
             <label>宝宝名字</label><input id="aName" type="text" placeholder="顾客填写的角色名"/>
-            <label>瞳色 Anchor</label><div class="colorLine"><input id="aEyeHex" type="text" value="#918DCB"/><input id="aEyeColor" type="color" value="#918dcb"/></div>
+            <label>眼睛主色</label><div class="colorLine"><input id="aEyeHex" type="text" value="#918DCB"/><input id="aEyeColor" type="color" value="#918dcb"/></div>
             <label>眼睛方案</label><select id="aEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
+            <details class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="aPupilAccentHex" type="text" value="#E6F9FF"/><input id="aPupilAccentColor" type="color" value="#e6f9ff"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="aHairHex" type="text" value="#7D718C"/><input id="aHairColor" type="color" value="#7d718c"/></div>
             <label>衣服颜色</label><select id="aOutfitPreset"></select>
             <label id="aOutfitManualLabel" style="display:none">衣服自选色</label><div id="aOutfitManualWrap" class="colorLine" style="display:none"><input id="aOutfitManualHex" type="text" value="#D7BCC4"/><input id="aOutfitManualColor" type="color" value="#d7bcc4"/></div>
@@ -653,8 +659,9 @@ header .badge{display:none!important}
           <div class="babyTitle"><span>B 宝宝</span><span class="sideTag">固定右位</span></div>
           <div class="fieldGrid">
             <label>宝宝名字</label><input id="bName" type="text" placeholder="顾客填写的角色名"/>
-            <label>瞳色 Anchor</label><div class="colorLine"><input id="bEyeHex" type="text" value="#B990A0"/><input id="bEyeColor" type="color" value="#b990a0"/></div>
+            <label>眼睛主色</label><div class="colorLine"><input id="bEyeHex" type="text" value="#B990A0"/><input id="bEyeColor" type="color" value="#b990a0"/></div>
             <label>眼睛方案</label><select id="bEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
+            <details class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="bPupilAccentHex" type="text" value="#FFD6A6"/><input id="bPupilAccentColor" type="color" value="#ffd6a6"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="bHairHex" type="text" value="#8A6F72"/><input id="bHairColor" type="color" value="#8a6f72"/></div>
             <label>衣服颜色</label><select id="bOutfitPreset"></select>
             <label id="bOutfitManualLabel" style="display:none">衣服自选色</label><div id="bOutfitManualWrap" class="colorLine" style="display:none"><input id="bOutfitManualHex" type="text" value="#C9D4E7"/><input id="bOutfitManualColor" type="color" value="#c9d4e7"/></div>
@@ -965,7 +972,7 @@ const S={
   orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:'',model:'deepseek-v4-flash'}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
   rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), selectedTransformStackId:null, transformDrag:null, transformFrame:0,
   liveColorTimer:0, liveColorPending:null,
-  editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null,
+  editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null, exportHistory:[],
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null},
   assetCategories:[], assetCategoryCollapsed:{}, selectedAssetFamily:null, pendingAssetPlacements:{}, cloudAssetBusy:false
 };
@@ -1498,7 +1505,8 @@ const PART_OPTIONS=['UNKNOWN','HAIR','EYE','OUTFIT','HAT','HAT_DECOR','BODY_TRAI
 const ROLE_OPTIONS=[
   'UNKNOWN','FIXED','REFERENCE','BACKGROUND_BASE','BACKGROUND_LACE_FIXED',
   'HAIR_BASE','HAIR_SHADE_MASK','HAIR_OUTLINE','HAIR_HIGHLIGHT_FIXED','HAIR_SKIN_AIR_FIXED','BROW_BASE',
-  'EYE_IRIS_BASE','EYE_DARK','EYE_PUPIL','EYE_HIGHLIGHT','EYE_OUTLINE','LASH_FIXED','LASH_HIGHLIGHT','PUPIL_HIGHLIGHT_FIXED',
+  'EYE_IRIS_BASE','EYE_IRIS_DARK','EYE_IRIS_DEEP','EYE_IRIS_HIGHLIGHT','EYE_PUPIL','EYE_PUPIL_DARK','EYE_PUPIL_HIGHLIGHT','EYE_OUTLINE','EYE_LASH','EYE_LASH_HIGHLIGHT',
+  'EYE_DARK','EYE_HIGHLIGHT','LASH_FIXED','LASH_HIGHLIGHT','PUPIL_HIGHLIGHT_FIXED',
   'OUTFIT_BASE','OUTFIT_LINE',
   'HAT_BASE','HAT_OUTLINE','HAT_TRIM_EDGE','HAT_FUR_FIXED',
   'DECOR_CONTAINER','DECOR_BASE','DECOR_OUTLINE','DECOR_INNER','DECOR_FUR','DECOR_SHADOW','DECOR_ACCENT',
@@ -1518,7 +1526,7 @@ function templateSig(){
 }
 function bindingStorageKey(){return 'qq-color-studio:template:'+S.templateSignature}
 function sourceForRole(role){
-  if(['REFERENCE','BACKGROUND_LACE_FIXED','FIXED','LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','HAT_FUR_FIXED','FACE_FIXED','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED'].includes(role))return 'FIXED';
+  if(['REFERENCE','BACKGROUND_LACE_FIXED','FIXED','LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','EYE_PUPIL_HIGHLIGHT','HAT_FUR_FIXED','FACE_FIXED','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED'].includes(role))return 'FIXED';
   if(['HAT_BASE','OUTFIT_BASE','BACKGROUND_BASE'].includes(role))return 'PRESET';
   if(['HAIR_BASE','EYE_IRIS_BASE'].includes(role))return 'MANUAL_ANCHOR';
   if(role==='UNKNOWN'||role==='GROUP'||role==='DECOR_CONTAINER'||role.startsWith('RENDER_SLOT_')||role==='OTHER')return 'NONE';
@@ -1571,6 +1579,8 @@ function guessSemantic(node){
     else if(/睫毛高光/.test(t))role='LASH_HIGHLIGHT';
     else if(/睫毛/.test(t))role='LASH_FIXED';
     else if(/眼睛轮廓|眼轮廓/.test(t))role='EYE_OUTLINE';
+    else if(/虹膜最深|虹膜深色|虹膜深/.test(t))role='EYE_IRIS_DEEP';
+    else if(/瞳孔重色|瞳孔暗/.test(t))role='EYE_PUPIL_DARK';
     else if(/虹膜重色|虹膜暗|重色/.test(t))role='EYE_DARK';
     else if(/虹膜高光|虹膜亮/.test(t))role='EYE_HIGHLIGHT';
     else if(/瞳孔/.test(t))role='EYE_PUPIL';
@@ -1675,8 +1685,8 @@ function buildTemplateJson(){
     colorPolicy:{
       preset:['HAT_BASE','OUTFIT_BASE','BACKGROUND_BASE'],
       manualAnchor:['HAIR_BASE','EYE_IRIS_BASE'],
-      derived:['HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','EYE_DARK','EYE_PUPIL','EYE_HIGHLIGHT','EYE_OUTLINE','LASH_HIGHLIGHT','OUTFIT_LINE','HAT_OUTLINE','HAT_TRIM_EDGE','DECOR_BASE','DECOR_OUTLINE','DECOR_INNER','DECOR_FUR','DECOR_SHADOW','DECOR_ACCENT'],
-      fixed:['LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','HAT_FUR_FIXED','BACKGROUND_LACE_FIXED','REFERENCE','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED']
+      derived:['HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','EYE_IRIS_DARK','EYE_IRIS_DEEP','EYE_IRIS_HIGHLIGHT','EYE_PUPIL','EYE_PUPIL_DARK','EYE_OUTLINE','EYE_LASH','EYE_LASH_HIGHLIGHT','EYE_DARK','EYE_HIGHLIGHT','LASH_HIGHLIGHT','OUTFIT_LINE','HAT_OUTLINE','HAT_TRIM_EDGE','DECOR_BASE','DECOR_OUTLINE','DECOR_INNER','DECOR_FUR','DECOR_SHADOW','DECOR_ACCENT'],
+      fixed:['LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','EYE_PUPIL_HIGHLIGHT','HAT_FUR_FIXED','BACKGROUND_LACE_FIXED','REFERENCE','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED']
     },
     rootStackOrder:S.rootStackOrder,
     hairInsertion:S.hairInsertion,
@@ -2120,7 +2130,7 @@ function migrateLogicDefaultsV21(){
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
-  S.orders.forEach(ensureOrderAssetSelections);
+  S.orders.forEach(o=>{ensureOrderAssetSelections(o);o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')||defaultStyleSchemesFromLegacy()}catch{S.styleSchemes=defaultStyleSchemesFromLegacy()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=defaultStyleSchemesFromLegacy();
@@ -2130,6 +2140,7 @@ function loadProductionState(){
   try{S.logic=Object.assign({},DEFAULT_LOGIC,JSON.parse(localStorage.getItem(LOGIC_KEY)||'{}'))}catch{S.logic=clone(DEFAULT_LOGIC)}
   migrateLogicDefaultsV21();
   try{S.eyeSchemes=JSON.parse(localStorage.getItem(EYE_SCHEME_KEY)||'[]')}catch{S.eyeSchemes=[]}
+  migrateEyeSchemesV2();
   $('#apiEndpoint').value=S.apiConfig.endpoint||'';
   $('#apiModel').value=S.apiConfig.model||'deepseek-v4-flash';
   renderPresetOptions();renderPresetEditor();renderLogicEditor();renderOrders();renderAssetLibrary();renderEyeSchemeOptions();renderEyeSchemeList();
@@ -2154,8 +2165,8 @@ function newOrderData(){
     createdAt:new Date().toISOString(),
     status:'待处理',
     formText:'',
-    A:{name:'A宝宝',eye:'#B9853E',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
-    B:{name:'B宝宝',eye:'#3A353A',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
+    A:{name:'A宝宝',eye:'#B9853E',pupilAccent:'#E6F9FF',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
+    B:{name:'B宝宝',eye:'#3A353A',pupilAccent:'#FFD6A6',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
     background:'暖粉',
     backgroundManual:'',
     backgroundSource:'preset',
@@ -2168,6 +2179,35 @@ function newOrderData(){
   };
 }
 function getActiveOrder(){return S.orders.find(o=>o.id===S.activeOrderId)||null}
+function sessionExportsForOrder(orderId){return S.exportHistory.filter(x=>x.orderId===orderId)}
+function releaseSessionExport(entry){if(entry?.objectUrl)URL.revokeObjectURL(entry.objectUrl)}
+function renderSessionExportHistory(){
+  const host=$('#sessionExportHistory');if(!host)return;const order=getActiveOrder(),entries=order?sessionExportsForOrder(order.id):[];
+  host.innerHTML=entries.length?'':'<div class="meta" style="grid-column:1/-1">本单还没有出图。点任意 PNG / JPEG 后会临时留在这里。</div>';
+  entries.slice().reverse().forEach(entry=>{
+    const card=document.createElement('div');card.className='sessionShot';const time=new Date(entry.createdAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
+    card.innerHTML=`<img src="${safe(entry.objectUrl)}" alt="${safe(entry.format.toUpperCase())} 临时出图"><div class="sessionShotMeta">${safe(time)} · ${safe(entry.format.toUpperCase())}<br>${entry.showWatermark?'样稿':'交付'}</div><div class="sessionShotActions"><button class="btn" data-history-copy="${safe(entry.id)}">复制</button><button class="btn" data-history-download="${safe(entry.id)}">下载</button></div>`;
+    host.appendChild(card);
+  });
+  host.querySelectorAll('[data-history-copy]').forEach(button=>button.onclick=()=>copySessionExport(button.dataset.historyCopy));
+  host.querySelectorAll('[data-history-download]').forEach(button=>button.onclick=()=>downloadSessionExport(button.dataset.historyDownload));
+}
+function recordSessionExport(order,blob,format,showWatermark,fileName){
+  if(!order||!blob)return;const entry={id:'shot_'+Date.now()+'_'+Math.random().toString(16).slice(2,6),orderId:order.id,createdAt:new Date().toISOString(),format,showWatermark,blob,objectUrl:URL.createObjectURL(blob),fileName,orderSnapshot:clone(order)};
+  S.exportHistory.push(entry);const mine=sessionExportsForOrder(order.id);while(mine.length>8){const old=mine.shift(),index=S.exportHistory.indexOf(old);if(index>=0)S.exportHistory.splice(index,1);releaseSessionExport(old)}
+  while(S.exportHistory.length>24)releaseSessionExport(S.exportHistory.shift());renderSessionExportHistory();renderOrders();
+}
+async function sessionExportCanvas(entry){
+  const bitmap=await createImageBitmap(entry.blob),canvas=document.createElement('canvas');canvas.width=bitmap.width;canvas.height=bitmap.height;canvas.getContext('2d').drawImage(bitmap,0,0);bitmap.close?.();return canvas;
+}
+async function copySessionExport(id){
+  const entry=S.exportHistory.find(x=>x.id===id);if(!entry)return;
+  try{const copied=await copyCanvasImageToClipboard(await sessionExportCanvas(entry));stat($('#apiStatus'),copied?'临时图已复制，可以直接粘贴。':'浏览器不允许复制，请点下载。',copied?'good':'bad')}catch(e){stat($('#apiStatus'),'临时图复制失败：'+(e.message||e),'bad')}
+}
+function downloadSessionExport(id){const entry=S.exportHistory.find(x=>x.id===id);if(entry)dl(entry.blob,entry.fileName)}
+function clearActiveOrderHistory(){
+  const order=getActiveOrder();if(!order)return;const removed=sessionExportsForOrder(order.id);removed.forEach(releaseSessionExport);S.exportHistory=S.exportHistory.filter(x=>x.orderId!==order.id);renderSessionExportHistory();renderOrders();
+}
 function renderOrders(){
   const host=$('#orderList');host.innerHTML='';
   if(!S.orders.length){
@@ -2175,7 +2215,8 @@ function renderOrders(){
   }
   S.orders.forEach(o=>{
     const d=document.createElement('div');d.className='orderItem '+(o.id===S.activeOrderId?'active':'');
-    d.innerHTML=`<div><div class="orderName">${safe(o.customerName||'未命名顾客')}</div><div class="orderMeta">${safe(o.A?.name||'A')} × ${safe(o.B?.name||'B')} · A左 / B右</div></div><div class="statusDot">${safe(o.status||'待处理')}</div>`;
+    const shots=sessionExportsForOrder(o.id).length;
+    d.innerHTML=`<div><div class="orderName">${safe(o.customerName||'未命名顾客')}</div><div class="orderMeta">${safe(o.A?.name||'A')} × ${safe(o.B?.name||'B')} · A左 / B右${shots?` · ${shots}张临时图`:''}</div></div><div class="statusDot">${safe(o.status||'待处理')}</div>`;
     d.onclick=()=>selectOrder(o.id);host.appendChild(d);
   });
 }
@@ -2194,8 +2235,8 @@ function selectOrder(id){
   S.activeOrderId=id;S.manualLayerOverrides=clone(o.layerOverrides||{});rebuildLayerOverrideMap();renderOrders();
   $('#orderForm').value=o.formText||'';
   $('#aName').value=o.A?.name||'';$('#bName').value=o.B?.name||'';
-  setLinkedColor('aEye',o.A?.eye||'#918DCB');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';setLinkedColor('aHair',o.A?.hair||'#7D718C');
-  setLinkedColor('bEye',o.B?.eye||'#B990A0');$('#bEyeScheme').value=o.B?.eyeSchemeId||'AUTO';setLinkedColor('bHair',o.B?.hair||'#8A6F72');
+  setLinkedColor('aEye',o.A?.eye||'#918DCB');setLinkedColor('aPupilAccent',o.A?.pupilAccent||'#E6F9FF');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';setLinkedColor('aHair',o.A?.hair||'#7D718C');
+  setLinkedColor('bEye',o.B?.eye||'#B990A0');setLinkedColor('bPupilAccent',o.B?.pupilAccent||'#FFD6A6');$('#bEyeScheme').value=o.B?.eyeSchemeId||'AUTO';setLinkedColor('bHair',o.B?.hair||'#8A6F72');
   renderPresetOptions();
   $('#aOutfitPreset').value=!o.A?.outfit?'__CUSTOM__':(o.A.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('aOutfitManual',o.A?.outfitManual||'#D7BCC4');
@@ -2216,14 +2257,15 @@ function selectOrder(id){
   syncAllOutfitManualVisibility();
   syncAllHatManualVisibility();
   updateBackgroundRecommendationMeta(o);
+  renderSessionExportHistory();
 }
 function captureActiveOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
   o.formText=$('#orderForm').value;
-  o.A={name:$('#aName').value||'A宝宝',eye:safeHex($('#aEyeHex').value,'#918DCB'),eyeSchemeId:$('#aEyeScheme').value||'AUTO',hair:safeHex($('#aHairHex').value,'#7D718C'),
+  o.A={name:$('#aName').value||'A宝宝',eye:safeHex($('#aEyeHex').value,'#918DCB'),pupilAccent:safeHex($('#aPupilAccentHex').value,o.A?.pupilAccent||'#E6F9FF'),eyeSchemeId:$('#aEyeScheme').value||'AUTO',hair:safeHex($('#aHairHex').value,'#7D718C'),
        outfit:$('#aOutfitPreset').value,outfitManual:safeHex($('#aOutfitManualHex').value,o.A?.outfitManual||'#D7BCC4'),hat:$('#aHatPreset').value,hatManual:safeHex($('#aHatManualHex').value,o.A?.hatManual||'#C85B5B'),decor:$('#aDecor').value,
        decorBase:($('#aDecorBaseHex').value||'').trim(),decorShade:($('#aDecorShadeHex').value||'').trim()};
-  o.B={name:$('#bName').value||'B宝宝',eye:safeHex($('#bEyeHex').value,'#B990A0'),eyeSchemeId:$('#bEyeScheme').value||'AUTO',hair:safeHex($('#bHairHex').value,'#8A6F72'),
+  o.B={name:$('#bName').value||'B宝宝',eye:safeHex($('#bEyeHex').value,'#B990A0'),pupilAccent:safeHex($('#bPupilAccentHex').value,o.B?.pupilAccent||'#FFD6A6'),eyeSchemeId:$('#bEyeScheme').value||'AUTO',hair:safeHex($('#bHairHex').value,'#8A6F72'),
        outfit:$('#bOutfitPreset').value,outfitManual:safeHex($('#bOutfitManualHex').value,o.B?.outfitManual||'#C9D4E7'),hat:$('#bHatPreset').value,hatManual:safeHex($('#bHatManualHex').value,o.B?.hatManual||'#C85B5B'),decor:$('#bDecor').value,
        decorBase:($('#bDecorBaseHex').value||'').trim(),decorShade:($('#bDecorShadeHex').value||'').trim()};
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');o.backgroundBaseVisible=$('#bgBaseToggleQuick')?$('#bgBaseToggleQuick').checked:true;o.backgroundLaceVisible=$('#bgLaceToggleQuick')?$('#bgLaceToggleQuick').checked:true;o.status=$('#orderStatus').value;o.layerOverrides=clone(S.manualLayerOverrides||{});
@@ -2340,13 +2382,13 @@ function setLinkedColor(prefix,hex,allowBlank=false){
   color.value=((allowBlank && !v)?fallback:(v||fallback)).toLowerCase();
 }
 function fallbackFor(prefix){
-  return ({aEye:'#918DCB',aHair:'#7D718C',bEye:'#B990A0',bHair:'#8A6F72',aOutfitManual:'#D7BCC4',bOutfitManual:'#C9D4E7',aHatManual:'#C85B5B',bHatManual:'#C85B5B',aDecorBase:'#000000',aDecorShade:'#B34040',bDecorBase:'#FFFFFF',bDecorShade:'#F2C7D8'}[prefix]||'#888888');
+  return ({aEye:'#918DCB',aPupilAccent:'#E6F9FF',aHair:'#7D718C',bEye:'#B990A0',bPupilAccent:'#FFD6A6',bHair:'#8A6F72',aOutfitManual:'#D7BCC4',bOutfitManual:'#C9D4E7',aHatManual:'#C85B5B',bHatManual:'#C85B5B',aDecorBase:'#000000',aDecorShade:'#B34040',bDecorBase:'#FFFFFF',bDecorShade:'#F2C7D8'}[prefix]||'#888888');
 }
 function syncLiveControlsToOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;}
   o.A=o.A||{};o.B=o.B||{};
-  o.A.eye=safeHex($('#aEyeHex').value,o.A.eye||'#918DCB');o.A.hair=safeHex($('#aHairHex').value,o.A.hair||'#7D718C');o.A.outfit=$('#aOutfitPreset').value;o.A.outfitManual=safeHex($('#aOutfitManualHex').value,o.A.outfitManual||'#D7BCC4');o.A.hat=$('#aHatPreset').value;o.A.hatManual=safeHex($('#aHatManualHex').value,o.A.hatManual||'#C85B5B');o.A.decor=$('#aDecor').value;o.A.decorBase=($('#aDecorBaseHex').value||'').trim();o.A.decorShade=($('#aDecorShadeHex').value||'').trim();
-  o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.hatManual=safeHex($('#bHatManualHex').value,o.B.hatManual||'#C85B5B');o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
+  o.A.eye=safeHex($('#aEyeHex').value,o.A.eye||'#918DCB');o.A.pupilAccent=safeHex($('#aPupilAccentHex').value,o.A.pupilAccent||'#E6F9FF');o.A.hair=safeHex($('#aHairHex').value,o.A.hair||'#7D718C');o.A.outfit=$('#aOutfitPreset').value;o.A.outfitManual=safeHex($('#aOutfitManualHex').value,o.A.outfitManual||'#D7BCC4');o.A.hat=$('#aHatPreset').value;o.A.hatManual=safeHex($('#aHatManualHex').value,o.A.hatManual||'#C85B5B');o.A.decor=$('#aDecor').value;o.A.decorBase=($('#aDecorBaseHex').value||'').trim();o.A.decorShade=($('#aDecorShadeHex').value||'').trim();
+  o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.pupilAccent=safeHex($('#bPupilAccentHex').value,o.B.pupilAccent||'#FFD6A6');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.hatManual=safeHex($('#bHatManualHex').value,o.B.hatManual||'#C85B5B');o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');return o;
 }
 const LIVE_COLOR_PREVIEW_DELAY=110;
@@ -2808,6 +2850,62 @@ function shiftColor(hex,dL=0,cMul=1,dC=0,hShift=0){
 function isNearWhite(hex){const o=rgbToOklch(hex);return o.L>.91&&o.C<.055}
 function isNearGray(hex){const o=rgbToOklch(hex);return o.C<.045}
 
+const EYE_SCHEME_FIELDS=[
+  ['irisBase','虹膜主色'],['irisDark','虹膜暗色'],['irisDeep','虹膜深色'],['irisHighlight','虹膜高光'],
+  ['pupil','瞳孔点缀'],['pupilDark','瞳孔暗部'],['pupilHighlight','瞳孔高光'],
+  ['outline','眼睛轮廓'],['lash','睫毛'],['lashHighlight','睫毛高光']
+];
+const EYE_ROLE_FIELD=Object.freeze({
+  EYE_IRIS_BASE:'irisBase',EYE_IRIS_DARK:'irisDark',EYE_DARK:'irisDark',EYE_IRIS_DEEP:'irisDeep',EYE_IRIS_HIGHLIGHT:'irisHighlight',EYE_HIGHLIGHT:'irisHighlight',
+  EYE_PUPIL:'pupil',EYE_PUPIL_DARK:'pupilDark',EYE_PUPIL_HIGHLIGHT:'pupilHighlight',EYE_OUTLINE:'outline',EYE_LASH:'lash',EYE_LASH_HIGHLIGHT:'lashHighlight',LASH_HIGHLIGHT:'lashHighlight'
+});
+function rgbToHslColor(hex){
+  let [r,g,b]=hexToRgb(safeHex(hex)).map(v=>v/255),max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,s=0,l=(max+min)/2,d=max-min;
+  if(d){s=d/(1-Math.abs(2*l-1));if(max===r)h=60*(((g-b)/d)%6);else if(max===g)h=60*((b-r)/d+2);else h=60*((r-g)/d+4);if(h<0)h+=360}
+  return {h,s,l};
+}
+function hslColorToHex({h,s,l}){
+  h=((h%360)+360)%360;s=Math.max(0,Math.min(1,s));l=Math.max(0,Math.min(1,l));const c=(1-Math.abs(2*l-1))*s,x=c*(1-Math.abs((h/60)%2-1)),m=l-c/2;let rgb;
+  if(h<60)rgb=[c,x,0];else if(h<120)rgb=[x,c,0];else if(h<180)rgb=[0,c,x];else if(h<240)rgb=[0,x,c];else if(h<300)rgb=[x,0,c];else rgb=[c,0,x];return rgbToHex(...rgb.map(v=>(v+m)*255));
+}
+function deriveEyeHsl(hex,{saturationMultiplier=1,lightnessDelta=0,hueShift=0}={}){const hsl=rgbToHslColor(hex);return hslColorToHex({h:hsl.h+hueShift,s:hsl.s*saturationMultiplier,l:hsl.l+lightnessDelta})}
+function eyeFieldSpec(mode,value,derive){return {mode,value:safeHex(value,'#888888'),...(derive?{derive}: {})}}
+function autoEyeScheme(slot){
+  const left=slot==='A';
+  return {schemaVersion:'shine-eye-scheme-v2',id:'AUTO',name:'双锚点自动方案',fields:{
+    irisBase:eyeFieldSpec('INDEPENDENT',left?'#A8B8D2':'#AC9B9F'),
+    irisDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisBase',space:'HSL',saturationMultiplier:left?0.38:0.52,lightnessDelta:left?-0.20:-0.19}),
+    irisDeep:eyeFieldSpec('DERIVED',left?'#4F627F':'#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.73,lightnessDelta:-.34}),
+    irisHighlight:eyeFieldSpec('FIXED',left?'#C9D4E3':'#D9C9D3'),
+    pupil:eyeFieldSpec('INDEPENDENT',left?'#E6F9FF':'#FFD6A6'),
+    pupilDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisDark',space:'HSL',saturationMultiplier:1,lightnessDelta:0}),
+    pupilHighlight:eyeFieldSpec('FIXED',left?'#FEFDFF':'#FFFDFE'),
+    outline:left?eyeFieldSpec('FIXED','#363235'):eyeFieldSpec('DERIVED','#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.41,lightnessDelta:-.28}),
+    lash:eyeFieldSpec('FIXED',left?'#756A72':'#93888D'),
+    lashHighlight:eyeFieldSpec('FIXED',left?'#C9D4E3':'#D9C9D3')
+  }};
+}
+function normalizeEyeSchemeV2(raw){
+  const base=autoEyeScheme('A');
+  if(raw?.schemaVersion==='shine-eye-scheme-v2'&&raw.fields){
+    const fields={};EYE_SCHEME_FIELDS.forEach(([key])=>{const source=raw.fields[key]||base.fields[key],mode=['DERIVED','FIXED','INDEPENDENT'].includes(source?.mode)?source.mode:'FIXED',derive=source?.derive?{source:String(source.derive.source||'irisBase'),space:'HSL',saturationMultiplier:Number.isFinite(+source.derive.saturationMultiplier)?+source.derive.saturationMultiplier:1,lightnessDelta:Number.isFinite(+source.derive.lightnessDelta)?+source.derive.lightnessDelta:0,hueShift:Number.isFinite(+source.derive.hueShift)?+source.derive.hueShift:0}:undefined;fields[key]=eyeFieldSpec(mode,source?.value||base.fields[key].value,derive)});
+    return {...raw,schemaVersion:'shine-eye-scheme-v2',fields};
+  }
+  const old=raw||{},values={irisBase:old.base||'#B9B7D6',irisDark:old.dark||'#918DCB',irisDeep:old.deep||old.dark||'#6F6B9D',irisHighlight:old.highlight||'#E3E2FF',pupil:old.pupil||'#D7D4FF',pupilDark:old.pupilDark||old.dark||'#918DCB',pupilHighlight:old.pupilHighlight||'#FEFDFF',outline:old.outline||'#8C7FA2',lash:old.lash||'#756A72',lashHighlight:old.lashHighlight||old.highlight||'#D7D4FF'};
+  return {schemaVersion:'shine-eye-scheme-v2',id:old.id||('eye_'+Date.now()+'_'+Math.random().toString(16).slice(2,6)),name:old.name||'未命名眼睛',fields:Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,eyeFieldSpec('FIXED',values[key])]))};
+}
+function migrateEyeSchemesV2(){
+  const changed=S.eyeSchemes.some(x=>x?.schemaVersion!=='shine-eye-scheme-v2'||!x.fields);S.eyeSchemes=S.eyeSchemes.map(normalizeEyeSchemeV2);if(changed)persistEyeSchemes();
+}
+function selectedEyeScheme(slot,order){const id=order?.[slot]?.eyeSchemeId,found=id&&id!=='AUTO'?S.eyeSchemes.find(x=>x.id===id):null;return found?normalizeEyeSchemeV2(found):autoEyeScheme(slot)}
+function eyeSchemeFieldColor(scheme,key,slot,order,seen=new Set()){
+  if(seen.has(key))return null;seen.add(key);const field=scheme?.fields?.[key];if(!field)return null;
+  if(field.mode==='FIXED')return safeHex(field.value,'#888888');
+  if(field.mode==='INDEPENDENT')return key==='pupil'?safeHex(order?.[slot]?.pupilAccent,field.value):key==='irisBase'?safeHex(order?.[slot]?.eye,field.value):safeHex(field.value,'#888888');
+  const derive=field.derive||{},source=eyeSchemeFieldColor(scheme,derive.source||'irisBase',slot,order,seen);return source?deriveEyeHsl(source,derive):safeHex(field.value,'#888888');
+}
+function eyeRoleColorV2(role,slot,order){const key=EYE_ROLE_FIELD[role];return key?eyeSchemeFieldColor(selectedEyeScheme(slot,order),key,slot,order):null}
+
 function selectedDecorAsset(slot,order){
   const wanted=order?.[slot]?.decor;
   if(!wanted||wanted==='NONE')return null;
@@ -2848,20 +2946,11 @@ function deriveRoleColor(role,slot,order){
   const outfit=safeHex((outfitCustom&&order[slot]?.outfitManual)?order[slot].outfitManual:(outfitScheme?.base||DEFAULT_PRESETS.outfit['红白']),'#E8CDD3');
   const decorShade=normalizeHex(order[slot]?.decorShade || '');
   const g=S.logic||DEFAULT_LOGIC;
-  const eyeScheme=(order[slot]?.eyeSchemeId && order[slot].eyeSchemeId!=='AUTO')?S.eyeSchemes.find(x=>x.id===order[slot].eyeSchemeId):null;
-  if(eyeScheme){
-    const fixed={EYE_IRIS_BASE:eyeScheme.base,EYE_DARK:eyeScheme.dark,EYE_PUPIL:eyeScheme.pupil,EYE_HIGHLIGHT:eyeScheme.highlight,EYE_OUTLINE:eyeScheme.outline,LASH_HIGHLIGHT:eyeScheme.lashHighlight||eyeScheme.highlight};
-    if(fixed[role])return fixed[role];
-  }
+  const eyeV2=eyeRoleColorV2(role,slot,order);if(eyeV2)return eyeV2;
   if(role==='HAIR_BASE')return hair;
   if(role==='HAIR_SHADE_MASK')return shiftColor(hair,g.hairShadeL,g.hairShadeC);
   if(role==='HAIR_OUTLINE')return shiftColor(hair,g.hairOutlineL,g.hairOutlineC);
   if(role==='BROW_BASE')return shiftColor(hair,g.browL,g.browC);
-  if(role==='EYE_IRIS_BASE')return eye;
-  if(role==='EYE_DARK')return shiftColor(eye,g.eyeDarkL,g.eyeDarkC);
-  if(role==='EYE_PUPIL')return shiftColor(eye,g.eyePupilL,g.eyePupilC);
-  if(role==='EYE_HIGHLIGHT'||role==='LASH_HIGHLIGHT')return shiftColor(eye,g.eyeHighL,g.eyeHighC);
-  if(role==='EYE_OUTLINE')return shiftColor(eye,g.eyeOutlineL,g.eyeOutlineC);
   if(role==='OUTFIT_BASE')return outfit;
   if(role==='OUTFIT_LINE')return (!outfitCustom&&outfitScheme?.line)||shiftColor(outfit,g.outfitLineL,g.outfitLineC);
   if(role==='HAT_BASE')return hat;
@@ -2999,7 +3088,7 @@ function setManualLayerOverride(path,hex,{persist=true}={}){
 
 function ensureSystemLinkedTemplateLayers(order){
   if(!S.master||!order)return;
-  const schemeRoles=new Set(['HAT_BASE','HAT_OUTLINE','HAT_TRIM_EDGE','OUTFIT_BASE','OUTFIT_LINE','EYE_IRIS_BASE','EYE_DARK','EYE_PUPIL','EYE_HIGHLIGHT','EYE_OUTLINE','LASH_HIGHLIGHT']);
+  const schemeRoles=new Set(['HAT_BASE','HAT_OUTLINE','HAT_TRIM_EDGE','OUTFIT_BASE','OUTFIT_LINE',...Object.keys(EYE_ROLE_FIELD).filter(role=>role!=='EYE_PUPIL_HIGHLIGHT')]);
   Object.entries(S.bindings).forEach(([path,b])=>{
     const node=S.flat.find(n=>n.path===path),name=String(node?.name||'').trim();
     // v0.25：用户这份模板有一个「背景」和一个「背景底色」，两者都是 1500×1500 全不透明。
@@ -3017,6 +3106,8 @@ function ensureSystemLinkedTemplateLayers(order){
     // 清理旧版本把普通背景误识别成蕾丝留下的缓存。
     if(b.role==='BACKGROUND_LACE_FIXED'&&!realLace){b.role='FIXED';b.locked=true;b.source='FIXED';return;}
     if(b.role==='BACKGROUND_BASE'){b.locked=false;b.source='SYSTEM_SCHEME';return;}
+    // 近白瞳孔高光始终沿用 PSD 原像素；Eye Scheme 保存它的语义值，但不覆盖模板固定高光。
+    if(b.role==='EYE_PUPIL_HIGHLIGHT'||b.role==='PUPIL_HIGHLIGHT_FIXED'){b.locked=true;b.source='FIXED';return;}
     const slot=b.slot==='A'||b.slot==='B'?b.slot:guessSlot(path,node?.name||'');
     if(slot!=='A'&&slot!=='B')return;
     // 帽子 / 衣服方案与眼睛自动衍生都属于“系统明确控制”的已识别层，不要求用户再手动点一次解锁。
@@ -3174,17 +3265,17 @@ async function loadHairAsset(file,slot){
 
 
 // ===== v0.16 eye derivation tester =====
-function eyeDerivedSet(base){
-  const g=S.logic||DEFAULT_LOGIC,b=safeHex(base,'#918DCB');
-  return {base:b,dark:shiftColor(b,g.eyeDarkL,g.eyeDarkC),pupil:shiftColor(b,g.eyePupilL,g.eyePupilC),highlight:shiftColor(b,g.eyeHighL,g.eyeHighC),outline:shiftColor(b,g.eyeOutlineL,g.eyeOutlineC)};
+function eyeDerivedSet(base,pupilAccent='#E6F9FF',slot='A'){
+  const order=newOrderData();order[slot].eye=safeHex(base,'#918DCB');order[slot].pupilAccent=safeHex(pupilAccent,slot==='A'?'#E6F9FF':'#FFD6A6');const scheme=autoEyeScheme(slot);
+  return Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,eyeSchemeFieldColor(scheme,key,slot,order)]));
 }
 function renderEyeLogicTester(){
-  const box=$('#eyeLogicTester');if(!box)return;const hex=$('#eyeLogicAnchorHex');const base=safeHex(hex?.value||'#918DCB','#918DCB');if(hex)hex.value=base;const c=$('#eyeLogicAnchorColor');if(c)c.value=base.toLowerCase();
-  const set=eyeDerivedSet(base),host=$('#eyeLogicSwatches');if(host)host.innerHTML=[['base','虹膜底色'],['dark','重色'],['pupil','瞳孔'],['highlight','高光'],['outline','轮廓']].map(([k,l])=>`<div class="eyeLogicSwatch"><i style="background:${set[k]}"></i><b>${l}</b><span>${set[k]}</span></div>`).join('');
+  const box=$('#eyeLogicTester');if(!box)return;const hex=$('#eyeLogicAnchorHex'),pupilHex=$('#eyeLogicPupilHex'),base=safeHex(hex?.value||'#918DCB','#918DCB'),pupil=safeHex(pupilHex?.value||'#E6F9FF','#E6F9FF');if(hex)hex.value=base;if(pupilHex)pupilHex.value=pupil;const c=$('#eyeLogicAnchorColor'),pc=$('#eyeLogicPupilColor');if(c)c.value=base.toLowerCase();if(pc)pc.value=pupil.toLowerCase();
+  const set=eyeDerivedSet(base,pupil),host=$('#eyeLogicSwatches');if(host)host.innerHTML=EYE_SCHEME_FIELDS.map(([key,label])=>`<div class="eyeLogicSwatch"><i style="background:${set[key]}"></i><b>${label}</b><span>${set[key]}</span></div>`).join('');
 }
 function makeEyeLogicTester(){
-  const box=document.createElement('div');box.id='eyeLogicTester';box.className='eyeLogicTester';box.innerHTML=`<div class="eyeLogicTesterHead"><b>眼睛自动衍生测试台</b><span class="schemePreviewChip">先测公式，再保存固定角色方案</span></div><div class="eyeLogicAnchor"><label>瞳色 Anchor</label><input id="eyeLogicAnchorHex" type="text" value="#918DCB"><input id="eyeLogicAnchorColor" type="color" value="#918DCB"></div><div id="eyeLogicSwatches" class="eyeLogicSwatches"></div><div class="schemeToolbar"><button class="btn" data-eye-test-apply="A">预览到 A 眼睛</button><button class="btn" data-eye-test-apply="B">预览到 B 眼睛</button></div><div class="schemeNote">这块不是只吐一串 hex；点“预览到 A/B 眼睛”后，会直接写到对应虹膜 / 重色 / 瞳孔 / 高光 / 轮廓图层并在左侧成图里看到结果。你给我的好看眼睛样本会用来校准这些参数，不会让 AI 自由配色。</div>`;
-  setTimeout(()=>{const h=$('#eyeLogicAnchorHex'),c=$('#eyeLogicAnchorColor');if(!h||!c)return;c.oninput=()=>{h.value=c.value.toUpperCase();renderEyeLogicTester()};h.onchange=()=>{h.value=safeHex(h.value,'#918DCB');c.value=h.value.toLowerCase();renderEyeLogicTester()};box.querySelectorAll('[data-eye-test-apply]').forEach(b=>b.onclick=()=>{let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders()}const slot=b.dataset.eyeTestApply,base=safeHex(h.value,'#918DCB');o[slot].eye=base;o[slot].eyeSchemeId='AUTO';persistOrders();selectOrder(o.id);applyOrderColors({live:true,persist:true});stat($('#apiStatus'),`已把 ${base} 的自动眼睛逻辑直接预览到 ${slot} 眼睛图层。`,'good')});renderEyeLogicTester();});return box;
+  const box=document.createElement('div');box.id='eyeLogicTester';box.className='eyeLogicTester';box.innerHTML=`<div class="eyeLogicTesterHead"><b>Eye Scheme v2 双锚点测试台</b><span class="schemePreviewChip">先测公式，再保存固定角色方案</span></div><div class="eyeLogicAnchor"><label>虹膜主色</label><input id="eyeLogicAnchorHex" type="text" value="#918DCB"><input id="eyeLogicAnchorColor" type="color" value="#918DCB"></div><div class="eyeLogicAnchor"><label>瞳孔点缀色</label><input id="eyeLogicPupilHex" type="text" value="#E6F9FF"><input id="eyeLogicPupilColor" type="color" value="#E6F9FF"></div><div id="eyeLogicSwatches" class="eyeLogicSwatches"></div><div class="schemeToolbar"><button class="btn" data-eye-test-apply="A">预览到 A 眼睛</button><button class="btn" data-eye-test-apply="B">预览到 B 眼睛</button></div><div class="schemeNote">虹膜与瞳孔现在是两个独立锚点。方案只写已绑定颜色，不改图层显隐、Multiply、剪贴或固定近白高光。</div>`;
+  setTimeout(()=>{const h=$('#eyeLogicAnchorHex'),c=$('#eyeLogicAnchorColor'),ph=$('#eyeLogicPupilHex'),pc=$('#eyeLogicPupilColor');if(!h||!c||!ph||!pc)return;c.oninput=()=>{h.value=c.value.toUpperCase();renderEyeLogicTester()};pc.oninput=()=>{ph.value=pc.value.toUpperCase();renderEyeLogicTester()};h.onchange=()=>{h.value=safeHex(h.value,'#918DCB');c.value=h.value.toLowerCase();renderEyeLogicTester()};ph.onchange=()=>{ph.value=safeHex(ph.value,'#E6F9FF');pc.value=ph.value.toLowerCase();renderEyeLogicTester()};box.querySelectorAll('[data-eye-test-apply]').forEach(b=>b.onclick=()=>{let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders()}const slot=b.dataset.eyeTestApply,base=safeHex(h.value,'#918DCB'),pupil=safeHex(ph.value,slot==='A'?'#E6F9FF':'#FFD6A6');o[slot].eye=base;o[slot].pupilAccent=pupil;o[slot].eyeSchemeId='AUTO';persistOrders();selectOrder(o.id);applyOrderColors({live:true,persist:true});stat($('#apiStatus'),`已把虹膜 ${base} + 瞳孔 ${pupil} 预览到 ${slot} 眼睛。`,'good')});renderEyeLogicTester();});return box;
 }
 
 // ===== v0.8 workspace + eye scheme studio =====
@@ -3195,23 +3286,25 @@ function eyeRoleHex(slot,role){
 function renderEyeSchemeOptions(){
   ['aEyeScheme','bEyeScheme'].forEach(id=>{
     const el=$('#'+id); if(!el)return; const old=el.value||'AUTO';
-    el.innerHTML='<option value="AUTO">按 Anchor 自动衍生</option>'+S.eyeSchemes.map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
+    el.innerHTML='<option value="AUTO">双锚点自动方案</option>'+S.eyeSchemes.map(normalizeEyeSchemeV2).map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
     el.value=[...el.options].some(o=>o.value===old)?old:'AUTO';
   });
 }
 function setEyeSchemeEditor(s){
-  const d=s||{name:'新眼睛方案',base:'#B9B7D6',dark:'#918DCB',pupil:'#D7D4FF',highlight:'#E3E2FF',outline:'#8C7FA2',lashHighlight:'#D7D4FF'};
+  const auto=autoEyeScheme('A'),d=s?normalizeEyeSchemeV2(s):{...auto,id:null,name:'新眼睛方案',fields:Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,{...auto.fields[key],mode:'FIXED'}]))};
   $('#eyeSchemeName').value=d.name||'';
-  ['base','dark','pupil','highlight','outline','lashHighlight'].forEach(k=>{
-    const hex=safeHex(d[k]||'#888888','#888888'); $('#eyeScheme_'+k+'_hex').value=hex; $('#eyeScheme_'+k).value=hex.toLowerCase();
+  EYE_SCHEME_FIELDS.forEach(([key])=>{
+    const field=d.fields[key],hex=safeHex(field?.value||'#888888','#888888');$('#eyeScheme_'+key+'_hex').value=hex;$('#eyeScheme_'+key).value=hex.toLowerCase();$('#eyeScheme_'+key+'_mode').value=field?.mode||'FIXED';
   });
 }
 function captureEyeSchemeEditor(){
-  return {name:($('#eyeSchemeName').value||'未命名眼睛').trim(),...Object.fromEntries(['base','dark','pupil','highlight','outline','lashHighlight'].map(k=>[k,safeHex($('#eyeScheme_'+k+'_hex').value,'#888888')]))};
+  const current=normalizeEyeSchemeV2(S.eyeSchemes.find(x=>x.id===S.editingEyeSchemeId)||autoEyeScheme('A')),fields={};
+  EYE_SCHEME_FIELDS.forEach(([key])=>{const mode=$('#eyeScheme_'+key+'_mode').value,value=safeHex($('#eyeScheme_'+key+'_hex').value,'#888888'),fallback=autoEyeScheme('A').fields[key],derive=current.fields[key]?.derive||fallback.derive||(key==='pupilDark'?{source:'irisDark',space:'HSL',saturationMultiplier:1,lightnessDelta:0}:{source:'irisBase',space:'HSL',saturationMultiplier:1,lightnessDelta:0});fields[key]=eyeFieldSpec(mode,value,mode==='DERIVED'?derive:undefined)});
+  return {schemaVersion:'shine-eye-scheme-v2',name:($('#eyeSchemeName').value||'未命名眼睛').trim(),fields};
 }
 function grabEyeSchemeFromSlot(slot){
   const o=getActiveOrder()||newOrderData();
-  const d={name:(o[slot]?.name||slot)+'眼睛',base:eyeRoleHex(slot,'EYE_IRIS_BASE'),dark:eyeRoleHex(slot,'EYE_DARK'),pupil:eyeRoleHex(slot,'EYE_PUPIL'),highlight:eyeRoleHex(slot,'EYE_HIGHLIGHT'),outline:eyeRoleHex(slot,'EYE_OUTLINE'),lashHighlight:eyeRoleHex(slot,'LASH_HIGHLIGHT')};
+  const roles={irisBase:'EYE_IRIS_BASE',irisDark:'EYE_IRIS_DARK',irisDeep:'EYE_IRIS_DEEP',irisHighlight:'EYE_IRIS_HIGHLIGHT',pupil:'EYE_PUPIL',pupilDark:'EYE_PUPIL_DARK',pupilHighlight:'EYE_PUPIL_HIGHLIGHT',outline:'EYE_OUTLINE',lash:'EYE_LASH',lashHighlight:'EYE_LASH_HIGHLIGHT'},d={schemaVersion:'shine-eye-scheme-v2',name:(o[slot]?.name||slot)+'眼睛',fields:Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,eyeFieldSpec('FIXED',eyeRoleHex(slot,roles[key]))]))};
   S.editingEyeSchemeId=null; setEyeSchemeEditor(d);
 }
 function saveEyeSchemeFromEditor(){
@@ -3224,8 +3317,9 @@ function renderEyeSchemeList(){
   const host=$('#eyeSchemeList'); if(!host)return;
   host.innerHTML=S.eyeSchemes.length?'':'<div class="meta" style="padding:9px">还没有保存眼睛方案。先从 A/B 当前眼睛抓一套，或者手动填固定色。</div>';
   S.eyeSchemes.forEach(s=>{
+    s=normalizeEyeSchemeV2(s);
     const row=document.createElement('div');row.className='eyeSchemeRow';
-    row.innerHTML=`<div><b style="font-size:10px">${safe(s.name)}</b><div class="eyeDots">${['base','dark','pupil','highlight','outline'].map(k=>`<i class="eyeDot" style="background:${safe(s[k])}"></i>`).join('')}</div></div><button class="btn" data-eyeapply="A" data-id="${safe(s.id)}">给A</button><button class="btn" data-eyeapply="B" data-id="${safe(s.id)}">给B</button><button class="btn" data-eyeedit="${safe(s.id)}">编辑</button><button class="btn" data-eyedel="${safe(s.id)}">删</button>`;
+    row.innerHTML=`<div><b style="font-size:10px">${safe(s.name)}</b><div class="eyeDots">${['irisBase','irisDark','pupil','pupilHighlight','outline'].map(k=>`<i class="eyeDot" style="background:${safe(s.fields[k].value)}"></i>`).join('')}</div></div><button class="btn" data-eyeapply="A" data-id="${safe(s.id)}">给A</button><button class="btn" data-eyeapply="B" data-id="${safe(s.id)}">给B</button><button class="btn" data-eyeedit="${safe(s.id)}">编辑</button><button class="btn" data-eyedel="${safe(s.id)}">删</button>`;
     host.appendChild(row);
   });
   host.querySelectorAll('[data-eyeapply]').forEach(b=>b.onclick=()=>{const slot=b.dataset.eyeapply; $('#'+slot.toLowerCase()+'EyeScheme').value=b.dataset.id; captureActiveOrder(); applyOrderColors();});
@@ -3234,12 +3328,12 @@ function renderEyeSchemeList(){
 }
 function makeEyeSchemeStudio(){
   const box=document.createElement('div');box.className='eyeSchemeBox';box.innerHTML=`
-    <b style="font-size:11px">眼睛配色方案库</b>
-    <div class="legendMini" style="margin:4px 0 8px">一套调舒服后直接保存成固定纯色方案；乙游男主等固定瞳色也可以单独建方案，不再每次跑公式。</div>
+    <b style="font-size:11px">Eye Scheme v2 · 双锚点完整方案</b>
+    <div class="legendMini" style="margin:4px 0 8px">日常只选眼睛主色和方案；瞳孔需要暖色/冷色点缀时再展开高级色。FIXED 固定方案值，INDEPENDENT 使用独立锚点，DERIVED 按该方案保存的 HSL 公式推导。</div>
     <div class="toolbar"><button id="grabEyeA" class="btn">抓取 A 当前眼睛</button><button id="grabEyeB" class="btn">抓取 B 当前眼睛</button><button id="newEyeScheme" class="btn">新建固定方案</button></div>
     <div class="eyeSchemeField"><label>方案名字</label><input id="eyeSchemeName" type="text" value="新眼睛方案" style="width:100%"></div>
     <div class="eyeSchemeGrid" style="margin-top:7px">
-      ${[['base','虹膜底色'],['dark','重色'],['pupil','瞳孔'],['highlight','高光'],['outline','轮廓'],['lashHighlight','睫毛高光']].map(([k,l])=>`<div class="eyeSchemeField"><label>${l}</label><div class="colorLine"><input id="eyeScheme_${k}_hex" type="text" value="#888888"><input id="eyeScheme_${k}" type="color" value="#888888"></div></div>`).join('')}
+      ${EYE_SCHEME_FIELDS.map(([key,label])=>`<div class="eyeSchemeField"><label>${label}</label><select id="eyeScheme_${key}_mode" style="width:100%;margin-bottom:3px"><option value="FIXED">FIXED 固定</option><option value="DERIVED">DERIVED 推导</option><option value="INDEPENDENT">INDEPENDENT 锚点</option></select><div class="colorLine"><input id="eyeScheme_${key}_hex" type="text" value="#888888"><input id="eyeScheme_${key}" type="color" value="#888888"></div></div>`).join('')}
     </div>
     <div class="toolbar"><button id="saveEyeSchemeBtn" class="btn primary">保存 / 更新这套眼睛</button></div>
     <div id="eyeSchemeList" class="eyeSchemeList"></div>`;
@@ -3261,12 +3355,13 @@ async function exportProduction(format,showWatermark,forceDownload=false){
   const before={...S.visOverride};applyWatermarkMode(showWatermark);reconstruct();renderOverlay();syncProductionPreview();
   const src=$('#overlayCanvas'),c=document.createElement('canvas');c.width=src.width;c.height=src.height;const ctx=c.getContext('2d');
   if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);}ctx.drawImage(src,0,0);
-  const o=getActiveOrder(),name=(o?.customerName||'订单').replace(/[\\/:*?"<>|]/g,'_'),ext=format==='jpeg'?'jpg':'png',mime=format==='jpeg'?'image/jpeg':'image/png';
+  const o=getActiveOrder()||captureActiveOrder(),name=(o?.customerName||'订单').replace(/[\\/:*?"<>|]/g,'_'),ext=format==='jpeg'?'jpg':'png',mime=format==='jpeg'?'image/jpeg':'image/png',fileName=`${name}_${showWatermark?'样稿':'交付'}.${ext}`;
   let feedback='';
   try{
     const requested=await canvasBlob(c,mime,format==='jpeg'?.95:undefined);
+    recordSessionExport(o,requested,format,showWatermark,fileName);
     const copied=!forceDownload && await copyCanvasImageToClipboard(c);
-    if(copied){feedback=`${c.width}×${c.height} · 已复制，去聊天框 Ctrl+V`;}else{dl(requested,`${name}_${showWatermark?'样稿':'交付'}.${ext}`);feedback=`${c.width}×${c.height} · 剪贴板不可用，已下载（HTTPS 托管后通常可直接复制）`;}
+    if(copied){feedback=`${c.width}×${c.height} · 已复制，并记入当前订单临时图`;}else{dl(requested,fileName);feedback=`${c.width}×${c.height} · 已下载，并记入当前订单临时图`;}
   }catch(e){console.error(e);alert('导出失败：'+(e.message||e));}
   S.visOverride=before;reconstruct();renderOverlay();syncProductionPreview();if(feedback)$('#prodPreviewInfo').textContent=feedback;
 }
@@ -3560,16 +3655,18 @@ function exportManifest(){
       detectedLayerOrder:a.order}))},
     'variant_manifest.json');
 }
-function exportPreview(){
-  $('#overlayCanvas').toBlob(b=>dl(b,'template_variant_preview.png'),'image/png');
+async function exportPreview(){
+  const blob=await canvasBlob($('#overlayCanvas'),'image/png'),order=getActiveOrder(),name='template_variant_preview.png';
+  if(order)recordSessionExport(order,blob,'png',$('#watermarkMode').value==='preview',name);dl(blob,name);
 }
-function exportJpeg(){
+async function exportJpeg(){
   const src=$('#overlayCanvas');
   const c=document.createElement('canvas');c.width=src.width;c.height=src.height;
   const ctx=c.getContext('2d');
   // JPEG 不支持透明：默认用白底承接透明区域。
   ctx.fillStyle='#ffffff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(src,0,0);
-  c.toBlob(b=>dl(b,'template_variant_preview.jpg'),'image/jpeg',0.95);
+  const blob=await canvasBlob(c,'image/jpeg',0.95),order=getActiveOrder(),name='template_variant_preview.jpg';
+  if(order)recordSessionExport(order,blob,'jpeg',$('#watermarkMode').value==='preview',name);dl(blob,name);
 }
 function hookDrop(dropId,inputId,handler,multiple=false){
   const d=$(dropId),i=$(inputId);
@@ -3612,6 +3709,7 @@ $('#importTemplate').onchange=async e=>{
 $('#newOrder').onclick=()=>{
   const o=newOrderData();S.orders.unshift(o);persistOrders();selectOrder(o.id);
 };
+$('#clearOrderHistory').onclick=clearActiveOrderHistory;
 $('#saveOrder').onclick=()=>{captureActiveOrder();applyDecorSelection();stat($('#apiStatus'),'订单已保存到今日订单。','good')};
 $('#copyFormTemplate').onclick=async()=>{try{await navigator.clipboard.writeText(CUSTOMER_FORM_TEMPLATE);stat($('#apiStatus'),'顾客表单模板已复制。','good')}catch{$('#orderForm').value=CUSTOMER_FORM_TEMPLATE;stat($('#apiStatus'),'浏览器不允许直接复制，已把模板放进文本框。','good')}};
 $('#localReadForm').onclick=localParseForm;
@@ -3665,7 +3763,7 @@ $('#swatchCanvas').onclick=e=>{
   const hex=rgbToHex(data[0],data[1],data[2]);
   $('#swatchPickedHex').value=hex; $('#swatchPickedColor').value=hex.toLowerCase();
 };
-['aEye','aHair','bEye','bHair','aOutfitManual','bOutfitManual','aHatManual','bHatManual'].forEach(p=>hookLinkedColor(p,false)); ['aDecorBase','aDecorShade','bDecorBase','bDecorShade'].forEach(p=>hookLinkedColor(p,true));
+['aEye','aPupilAccent','aHair','bEye','bPupilAccent','bHair','aOutfitManual','bOutfitManual','aHatManual','bHatManual'].forEach(p=>hookLinkedColor(p,false)); ['aDecorBase','aDecorShade','bDecorBase','bDecorShade'].forEach(p=>hookLinkedColor(p,true));
 ['aOutfitPreset','bOutfitPreset','aHatPreset','bHatPreset'].forEach(id=>{const el=$('#'+id);if(el)el.onchange=()=>{if(id==='aOutfitPreset')syncOutfitManualVisibility('A');if(id==='bOutfitPreset')syncOutfitManualVisibility('B');if(id==='aHatPreset')syncHatManualVisibility('A');if(id==='bHatPreset')syncHatManualVisibility('B');syncLiveControlsToOrder();captureActiveOrder();scheduleLiveProductionColors({persist:true});};});
 // 帽饰颜色变化只重绘颜色，不再碰素材启用/停用状态；避免颜色输入把已选狐狸/兔耳误关掉。
 
@@ -3705,6 +3803,7 @@ initCloudProfiles();
 lockThreeColumnShell();
 requestAnimationFrame(refreshHealthScrollBars);
 window.addEventListener("resize",()=>{lockThreeColumnShell();refreshHealthScrollBars();});
+window.addEventListener('beforeunload',()=>S.exportHistory.forEach(releaseSessionExport));
 </script>
 </body>
 </html>
