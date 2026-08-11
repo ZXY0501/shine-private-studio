@@ -2179,8 +2179,8 @@ function newOrderData(){
     createdAt:new Date().toISOString(),
     status:'待处理',
     formText:'',
-    A:{name:'A宝宝',eye:'#B9853E',pupilAccent:'#E6F9FF',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
-    B:{name:'B宝宝',eye:'#3A353A',pupilAccent:'#FFD6A6',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
+    A:{name:'A宝宝',eye:'#B9853E',pupilAccent:'#E6F9FF',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#D7BCC4',hat:'__CUSTOM__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
+    B:{name:'B宝宝',eye:'#3A353A',pupilAccent:'#FFD6A6',eyeSchemeId:'AUTO',hair:'#2B2830',outfit:'__CUSTOM__',outfitManual:'#C9D4E7',hat:'__CUSTOM__',hatManual:'#C85B5B',decor:'NONE',decorBase:'',decorShade:''},
     background:'暖粉',
     backgroundManual:'',
     backgroundSource:'preset',
@@ -2254,10 +2254,10 @@ function selectOrder(id){
   renderPresetOptions();
   $('#aOutfitPreset').value=!o.A?.outfit?'__CUSTOM__':(o.A.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.A.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('aOutfitManual',o.A?.outfitManual||'#D7BCC4');
-  $('#aHatPreset').value=!o.A?.hat?'__DECOR_ANCHOR__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.A.hat)?o.A.hat:(resolveStyleScheme('hat',o.A.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('aHatManual',o.A?.hatManual||'#C85B5B');
+  $('#aHatPreset').value=!o.A?.hat?'__CUSTOM__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.A.hat)?o.A.hat:(resolveStyleScheme('hat',o.A.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('aHatManual',o.A?.hatManual||'#C85B5B');
   $('#bOutfitPreset').value=!o.B?.outfit?'__CUSTOM__':(o.B.outfit==='__CUSTOM__'?'__CUSTOM__':(resolveStyleScheme('outfit',o.B.outfit)?.id||S.styleSchemes.outfit[0]?.id||''));
   setLinkedColor('bOutfitManual',o.B?.outfitManual||'#C9D4E7');
-  $('#bHatPreset').value=!o.B?.hat?'__DECOR_ANCHOR__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.B.hat)?o.B.hat:(resolveStyleScheme('hat',o.B.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('bHatManual',o.B?.hatManual||'#C85B5B');
+  $('#bHatPreset').value=!o.B?.hat?'__CUSTOM__':(['__DECOR_ANCHOR__','__CUSTOM__'].includes(o.B.hat)?o.B.hat:(resolveStyleScheme('hat',o.B.hat)?.id||S.styleSchemes.hat[0]?.id||''));setLinkedColor('bHatManual',o.B?.hatManual||'#C85B5B');
   updateDecorSelects();$('#aDecor').value=o.A?.decor||'NONE';$('#bDecor').value=o.B?.decor||'NONE';
   setLinkedColor('aDecorBase',o.A?.decorBase||'', true);
   setLinkedColor('aDecorShade',o.A?.decorShade||'', true);
@@ -2437,7 +2437,7 @@ function firstPreset(kind){if(kind==='hat'||kind==='outfit')return S.styleScheme
 function renderPresetOptions(){
   [['aHatPreset','hat'],['bHatPreset','hat'],['aOutfitPreset','outfit'],['bOutfitPreset','outfit']].forEach(([id,kind])=>{
     const el=$('#'+id),old=el.value;let html='';
-    if(kind==='hat')html+='<option value="__DECOR_ANCHOR__">★ 帽子底色锚定耳朵底色</option><option value="__CUSTOM__">★ 自选（手动拖色）</option>';
+    if(kind==='hat')html+='<option value="__CUSTOM__">★ 自选（手动拖色）</option><option value="__DECOR_ANCHOR__">帽子底色锚定耳朵底色</option>';
     if(kind==='outfit')html+='<option value="__CUSTOM__">★ 自选（手动拖色）</option>';
     html+=(S.styleSchemes?.[kind]||[]).map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('');el.innerHTML=html;
     const oldId=resolveStyleScheme(kind,old)?.id;if(old==='__DECOR_ANCHOR__'||old==='__CUSTOM__')el.value=old;else if(oldId&&[...el.options].some(o=>o.value===oldId))el.value=oldId;

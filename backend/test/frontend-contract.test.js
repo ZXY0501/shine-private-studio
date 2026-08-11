@@ -32,11 +32,12 @@ test('does not embed Alibaba Cloud access keys', () => {
   assert.doesNotMatch(html, /LTAI[A-Za-z0-9]{12,}/);
 });
 
-test('new orders default to manual outfit colors and ear-anchored hats', () => {
-  assert.match(html, /A:\{[^\n]+outfit:'__CUSTOM__'[^\n]+hat:'__DECOR_ANCHOR__'/);
-  assert.match(html, /B:\{[^\n]+outfit:'__CUSTOM__'[^\n]+hat:'__DECOR_ANCHOR__'/);
+test('new orders default to manual outfit and hat colors', () => {
+  assert.match(html, /A:\{[^\n]+outfit:'__CUSTOM__'[^\n]+hat:'__CUSTOM__'/);
+  assert.match(html, /B:\{[^\n]+outfit:'__CUSTOM__'[^\n]+hat:'__CUSTOM__'/);
   assert.match(html, /!o\.A\?\.outfit\?'__CUSTOM__'/);
-  assert.match(html, /!o\.B\?\.hat\?'__DECOR_ANCHOR__'/);
+  assert.match(html, /!o\.A\?\.hat\?'__CUSTOM__'/);
+  assert.match(html, /!o\.B\?\.hat\?'__CUSTOM__'/);
 });
 
 test('heavy PSD color previews are debounced and final changes are flushed', () => {
@@ -127,9 +128,9 @@ test('asset free transform works from the whole preview area and persists per te
   assert.match(html, /\(t\.flipY\?-1:1\)\*scale/);
 });
 
-test('hat presets keep ear anchoring and allow a manual color', () => {
-  assert.match(html, /hat:'__DECOR_ANCHOR__',hatManual:'#C85B5B'/);
-  assert.match(html, /kind==='hat'\)html\+='[^']*__DECOR_ANCHOR__[^']*__CUSTOM__/);
+test('hat presets default to manual color while retaining optional ear anchoring', () => {
+  assert.match(html, /hat:'__CUSTOM__',hatManual:'#C85B5B'/);
+  assert.match(html, /kind==='hat'\)html\+='[^']*__CUSTOM__[^']*__DECOR_ANCHOR__/);
   assert.match(html, /hatCustom\?order\[slot\]\?\.hatManual/);
 });
 
