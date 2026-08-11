@@ -71,9 +71,26 @@ test('phase two library exposes reusable categories and custom groups', () => {
   assert.match(html, /id:'CLEAN_TEMPLATE',name:'纯净模板'/);
   assert.match(html, /id:'EAR',name:'耳朵'/);
   assert.match(html, /id:'MOUTH',name:'嘴巴表情'/);
+  assert.match(html, /id:'FRAME',name:'边框'/);
   assert.match(html, /id:'ACCESSORY',name:'配饰'/);
   assert.match(html, /function persistAssetCategories\(\)/);
   assert.match(html, /data-ak="category"/);
+});
+
+test('frame assets can stack, move front or back, and sample four colors from the preview', () => {
+  assert.match(html, /frameSelections:\[\]/);
+  assert.match(html, /function frameStackIds\(placement,order=getActiveOrder\(\)\)/);
+  assert.match(html, /data-ak="frame-check"/);
+  assert.match(html, /data-ak="frame-placement"/);
+  assert.match(html, /FRAME_RIBBON_A/);
+  assert.match(html, /FRAME_RIBBON_B/);
+  assert.match(html, /FRAME_FLOWER_BASE/);
+  assert.match(html, /FRAME_FLOWER_SHADE/);
+  assert.match(html, /function armPreviewEyedrop\(familyKey,field\)/);
+  assert.match(html, /function sampleCanvasMedianColor\(canvas,clientX,clientY,radius=3\)/);
+  assert.match(html, /addedAt:Number\(x\.addedAt\)/);
+  assert.match(html, /if\(el\.value==='FRAME'&&records\.length>1\)/);
+  assert.match(html, /keep\.groupPath=null/);
 });
 
 test('asset families can be selected independently for A and B', () => {
@@ -126,12 +143,28 @@ test('asset free transform works from the whole preview area and persists per te
   assert.match(html, /data-ak="transform"/);
   assert.match(html, /Math\.max\(\.05,Math\.min\(5/);
   assert.match(html, /\(t\.flipY\?-1:1\)\*scale/);
+  assert.match(html, /function beginAssetTransformPreview\(a\)/);
+  assert.match(html, /renderMasterWithRootStack\(assetStackId\(a\)\)/);
+  assert.match(html, /function renderFastAssetTransformPreview\(\)/);
+  assert.match(html, /function finishAssetTransformPreview\(\)/);
 });
 
 test('hat presets default to manual color while retaining optional ear anchoring', () => {
   assert.match(html, /hat:'__CUSTOM__',hatManual:'#C85B5B'/);
   assert.match(html, /kind==='hat'\)html\+='[^']*__CUSTOM__[^']*__DECOR_ANCHOR__/);
   assert.match(html, /hatCustom\?order\[slot\]\?\.hatManual/);
+});
+
+test('pale white and pink hats use a darker low-chroma outline', () => {
+  assert.match(html, /function isPalePinkOrWhiteHat\(base\)/);
+  assert.match(html, /function paleHatOutlineColor\(base\)/);
+  assert.match(html, /if\(isPalePinkOrWhiteHat\(hat\)\)return paleHatOutlineColor\(hat\)/);
+  assert.match(html, /Math\.min\(\.038,o\.C\*\.34\)/);
+});
+
+test('single-layer adjustment only lists enabled A or B asset instances', () => {
+  assert.match(html, /\(S\.assets\|\|\[\]\)\.filter\(a=>a\.enabled\)\.forEach\(a=>\{/);
+  assert.match(html, /const prefix=`\[\$\{a\.slot\} \$\{categoryLabel\(a\.type\)\}\] `/);
 });
 
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
@@ -143,6 +176,16 @@ test('session export history stays in tab memory and records every PNG or JPEG o
   assert.match(html, /recordSessionExport\(order,blob,'jpeg'/);
   assert.match(html, /beforeunload[^\n]+S\.exportHistory\.forEach\(releaseSessionExport\)/);
   assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*exportHistory/);
+  assert.match(html, /if\(!S\.master\|\|S\.exportBusy\)return;S\.exportBusy=true/);
+  assert.match(html, /format==='png'\?requestedPromise:canvasBlob\(c,'image\/png'\)/);
+  assert.match(html, /copyCanvasImageToClipboard\(c,clipboardPng\)/);
+});
+
+test('standardized Chinese asset names are inferred without changing the PSD parser', () => {
+  assert.match(html, /n\.includes\('FRAME'\)\|\|n\.includes\('边框'\)/);
+  assert.match(html, /n\.includes\('HAIR'\)\|\|n\.includes\('头发'\)/);
+  assert.match(html, /n\.includes\('MOUTH'\)\|\|n\.includes\('嘴'\)\|\|n\.includes\('表情'\)/);
+  assert.match(html, /\(\?:模板\|耳朵\|头发\|帽饰\|嘴巴\|表情\|尾巴\|小物\|配饰\|边框/);
 });
 
 test('Eye Scheme v2 uses two anchors, complete field modes, and protects fixed highlights', () => {
