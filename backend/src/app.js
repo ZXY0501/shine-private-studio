@@ -358,7 +358,7 @@ function createApp(options = {}) {
             sourceObjectKey: claim.objectKey,
             thumbnailObjectKey: null,
             colorMode: 'PRESERVE_ORIGINAL',
-            defaultTransform: { x: 0, y: 0, scale: 1, rotation: 0, flipX: false },
+            defaultTransform: { x: 0, y: 0, scale: 1, rotation: 0, flipX: false, flipY: false },
             compatibleTemplateIds: [],
             version: 1,
             createdAt: timestamp,

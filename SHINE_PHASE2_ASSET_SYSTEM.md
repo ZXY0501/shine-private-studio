@@ -78,7 +78,8 @@
     "y": 0,
     "scale": 1,
     "rotation": 0,
-    "flipX": false
+    "flipX": false,
+    "flipY": false
   },
   "templateTransforms": {},
   "sourceObjectKey": "assets/v2/.../source.psd",
@@ -147,7 +148,8 @@ Template Profile 保存 `slotRegistry`。插槽由网页创建，不依赖 PSD �
     "y": 0,
     "scale": 1,
     "rotation": 0,
-    "flipX": false
+    "flipX": false,
+    "flipY": false
   }
 }
 ```
@@ -156,7 +158,7 @@ Template Profile 保存 `slotRegistry`。插槽由网页创建，不依赖 PSD �
 
 - 先选中素材，再在预览画布任意空白位置拖动，即可移动该素材。
 - 不要求鼠标必须压在素材像素上。
-- 选中框提供缩放和旋转控制。
+- 素材卡直接提供当前 A/B 位的调整入口，以及缩放、旋转、水平翻转、垂直翻转和复位控制。
 - `Space + 拖动`保留给画布平移，避免与素材移动冲突。
 - 变换只修改订单实例，不修改云端源素材。
 

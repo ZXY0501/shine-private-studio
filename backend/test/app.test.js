@@ -275,6 +275,7 @@ test('creates, completes, lists, downloads, and deletes a cloud asset', async ()
     assert.equal(completedAsset.colorMode, 'PRESERVE_ORIGINAL');
     assert.equal(completedAsset.categoryId, 'EAR');
     assert.deepEqual(completedAsset.layerVisibility, { 'A耳朵/耳毛': false });
+    assert.deepEqual(completedAsset.defaultTransform, { x: 0, y: 0, scale: 1, rotation: 0, flipX: false, flipY: false });
 
     const list = await fetch(`${baseUrl}/api/assets`, { headers: authHeaders() });
     assert.equal(list.status, 200);

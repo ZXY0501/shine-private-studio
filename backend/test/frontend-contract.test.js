@@ -120,6 +120,11 @@ test('asset free transform works from the whole preview area and persists per te
   assert.match(html, /function drawAssetTransformed\(ctx,a\)/);
   assert.match(html, /id="assetTransformScale"/);
   assert.match(html, /id="assetTransformRotation"/);
+  assert.match(html, /data-at-action="flipX"/);
+  assert.match(html, /data-at-action="flipY"/);
+  assert.match(html, /data-ak="transform"/);
+  assert.match(html, /Math\.max\(\.05,Math\.min\(5/);
+  assert.match(html, /\(t\.flipY\?-1:1\)\*scale/);
 });
 
 test('hat presets keep ear anchoring and allow a manual color', () => {
