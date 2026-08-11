@@ -273,9 +273,18 @@ loadMaster()
 | `shine:eyeSchemes:v0.6` | 眼睛方案 |
 | `shine:styleSchemes:v0.13` | 帽子/衣服工作室方案 |
 
-### 6.3 只在内存中的数据
+### 6.3 Phase 2 本机大文件存储
 
-`S.assets` 中保存素材的 `File`、解析后的 PSD、图层 bindings 和合成 Canvas。当前代码没有把素材 PSD 或素材元数据持久化；刷新页面后需要重新上传。
+Phase 2 使用 IndexedDB 数据库 `shine-phase2-library`，把大文件与轻量目录分开：
+
+| Store | 内容 |
+| --- | --- |
+| `assetSources` | 素材 PSD 的 File/Blob、version、contentHash |
+| `assetCatalog` | 素材分类、A/B、图层显隐、颜色模式、bindings 等 metadata |
+| `templateSources` | 纯净模板 PSD 的 File/Blob |
+| `templateCatalog` | 模板签名、文件名、尺寸、更新时间 |
+
+刷新后会自动解析最近使用的一个纯净模板；素材只恢复轻量目录，勾选“使用素材”时才从 IndexedDB 读取并解析 PSD。解析后的 PSD、Canvas 和临时改色缓存仍只存在当前页面内存。
 
 这三个生命周期不能混为一谈：
 
@@ -303,17 +312,11 @@ loadMaster()
 浏览器 File → file.arrayBuffer() → agPsd.readPsd()
 ```
 
-当前不存在上传到 OSS 的代码。
+Phase 2 隐藏测试入口已经包含 OSS 素材上传：先向 FC 申请单对象短时 PUT 地址，浏览器直传私有 OSS，再由后端核验并登记 metadata。默认页面和一期生产入口不触发该链路。
 
 ### 7.2 素材分类与语义
 
-素材类别：
-
-- `HAIR`：头发；
-- `HAT_DECOR`：耳朵/帽饰；
-- `TAIL`：尾巴；
-- `PROP`：小物；
-- `STICKER`：贴纸。
+素材类别：`CLEAN_TEMPLATE`、`HAIR`、`EAR`、`MOUTH`、`TAIL`、`FRAME`、`ACCESSORY`、`PROP`，并支持本机自建大类。
 
 主要代码：
 
@@ -327,7 +330,7 @@ loadMaster()
 | `renderAssetLibrary` | `index.html:2304` | 分类展示、改分类/逻辑名、打开图层绑定、删除 |
 | `renderAssetBindingEditor` | `index.html:2277` | 手工修正素材图层 role |
 
-素材 PSD、图层 bindings 和启用状态当前只保存在 `S.assets`，未进入 `localStorage` 或云端。
+素材源文件与 metadata 会自动进入 IndexedDB；订单选择与实例变换进入订单对象；解析后的 PSD/Canvas 仍只存在内存。启用隐藏云端测试入口后，素材和纯净模板还可以通过 Asset Library API 进入私有 OSS。
 
 ## 8. 后端入口与现状
 

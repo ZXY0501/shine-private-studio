@@ -129,11 +129,14 @@ test('phase two uses manual virtual slots instead of PSD slot markers', () => {
   assert.doesNotMatch(html, /@SLOT/);
 });
 
-test('asset free transform works from the whole preview area and persists per template', () => {
+test('asset free transform works from the whole preview area and stays independent per order', () => {
   assert.match(html, /function wirePreviewFreeTransform\(\)/);
   assert.match(html, /body\.addEventListener\('pointerdown'/);
   assert.match(html, /body\.addEventListener\('pointermove'/);
   assert.match(html, /shine:asset-transform:/);
+  assert.match(html, /assetTransforms:\{\}/);
+  assert.match(html, /order\.assetTransforms\[id\]/);
+  assert.match(html, /order\.assetTransforms\[assetStackId\(a\)\]=\{\.\.\.assetTransformForTemplate\(a\)\}/);
   assert.match(html, /assetPlacements:Object\.fromEntries/);
   assert.match(html, /function drawAssetTransformed\(ctx,a\)/);
   assert.match(html, /id="assetTransformScale"/);
@@ -147,6 +150,32 @@ test('asset free transform works from the whole preview area and persists per te
   assert.match(html, /renderMasterWithRootStack\(assetStackId\(a\)\)/);
   assert.match(html, /function renderFastAssetTransformPreview\(\)/);
   assert.match(html, /function finishAssetTransformPreview\(\)/);
+});
+
+test('phase two automatically keeps templates and assets in IndexedDB with lazy restore', () => {
+  assert.match(html, /const LOCAL_LIBRARY_DB='shine-phase2-library'/);
+  assert.match(html, /indexedDB\.open\(LOCAL_LIBRARY_DB,LOCAL_LIBRARY_DB_VERSION\)/);
+  assert.match(html, /createObjectStore\('assetSources'/);
+  assert.match(html, /createObjectStore\('assetCatalog'/);
+  assert.match(html, /createObjectStore\('templateSources'/);
+  assert.match(html, /createObjectStore\('templateCatalog'/);
+  assert.match(html, /async function persistAssetFamilyLocal\(familyKey\)/);
+  assert.match(html, /async function hydrateLocalAsset\(record\)/);
+  assert.match(html, /function assetRelevantLeaves\(asset\)\{\s*if\(!asset\?\.psd\)return \[\]/);
+  assert.match(html, /localOnly:true/);
+  assert.match(html, /async function persistMasterLocal\(file,psd,signature\)/);
+  assert.match(html, /async function restoreLocalTemplate\(signature\)/);
+  assert.match(html, /initLocalPersistence\(\);/);
+  assert.match(html, /保存当前纯净模板到云端/);
+});
+
+test('the dedicated hair uploader also keeps reusable variants in the local library', () => {
+  assert.match(html, /async function loadHairAsset\(file,slot\)/);
+  assert.match(html, /upsertAssetRecord\(asset\)/);
+  assert.match(html, /ensureOrderAssetSelections\(active\)\[slot\]\.HAIR=assetFamilyKey\(asset\)/);
+  assert.match(html, /await persistAssetFamilyLocal\(assetFamilyKey\(asset\)\)/);
+  assert.match(html, /assetId:previous\?\.assetId\|\|\('asset_'/);
+  assert.doesNotMatch(html, /S\.assets=S\.assets\.filter\(a=>!\(a\.type==='HAIR'&&a\.slot===slot\)\)/);
 });
 
 test('hat presets default to manual color while retaining optional ear anchoring', () => {

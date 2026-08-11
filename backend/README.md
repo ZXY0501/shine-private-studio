@@ -93,6 +93,7 @@ DELETE /api/assets/:assetId
 - 上传流程是“申请单对象短时 PUT 地址 → 浏览器直传私有 OSS → 后端核对对象大小 → 写入 metadata”。
 - 服务端生成 UUID 和固定对象路径，客户端不能指定 OSS key。
 - 所有新素材强制登记为 `PRESERVE_ORIGINAL`；分类不会触发改色。
+- 支持 `CLEAN_TEMPLATE`、`HAIR`、`EAR`、`MOUTH`、`TAIL`、`FRAME`、`ACCESSORY`、`PROP` 和安全格式的自定义分类。
 - `DELETE` 同时移除源 PSD 和 metadata，前端必须先做人类确认。
 - Bucket 需要只为测试/正式 GitHub Pages Origin 放行 `PUT`、`GET`、`HEAD` 所需的 CORS；不要设为公共读写。
 

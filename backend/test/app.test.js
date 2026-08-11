@@ -335,3 +335,19 @@ test('cloud asset upload validates size, metadata, and signed completion receipt
     assert.equal((await cleanTemplate.json()).asset.categoryId, 'CLEAN_TEMPLATE');
   });
 });
+
+test('accepts frame assets for the phase two layered border workflow', async () => {
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
+    const ticketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '边框_缎带花朵.psd', size: 640 })
+    });
+    const ticket = await ticketResponse.json();assetStore.setUploadedSize(ticket.assetId, 640);
+    const completed = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'FRAME', characterCompatibility: 'BOTH', defaultSlot: 'A', name: '缎带花朵' } })
+    });
+    assert.equal(completed.status, 201);assert.equal((await completed.json()).asset.categoryId, 'FRAME');
+  });
+});
