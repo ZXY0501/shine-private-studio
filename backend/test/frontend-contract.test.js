@@ -98,6 +98,8 @@ test('asset families can be selected independently for A and B', () => {
   assert.match(html, /data-ak="slot-check"/);
   assert.match(html, /function setAssetFamilySelection\(familyKey,slot,on\)/);
   assert.match(html, /characterCompatibility/);
+  assert.match(html, /a\.enabled=!!chosen&&chosen===assetFamilyKey\(a\)/);
+  assert.match(html, /if\(on&&previous&&previous!==familyKey\)clearEarColorAnchors\(slot,order\)/);
 });
 
 test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
@@ -141,9 +143,10 @@ test('asset free transform works from the whole preview area and stays independe
   assert.match(html, /function drawAssetTransformed\(ctx,a\)/);
   assert.match(html, /id="assetTransformScale"/);
   assert.match(html, /id="assetTransformRotation"/);
-  assert.match(html, /data-at-action="flipX"/);
-  assert.match(html, /data-at-action="flipY"/);
-  assert.match(html, /data-ak="transform"/);
+  assert.match(html, /id="assetTransformFlip"/);
+  assert.match(html, /id="assetTransformFlipY"/);
+  assert.match(html, /class="libraryTransformTitle">整体调整素材/);
+  assert.match(html, /assetSourceName\(a\)\+' · '\+a\.slot\+' 位/);
   assert.match(html, /Math\.max\(\.05,Math\.min\(5/);
   assert.match(html, /\(t\.flipY\?-1:1\)\*scale/);
   assert.match(html, /function beginAssetTransformPreview\(a\)/);
@@ -182,6 +185,21 @@ test('hat presets default to manual color while retaining optional ear anchoring
   assert.match(html, /hat:'__CUSTOM__',hatManual:'#C85B5B'/);
   assert.match(html, /kind==='hat'\)html\+='[^']*__CUSTOM__[^']*__DECOR_ANCHOR__/);
   assert.match(html, /hatCustom\?order\[slot\]\?\.hatManual/);
+  assert.match(html, /class="presetColorInline"/);
+  assert.match(html, /if\(wrap\)wrap\.style\.display='grid'/);
+});
+
+test('form cleaning keeps A and B cards side by side on the desktop workspace', () => {
+  assert.match(html, /className='formBabyPair'/);
+  assert.match(html, /\.formBabyPair\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(html, /minmax\(0,\.82fr\) 92px minmax\(0,1\.18fr\)/);
+});
+
+test('selected local assets warm in the background with immediate loading feedback', () => {
+  assert.match(html, /setTimeout\(warmCurrentOrderAssets,30\)/);
+  assert.match(html, /function warmCurrentOrderAssets\(\)/);
+  assert.match(html, /record\._loading=true;renderAssetLibrary\(\);renderTransformControls\(\)/);
+  assert.match(html, /正在打开 PSD/);
 });
 
 test('pale white and pink hats use a darker low-chroma outline', () => {

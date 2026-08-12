@@ -534,6 +534,8 @@ header .badge{display:none!important}
 .assetHealthTable{border:1px solid var(--line);border-radius:10px;background:#fff;overflow:auto;max-height:300px;margin-top:7px}
 .assetHealthRow{display:grid;grid-template-columns:minmax(240px,1fr) 82px 155px;gap:6px;align-items:center;padding:6px 7px;border-bottom:1px dashed #e7e1e7;font-size:9px;min-width:600px}
 .assetHealthRow:last-child{border-bottom:0}.assetHealthRow.head{position:sticky;top:0;background:#f6f2f5;z-index:2;color:var(--muted);font-weight:700}
+.formBabyPair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-width:0}.formBabyPair .babyCard{padding:8px;min-width:0}.formBabyPair .fieldGrid{grid-template-columns:64px minmax(0,1fr);gap:5px 6px}.formBabyPair .fieldGrid>label{font-size:8px}.presetColorInline{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(82px,.8fr);gap:5px;min-width:0}.presetColorInline>.colorLine{grid-template-columns:minmax(48px,1fr) 31px;min-width:0}.presetColorInline input[type=color]{width:31px;height:31px}.presetColorInline input:disabled{opacity:.72;background:#f3f0f3}.libraryTransformBox{margin:7px 0;background:#f8f5f8;border-color:#cfc7d5}.libraryTransformTitle{font-size:10px;font-weight:800;margin-bottom:6px}.libraryTransformBox .assetTransformHead select{font-weight:700;height:31px!important}.assetFamilyLoading{opacity:.7}.assetFamilyLoading .assetSlotCheck{pointer-events:none}
+@media(max-width:1180px){.formBabyPair{grid-template-columns:1fr}.formBabyPair .fieldGrid{grid-template-columns:86px minmax(0,1fr)}}
 
 </style>
 </head>
@@ -647,10 +649,8 @@ header .badge{display:none!important}
             <label>眼睛方案</label><select id="aEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
             <details id="aPupilAdvanced" class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="aPupilAccentHex" type="text" value="#E6F9FF"/><input id="aPupilAccentColor" type="color" value="#e6f9ff"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="aHairHex" type="text" value="#7D718C"/><input id="aHairColor" type="color" value="#7d718c"/></div>
-            <label>衣服颜色</label><select id="aOutfitPreset"></select>
-            <label id="aOutfitManualLabel" style="display:none">衣服自选色</label><div id="aOutfitManualWrap" class="colorLine" style="display:none"><input id="aOutfitManualHex" type="text" value="#D7BCC4"/><input id="aOutfitManualColor" type="color" value="#d7bcc4"/></div>
-            <label>帽子预设</label><select id="aHatPreset"></select>
-            <label id="aHatManualLabel" style="display:none">帽子手动色</label><div id="aHatManualWrap" class="colorLine" style="display:none"><input id="aHatManualHex" type="text" value="#C85B5B"/><input id="aHatManualColor" type="color" value="#c85b5b"/></div>
+            <label>衣服颜色</label><div class="presetColorInline"><select id="aOutfitPreset"></select><div id="aOutfitManualWrap" class="colorLine"><input id="aOutfitManualHex" type="text" value="#D7BCC4"/><input id="aOutfitManualColor" type="color" value="#d7bcc4"/></div></div><label id="aOutfitManualLabel" style="display:none">衣服自选色</label>
+            <label>帽子预设</label><div class="presetColorInline"><select id="aHatPreset"></select><div id="aHatManualWrap" class="colorLine"><input id="aHatManualHex" type="text" value="#C85B5B"/><input id="aHatManualColor" type="color" value="#c85b5b"/></div></div><label id="aHatManualLabel" style="display:none">帽子手动色</label>
             <label>帽饰</label><select id="aDecor"><option value="NONE">无</option></select>
             <label id="aDecorBaseLabel">耳朵底色（空=原色）</label><div class="colorLine"><input id="aDecorBaseHex" type="text" value="" placeholder="勾选耳朵后读取原色"/><input id="aDecorBase" type="color" value="#000000"/></div>
             <label>耳朵重色（可空）</label><div class="colorLine"><input id="aDecorShadeHex" type="text" value=""/><input id="aDecorShade" type="color" value="#B34040"/></div>
@@ -666,10 +666,8 @@ header .badge{display:none!important}
             <label>眼睛方案</label><select id="bEyeScheme"><option value="AUTO">按 Anchor 自动衍生</option></select>
             <details id="bPupilAdvanced" class="eyePupilAdvanced" style="grid-column:1/-1"><summary>高级：瞳孔点缀色</summary><div class="colorLine" style="margin-top:5px"><input id="bPupilAccentHex" type="text" value="#FFD6A6"/><input id="bPupilAccentColor" type="color" value="#ffd6a6"/></div></details>
             <label>发色 Anchor</label><div class="colorLine"><input id="bHairHex" type="text" value="#8A6F72"/><input id="bHairColor" type="color" value="#8a6f72"/></div>
-            <label>衣服颜色</label><select id="bOutfitPreset"></select>
-            <label id="bOutfitManualLabel" style="display:none">衣服自选色</label><div id="bOutfitManualWrap" class="colorLine" style="display:none"><input id="bOutfitManualHex" type="text" value="#C9D4E7"/><input id="bOutfitManualColor" type="color" value="#c9d4e7"/></div>
-            <label>帽子预设</label><select id="bHatPreset"></select>
-            <label id="bHatManualLabel" style="display:none">帽子手动色</label><div id="bHatManualWrap" class="colorLine" style="display:none"><input id="bHatManualHex" type="text" value="#C85B5B"/><input id="bHatManualColor" type="color" value="#c85b5b"/></div>
+            <label>衣服颜色</label><div class="presetColorInline"><select id="bOutfitPreset"></select><div id="bOutfitManualWrap" class="colorLine"><input id="bOutfitManualHex" type="text" value="#C9D4E7"/><input id="bOutfitManualColor" type="color" value="#c9d4e7"/></div></div><label id="bOutfitManualLabel" style="display:none">衣服自选色</label>
+            <label>帽子预设</label><div class="presetColorInline"><select id="bHatPreset"></select><div id="bHatManualWrap" class="colorLine"><input id="bHatManualHex" type="text" value="#C85B5B"/><input id="bHatManualColor" type="color" value="#c85b5b"/></div></div><label id="bHatManualLabel" style="display:none">帽子手动色</label>
             <label>帽饰</label><select id="bDecor"><option value="NONE">无</option></select>
             <label id="bDecorBaseLabel">耳朵底色（空=原色）</label><div class="colorLine"><input id="bDecorBaseHex" type="text" value="" placeholder="勾选耳朵后读取原色"/><input id="bDecorBase" type="color" value="#FFFFFF"/></div>
             <label>耳朵重色（可空）</label><div class="colorLine"><input id="bDecorShadeHex" type="text" value=""/><input id="bDecorShade" type="color" value="#F2C7D8"/></div>
@@ -1059,6 +1057,7 @@ function localMetadataToPlaceholders(meta){
 }
 async function hydrateLocalAsset(record){
   if(!record?.assetId||!record.localOnly)return record;if(record._loading)return record._loading;
+  record._loading=true;renderAssetLibrary();renderTransformControls();
   record._loading=(async()=>{
     stat($('#assetRuntimeStatus'),`正在从本机素材库打开 ${record.name||record.variant}…`,'');
     const [source,meta]=await Promise.all([localGet('assetSources',record.assetId),localGet('assetCatalog',record.assetId)]);
@@ -1094,7 +1093,12 @@ async function initLocalPersistence(){
     S.localAssetCatalog.forEach(meta=>{if(!S.assets.some(a=>a.assetId===meta.assetId))S.assets.push(...localMetadataToPlaceholders(meta));});S.localTemplateCatalog.sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));S.localPersistenceReady=true;renderAssetRows();renderAssetLibrary();renderHairInsertionControls();
     try{navigator.storage?.persist?.()}catch{}
     let last='';try{last=localStorage.getItem(LOCAL_LAST_TEMPLATE_KEY)||''}catch{}if(!S.master&&last&&S.localTemplateCatalog.some(x=>x.signature===last))await restoreLocalTemplate(last);
+    setTimeout(warmCurrentOrderAssets,30);
   }catch(e){S.localPersistenceError=e;console.warn('init local library',e);renderAssetLibrary();}
+}
+async function warmCurrentOrderAssets(){
+  const order=getActiveOrder();if(!order)return;const selections=ensureOrderAssetSelections(order),wanted=new Set();['A','B'].forEach(slot=>{Object.values(selections[slot]||{}).filter(Boolean).forEach(key=>wanted.add(key));[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))].forEach(categoryId=>{const key=selectedAssetFamily(order,slot,categoryId);if(key)wanted.add(key)})});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));
+  for(const key of wanted){const record=S.assets.find(a=>a.localOnly&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateLocalAsset(record)}catch(e){console.warn('warm local asset',e)}}
 }
 
 function stat(el,msg,kind=''){el.textContent=msg;el.className='status '+kind}
@@ -1322,7 +1326,7 @@ function loadHairInsertion(){
 function saveHairInsertion(){try{localStorage.setItem(hairInsertionStorageKey(),JSON.stringify(S.hairInsertion))}catch{}}
 function hairAnchorOptions(slot){return S.flat.filter(n=>{const b=S.bindings[n.path];const ss=b?.slot==='A'||b?.slot==='B'?b.slot:guessSlot(n.path,n.name);return ss===slot;});}
 function makeHairInsertionPanel(){
-  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示：勾选的头发、耳朵、嘴巴、尾巴和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">选中素材后，可直接在左侧预览任意空白处拖动，不必按住素材本身。</span></div></div>`;return box;
+  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示：勾选的头发、耳朵、嘴巴、尾巴和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="libraryTransformTitle">整体调整素材</div><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><button id="assetTransformSmaller" class="btn" type="button">－ 缩小</button><button id="assetTransformLarger" class="btn" type="button">＋ 放大</button><button id="assetTransformRotateLeft" class="btn" type="button">↶ 左转 90°</button><button id="assetTransformRotateRight" class="btn" type="button">↷ 右转 90°</button><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">在左侧预览任意空白处拖动即可移动整份 PSD。</span></div></div>`;return box;
 }
 function rootStackLabel(id){
   if(id===hairStackId('A')){const a=S.assets.find(x=>x.type==='HAIR'&&x.slot==='A');return {name:'A头发',meta:a?'已上传':'未上传 · 占位',kind:'hair'};}
@@ -1352,7 +1356,7 @@ function applyPendingAssetPlacement(a){
   const saved=S.pendingAssetPlacements?.[assetStackId(a)];if(!saved||typeof saved!=='object')return;
   const key=String(S.templateSignature||'default');a.templateTransforms=a.templateTransforms||{};a.templateTransforms[key]={x:Number(saved.x)||0,y:Number(saved.y)||0,scale:Math.max(.05,Number(saved.scale)||1),rotation:Number(saved.rotation)||0,flipX:!!saved.flipX,flipY:!!saved.flipY};
 }
-function selectedTransformAsset(){return anyAssetFromStackId(S.selectedTransformStackId)||S.assets.find(a=>a.enabled)||S.assets[0]||null;}
+function selectedTransformAsset(){const exact=anyAssetFromStackId(S.selectedTransformStackId);if(exact?.enabled&&exact.psd)return exact;return S.assets.find(a=>a.enabled&&a.psd)||null;}
 function syncInlineAssetTransformControls(a){
   if(!a)return;const id=assetStackId(a),t=assetTransformForTemplate(a);
   document.querySelectorAll('.assetInlineTransform').forEach(panel=>{
@@ -1388,14 +1392,16 @@ function scheduleAssetTransformRender(){
   if(S.transformFrame)return;S.transformFrame=requestAnimationFrame(()=>{S.transformFrame=0;if(S.master&&!renderFastAssetTransformPreview())reconstruct();});
 }
 function renderTransformControls(){
-  const select=$('#transformAssetSelect');if(!select)return;const byStack=new Map();S.assets.forEach(a=>{ensureAssetRecordV2(a);const id=assetStackId(a),old=byStack.get(id);if(!old||(!old.enabled&&a.enabled))byStack.set(id,a)});const assets=[...byStack.values()];
+  const select=$('#transformAssetSelect');if(!select)return;const byStack=new Map();S.assets.filter(a=>a.enabled&&a.psd&&a.categoryId!=='CLEAN_TEMPLATE').forEach(a=>{ensureAssetRecordV2(a);const id=assetStackId(a),old=byStack.get(id);if(!old||(!old.enabled&&a.enabled))byStack.set(id,a)});const assets=[...byStack.values()];
   if(S.selectedTransformStackId&&!assets.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;
   const preferred=selectedTransformAsset();if(preferred)S.selectedTransformStackId=assetStackId(preferred);
-  select.innerHTML=assets.length?assets.map(a=>`<option value="${safe(assetStackId(a))}" ${assetStackId(a)===S.selectedTransformStackId?'selected':''}>${safe(a.slot+' · '+categoryLabel(a.categoryId)+' · '+(a.variant||a.name||'未命名')+(a.enabled?'':'（未勾选）'))}</option>`).join(''):'<option value="">先在素材库勾选素材</option>';
-  select.disabled=!assets.length;$('#resetAssetTransform').disabled=!assets.length;['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation','assetTransformFlip','assetTransformFlipY'].forEach(id=>{$('#'+id).disabled=!assets.length});
+  select.innerHTML=assets.length?assets.map(a=>`<option value="${safe(assetStackId(a))}" ${assetStackId(a)===S.selectedTransformStackId?'selected':''}>${safe(assetSourceName(a)+' · '+a.slot+' 位 · '+categoryLabel(a.categoryId))}</option>`).join(''):'<option value="">先在素材卡勾选 A / B</option>';
+  select.disabled=!assets.length;['resetAssetTransform','assetTransformSmaller','assetTransformLarger','assetTransformRotateLeft','assetTransformRotateRight','assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation','assetTransformFlip','assetTransformFlipY'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!assets.length});
   select.onchange=()=>{S.selectedTransformStackId=select.value;renderHairInsertionControls();};
   const update=(persist=false)=>{const a=selectedTransformAsset();if(!a)return;if(!persist)beginAssetTransformPreview(a);const t=assetTransformForTemplate(a);t.x=Number($('#assetTransformX').value)||0;t.y=Number($('#assetTransformY').value)||0;t.scale=Math.max(.05,Number($('#assetTransformScale').value)||1);t.rotation=Number($('#assetTransformRotation').value)||0;t.flipX=$('#assetTransformFlip').checked;t.flipY=$('#assetTransformFlipY').checked;a.updatedAt=new Date().toISOString();if(persist)persistAssetTransform(a);syncTransformControlValues(a);if(persist)finishAssetTransformPreview();else scheduleAssetTransformRender();};
   ['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation'].forEach(id=>{$('#'+id).oninput=()=>update(false);$('#'+id).onchange=()=>update(true)});$('#assetTransformFlip').onchange=()=>update(true);$('#assetTransformFlipY').onchange=()=>update(true);
+  const nudge=action=>{const a=selectedTransformAsset();if(!a)return;const t=assetTransformForTemplate(a);if(action==='smaller')t.scale=Math.max(.05,t.scale-.1);if(action==='larger')t.scale=Math.min(5,t.scale+.1);if(action==='left')t.rotation=normalizeRotation(t.rotation-90);if(action==='right')t.rotation=normalizeRotation(t.rotation+90);a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
+  $('#assetTransformSmaller').onclick=()=>nudge('smaller');$('#assetTransformLarger').onclick=()=>nudge('larger');$('#assetTransformRotateLeft').onclick=()=>nudge('left');$('#assetTransformRotateRight').onclick=()=>nudge('right');
   $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;S.transformPreview=null;Object.assign(assetTransformForTemplate(a),{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false});a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
   syncTransformControlValues(preferred);
 }
@@ -2395,13 +2401,15 @@ function renderOrders(){
   });
 }
 function syncOutfitManualVisibility(slot){
-  const low=slot.toLowerCase(),sel=$('#'+low+'OutfitPreset'),lab=$('#'+low+'OutfitManualLabel'),wrap=$('#'+low+'OutfitManualWrap');
-  const on=sel?.value==='__CUSTOM__';if(lab)lab.style.display=on?'':'none';if(wrap)wrap.style.display=on?'grid':'none';
-  if(on){const o=getActiveOrder();const current=o?.[slot];if(current&&!current.outfitManual){const prev=resolveStyleScheme('outfit',current.outfit);setLinkedColor(low+'OutfitManual',prev?.base||(slot==='A'?'#D7BCC4':'#C9D4E7'));}}
+  const low=slot.toLowerCase(),sel=$('#'+low+'OutfitPreset'),lab=$('#'+low+'OutfitManualLabel'),wrap=$('#'+low+'OutfitManualWrap'),text=$('#'+low+'OutfitManualHex'),color=$('#'+low+'OutfitManualColor'),manual=sel?.value==='__CUSTOM__';
+  if(lab)lab.style.display='none';if(wrap)wrap.style.display='grid';if(text)text.disabled=!manual;if(color)color.disabled=!manual;
+  if(manual){const o=getActiveOrder(),current=o?.[slot];if(current&&!current.outfitManual){const prev=resolveStyleScheme('outfit',current.outfit);setLinkedColor(low+'OutfitManual',prev?.base||(slot==='A'?'#D7BCC4':'#C9D4E7'));}}
+  else {const scheme=resolveStyleScheme('outfit',sel?.value);if(scheme?.base)setLinkedColor(low+'OutfitManual',scheme.base)}
 }
 function syncAllOutfitManualVisibility(){syncOutfitManualVisibility('A');syncOutfitManualVisibility('B');}
 function syncHatManualVisibility(slot){
-  const low=slot.toLowerCase(),on=$('#'+low+'HatPreset')?.value==='__CUSTOM__',lab=$('#'+low+'HatManualLabel'),wrap=$('#'+low+'HatManualWrap');if(lab)lab.style.display=on?'':'none';if(wrap)wrap.style.display=on?'grid':'none';
+  const low=slot.toLowerCase(),sel=$('#'+low+'HatPreset'),manual=sel?.value==='__CUSTOM__',lab=$('#'+low+'HatManualLabel'),wrap=$('#'+low+'HatManualWrap'),text=$('#'+low+'HatManualHex'),color=$('#'+low+'HatManualColor');if(lab)lab.style.display='none';if(wrap)wrap.style.display='grid';if(text)text.disabled=!manual;if(color)color.disabled=!manual;
+  if(!manual){const order=getActiveOrder(),base=sel?.value==='__DECOR_ANCHOR__'?activeDecorBaseColor(slot,order):resolveStyleScheme('hat',sel?.value)?.base;if(base)setLinkedColor(low+'HatManual',base)}
 }
 function syncAllHatManualVisibility(){syncHatManualVisibility('A');syncHatManualVisibility('B')}
 function selectOrder(id){
@@ -2976,15 +2984,17 @@ function selectedAssetFamily(order,slot,categoryId){
 function syncAssetEnabledFromOrder(order){
   if(!order)return;
   const frames=new Set(ensureOrderFrameSelections(order).map(x=>x.familyKey));
-  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}const decided=hasAssetSelectionDecision(order,a.slot,a.categoryId),chosen=selectedAssetFamily(order,a.slot,a.categoryId);if(decided||a.categoryId==='EAR')a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
+  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
 async function setAssetFamilySelection(familyKey,slot,on){
   let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
   let record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.slot===slot||a.characterCompatibility==='BOTH'));if(!record)return;
-  if(on&&(record.cloudOnly||record.localOnly)){try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey);if(!record)return;}
+  if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey);if(!record)return;}
   const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId;
+  const previous=selections[slot][categoryId]||selectedAssetFamily(order,slot,categoryId);
   if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
   if(categoryId==='EAR'){
+    if(on&&previous&&previous!==familyKey)clearEarColorAnchors(slot,order);
     order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
   }
   syncEarColorAnchorUi(slot,order);
@@ -3083,20 +3093,19 @@ function renderAssetLibrary(){
       const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
       const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
-      const enabledRecords=group.records.map(x=>x.a).filter(a=>a.enabled),activeTransform=enabledRecords.find(a=>assetStackId(a)===S.selectedTransformStackId)||null,transformButtons=enabledRecords.map(a=>`<button class="btn assetTransformPick ${assetStackId(a)===S.selectedTransformStackId?'active':''}" data-ak="transform" data-stack="${safe(assetStackId(a))}">${a.categoryId==='FRAME'?'调整边框':`调整 ${safe(a.slot)} 位`}</button>`).join('');
-      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:'',card=document.createElement('div');card.className='assetFamilyCard'+(activeTransform?' transformActive':'');
+      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?'正在打开 PSD…':cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:'',card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
       if(category.id==='FRAME'){
         const selection=frameSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
         card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
           <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名边框')}</b><div class="assetFamilyMeta">可叠加 · ${audit||'保留原 PSD 图层'}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageLabel}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
           <div class="frameControls"><label class="assetSlotCheck"><input data-ak="frame-check" data-family="${safe(group.key)}" type="checkbox" ${on?'checked':''}> 加入画面</label><div class="framePlacementRow"><button class="btn ${on&&placement==='BACK'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="BACK" ${on?'':'disabled'}>置底</button><button class="btn ${on&&placement==='FRONT'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="FRONT" ${on?'':'disabled'}>置顶</button></div></div>
-          <div class="assetCardActions">${transformButtons}${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>${frameColorControlsHtml(group.key,selection)}${activeTransform?assetTransformInlineHtml(activeTransform):''}`;
+          <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>${frameColorControlsHtml(group.key,selection)}`;
         details.appendChild(card);return;
       }
       card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
         <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageLabel}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> 跟随订单配色（默认关闭）</label></div>
         <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
-        <div class="assetCardActions">${transformButtons}${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>${activeTransform?assetTransformInlineHtml(activeTransform):''}`;
+        <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
       details.appendChild(card);
     });
   });
@@ -3112,8 +3121,6 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-ak="frame-placement"]').forEach(el=>el.onclick=()=>setFramePlacement(el.dataset.family,el.dataset.placement));
   host.querySelectorAll('[data-frame-eyedrop]').forEach(el=>el.onclick=()=>armPreviewEyedrop(el.dataset.family,el.dataset.frameEyedrop));
   host.querySelectorAll('[data-frame-color]').forEach(el=>{el.oninput=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:false});el.onchange=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:true})});
-  host.querySelectorAll('[data-ak="transform"]').forEach(el=>el.onclick=()=>{S.selectedTransformStackId=el.dataset.stack;renderHairInsertionControls();renderAssetLibrary();});
-  host.querySelectorAll('.assetInlineTransform').forEach(wireInlineAssetTransform);
   host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
     const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;const oldStackIds=new Set(records.map(assetStackId));
     S.orders.forEach(o=>{if(oldCategory==='FRAME')o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
@@ -3279,6 +3286,10 @@ function syncEarColorAnchorUi(slot,order=getActiveOrder()){
   if(text)text.placeholder=original?`原色 ${original}；留空不改色`:(asset?'未找到底色层，可在“图层显示”里指定':'先在素材库勾选耳朵');
   if(color&&!explicit&&original)color.value=original.toLowerCase();
   const label=$('#'+low+'DecorBaseLabel');if(label)label.textContent=asset?`${asset.variant||'耳朵'}底色（空=原色）`:'耳朵底色（空=原色）';
+  if(order?.[slot]?.hat==='__DECOR_ANCHOR__')syncHatManualVisibility(slot);
+}
+function clearEarColorAnchors(slot,order=getActiveOrder()){
+  if(!order?.[slot])return;order[slot].decorBase='';order[slot].decorShade='';const low=slot.toLowerCase();setLinkedColor(low+'DecorBase','',true);setLinkedColor(low+'DecorShade','',true);
 }
 function syncAllEarColorAnchorUi(order=getActiveOrder()){syncEarColorAnchorUi('A',order);syncEarColorAnchorUi('B',order)}
 function decorInnerColor(slot,order){
@@ -3816,11 +3827,12 @@ function buildWorkspaceUI(){
   const orderBox=$('#orderList')?.closest('.orderBox'), formPanel=$('#orderForm')?.closest('.softPanel'), aCard=$('#aName')?.closest('.babyCard'), bCard=$('#bName')?.closest('.babyCard'), swatchPanel=$('#swatchCanvas')?.closest('.softPanel');
   [orderBox,formPanel].filter(Boolean).forEach(x=>tabs.form.appendChild(x));
   const bgQuick=makeFormBackgroundQuick();tabs.form.appendChild(bgQuick);
-  [aCard,bCard,swatchPanel].filter(Boolean).forEach(x=>tabs.form.appendChild(x));
+  const babyPair=document.createElement('div');babyPair.className='formBabyPair';[aCard,bCard].filter(Boolean).forEach(x=>babyPair.appendChild(x));tabs.form.appendChild(babyPair);if(swatchPanel)tabs.form.appendChild(swatchPanel);
   tabs.form.insertAdjacentHTML('afterbegin','<div class="tabIntro">粘顾客原表单 → API 先结合 A/B 帽子颜色挑低饱和背景衬底 → 必要时你再手调。背景预设 / 自选色直接锚定纯净模板里的「背景底色」；你也可以一键切成“透明贴纸 / 纯白底 / 白底+花纹”。A 永远左位，B 永远右位。</div>');
   wireFormBackgroundQuick();syncBackgroundQuickFromOrder(getActiveOrder());updateBackgroundRecommendationMeta(getActiveOrder());
 
   const assetPanel=$('#assetLibraryList')?.closest('.softPanel'); if(assetPanel)tabs.assets.appendChild(assetPanel);
+  const transformBox=$('#transformAssetSelect')?.closest('.assetTransformBox'),assetList=$('#assetLibraryList');if(transformBox&&assetList){transformBox.classList.add('libraryTransformBox');assetList.before(transformBox)}
   tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 2 素材库：纯净模板、头发、耳朵、嘴巴表情、尾巴、边框、配饰和小物分开管理；A/B 直接在素材卡上勾选，边框可多件叠加。</div><div class="assetNamingGuide"><b>原色保护</b>：素材归类后仍保持上传 PSD 原色。只有主动打开“跟随订单配色”才会使用相应颜色逻辑；耳朵的底色/线稿/内耳命名规则继续兼容一期。</div>');
 
   // v0.27 背景独立大类撤掉：日常只使用“表单清洗”里的背景衬底色盘。
@@ -3880,7 +3892,7 @@ function lockThreeColumnShell(){
   const shell=$('#workspaceShell');
   if(!shell)return;
   shell.style.display='grid';
-  shell.style.gridTemplateColumns='minmax(0,.88fr) 92px minmax(0,1.12fr)';
+  shell.style.gridTemplateColumns='minmax(0,.82fr) 92px minmax(0,1.18fr)';
   shell.style.gridTemplateRows='minmax(0,1fr)';
   shell.style.height='100%';
   shell.style.minHeight='0';
@@ -4007,12 +4019,12 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
       const fresh=freshBySlot[slot];if(!fresh)return;
       const wanted=o[slot]?.decor||'NONE';
       const stillExists=wanted!=='NONE'&&S.assets.some(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,wanted));
-      if(wanted==='NONE'||!stillExists){o[slot].decor=fresh.variant;S.autoDecorSlots[slot]=normalizeVariantName(fresh.variant);changed.push(slot);}
+      if(wanted==='NONE'||!stillExists){if(wanted!=='NONE'&&!sameVariant(wanted,fresh.variant))clearEarColorAnchors(slot,o);o[slot].decor=fresh.variant;ensureOrderAssetSelections(o)[slot].EAR=assetFamilyKey(fresh);S.autoDecorSlots[slot]=normalizeVariantName(fresh.variant);changed.push(slot);}
     });
     if(!changed.length&&freshBySlot.B){
       const current=o.B?.decor||'NONE',auto=S.autoDecorSlots.B;
       if(auto&&sameVariant(current,auto)&&!sameVariant(current,freshBySlot.B.variant)){
-        o.B.decor=freshBySlot.B.variant;S.autoDecorSlots.B=normalizeVariantName(freshBySlot.B.variant);changed.push('B');
+        clearEarColorAnchors('B',o);o.B.decor=freshBySlot.B.variant;ensureOrderAssetSelections(o).B.EAR=assetFamilyKey(freshBySlot.B);S.autoDecorSlots.B=normalizeVariantName(freshBySlot.B.variant);changed.push('B');
       }
     }
     persistOrders();
@@ -4126,7 +4138,7 @@ $('#quickHex').onchange=e=>{const v=safeHex(e.target.value,currentLayerColor($('
 if($('#quickGroup'))$('#quickGroup').onchange=()=>{if($('#quickSearch'))$('#quickSearch').value='';renderEditableLayerSelectors();};
 if($('#quickSearch'))$('#quickSearch').oninput=renderEditableLayerSelectors;
 $('#quickLayer').onchange=syncQuickColorFromSelection;
-$('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B';S.autoDecorSlots[slot]=null;captureActiveOrder();applyDecorSelection()};
+$('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B',before=getActiveOrder()?.[slot]?.decor||'NONE',after=e.target.value;S.autoDecorSlots[slot]=null;if(before!==after)clearEarColorAnchors(slot);const order=captureActiveOrder(),chosen=S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,after));ensureOrderAssetSelections(order)[slot].EAR=chosen?assetFamilyKey(chosen):null;persistOrders();applyDecorSelection()};
 $('#orderStatus').onchange=()=>{captureActiveOrder()};
 $('#watermarkMode').onchange=()=>{if(S.master){applyWatermarkMode($('#watermarkMode').value==='preview');reconstruct();renderOverlay()}};
 $('#aHairFile').onchange=e=>e.target.files?.[0]&&loadHairAsset(e.target.files[0],'A');
