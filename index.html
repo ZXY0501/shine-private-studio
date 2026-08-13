@@ -2339,7 +2339,7 @@ function migrateLogicDefaultsV21(){
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
-  S.orders.forEach(o=>{ensureOrderAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
+  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderAutoTailSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')||defaultStyleSchemesFromLegacy()}catch{S.styleSchemes=defaultStyleSchemesFromLegacy()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=defaultStyleSchemesFromLegacy();
@@ -2383,6 +2383,7 @@ function newOrderData(){
     backgroundBaseVisible:true,
     backgroundLaceVisible:true,
     assetSelections:{A:{},B:{}},
+    autoTailSelections:{A:null,B:null},
     frameSelections:[],
     assetTransforms:{},
     layerOverrides:{},
@@ -2993,6 +2994,39 @@ function ensureOrderAssetSelections(order){
   ['A','B'].forEach(slot=>{if(!order.assetSelections[slot]||typeof order.assetSelections[slot]!=='object')order.assetSelections[slot]={}});
   return order.assetSelections;
 }
+function ensureOrderAutoTailSelections(order){
+  if(!order)return {A:null,B:null};
+  if(!order.autoTailSelections||typeof order.autoTailSelections!=='object')order.autoTailSelections={A:null,B:null};
+  ['A','B'].forEach(slot=>{if(typeof order.autoTailSelections[slot]!=='string')order.autoTailSelections[slot]=null});
+  return order.autoTailSelections;
+}
+function assetAnimalKey(value){
+  let v=normalizeVariantName(value||'').replace(/[\s_\-]+/g,'').trim();
+  v=v.replace(/^(?:A|B)(?:位)?/i,'').replace(/^(?:左|右)(?:位)?/,'');
+  v=v.replace(/(?:耳朵|耳|尾巴|尾)$/,'').trim();
+  v=v.replace(/(?:A|B)(?:位)?$/i,'').trim();
+  return v.toLowerCase();
+}
+function assetRecordForFamilySlot(familyKey,slot){
+  return S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.characterCompatibility==='BOTH'||a.slot==='BOTH'))||null;
+}
+function matchingTailForEar(earRecord,slot){
+  const key=assetAnimalKey(earRecord?.variant||earRecord?.name);if(!key)return null;
+  return S.assets.find(a=>a.categoryId==='TAIL'&&a.slot===slot&&assetAnimalKey(a.variant||a.name)===key)||S.assets.find(a=>a.categoryId==='TAIL'&&(a.characterCompatibility==='BOTH'||a.slot==='BOTH'||a.slot==='GLOBAL')&&assetAnimalKey(a.variant||a.name)===key)||null;
+}
+function syncTailForEarSelection(order,slot,earRecord){
+  if(!order||!earRecord)return false;
+  const selections=ensureOrderAssetSelections(order),auto=ensureOrderAutoTailSelections(order),current=selections[slot].TAIL||null,tail=matchingTailForEar(earRecord,slot);
+  if(!tail){if(auto[slot]&&current===auto[slot]){selections[slot].TAIL=null;auto[slot]=null;return true}return false}
+  if(current&&auto[slot]!==current)return false;
+  const next=assetFamilyKey(tail);if(current===next&&auto[slot]===next)return false;
+  selections[slot].TAIL=next;auto[slot]=next;return true;
+}
+function clearAutoTailForSlot(order,slot){
+  const selections=ensureOrderAssetSelections(order),auto=ensureOrderAutoTailSelections(order),current=selections[slot].TAIL||null;
+  if(auto[slot]&&current===auto[slot])selections[slot].TAIL=null;
+  auto[slot]=null;
+}
 function ensureOrderFrameSelections(order){
   if(!order)return [];
   if(!Array.isArray(order.frameSelections))order.frameSelections=[];
@@ -3069,14 +3103,18 @@ function syncAssetEnabledFromOrder(order){
 async function setAssetFamilySelection(familyKey,slot,on){
   const started=performance.now();
   let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
-  let record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.slot===slot||a.characterCompatibility==='BOTH'));if(!record)return;
-  if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey);if(!record)return;}
+  let record=assetRecordForFamilySlot(familyKey,slot);if(!record)return;
+  if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=assetRecordForFamilySlot(familyKey,slot);if(!record)return;}
   const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId;
+  const autoTail=ensureOrderAutoTailSelections(order);
   const previous=selections[slot][categoryId]||selectedAssetFamily(order,slot,categoryId);
   if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
   if(categoryId==='EAR'){
     if(on&&previous&&previous!==familyKey)clearEarColorAnchors(slot,order);
     order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
+    if(on)syncTailForEarSelection(order,slot,record);else clearAutoTailForSlot(order,slot);
+  }else if(categoryId==='TAIL'){
+    autoTail[slot]=null;
   }
   syncEarColorAnchorUi(slot,order);
   syncAssetEnabledFromOrder(order);persistOrders();syncAssetLibrarySelectionUi(order);
@@ -4121,6 +4159,10 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
         clearEarColorAnchors('B',o);o.B.decor=freshBySlot.B.variant;ensureOrderAssetSelections(o).B.EAR=assetFamilyKey(freshBySlot.B);S.autoDecorSlots.B=normalizeVariantName(freshBySlot.B.variant);changed.push('B');
       }
     }
+    ['A','B'].forEach(slot=>{
+      const earFamily=selectedAssetFamily(o,slot,'EAR'),ear=earFamily&&S.assets.find(a=>a.categoryId==='EAR'&&(a.slot===slot||a.characterCompatibility==='BOTH')&&assetFamilyKey(a)===earFamily);
+      if(ear&&syncTailForEarSelection(o,slot,ear))changed.push(slot);
+    });
     persistOrders();
   }
   renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();debug();
@@ -4233,7 +4275,7 @@ $('#quickHex').onchange=e=>{const v=safeHex(e.target.value,currentLayerColor($('
 if($('#quickGroup'))$('#quickGroup').onchange=()=>{if($('#quickSearch'))$('#quickSearch').value='';renderEditableLayerSelectors();};
 if($('#quickSearch'))$('#quickSearch').oninput=renderEditableLayerSelectors;
 $('#quickLayer').onchange=syncQuickColorFromSelection;
-$('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B',before=getActiveOrder()?.[slot]?.decor||'NONE',after=e.target.value;S.autoDecorSlots[slot]=null;if(before!==after)clearEarColorAnchors(slot);const order=captureActiveOrder(),chosen=S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,after));ensureOrderAssetSelections(order)[slot].EAR=chosen?assetFamilyKey(chosen):null;persistOrders();applyDecorSelection()};
+$('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B',before=getActiveOrder()?.[slot]?.decor||'NONE',after=e.target.value;S.autoDecorSlots[slot]=null;if(before!==after)clearEarColorAnchors(slot);const order=captureActiveOrder(),chosen=S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,after));ensureOrderAssetSelections(order)[slot].EAR=chosen?assetFamilyKey(chosen):null;if(chosen)syncTailForEarSelection(order,slot,chosen);else clearAutoTailForSlot(order,slot);persistOrders();syncAssetEnabledFromOrder(order);applyDecorSelection()};
 $('#orderStatus').onchange=()=>{captureActiveOrder()};
 $('#watermarkMode').onchange=()=>{if(S.master){applyWatermarkMode($('#watermarkMode').value==='preview');reconstruct();renderOverlay()}};
 $('#aHairFile').onchange=e=>{const file=e.target.files?.[0];e.target.value='';if(file)loadHairAsset(file,'A')};

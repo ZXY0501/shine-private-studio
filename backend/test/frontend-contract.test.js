@@ -102,6 +102,17 @@ test('asset families can be selected independently for A and B', () => {
   assert.match(html, /if\(on&&previous&&previous!==familyKey\)clearEarColorAnchors\(slot,order\)/);
 });
 
+test('ear selections auto-pair matching tails by animal and A/B slot', () => {
+  assert.match(html, /autoTailSelections:\{A:null,B:null\}/);
+  assert.match(html, /function assetAnimalKey\(value\)/);
+  assert.match(html, /function matchingTailForEar\(earRecord,slot\)/);
+  assert.match(html, /function syncTailForEarSelection\(order,slot,earRecord\)/);
+  assert.match(html, /if\(current&&auto\[slot\]!==current\)return false/);
+  assert.match(html, /if\(on\)syncTailForEarSelection\(order,slot,record\);else clearAutoTailForSlot\(order,slot\)/);
+  assert.match(html, /else if\(categoryId==='TAIL'\)\{\s*autoTail\[slot\]=null/);
+  assert.match(html, /if\(chosen\)syncTailForEarSelection\(order,slot,chosen\);else clearAutoTailForSlot\(order,slot\)/);
+});
+
 test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
   assert.match(html, /function assetLayerVisible\(asset,layer,path\)/);
   assert.match(html, /data-avpath=/);
