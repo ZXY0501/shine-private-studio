@@ -1086,7 +1086,7 @@ async function persistMasterLocal(file,psd,signature){
 }
 async function restoreLocalTemplate(signature){
   const source=await localGet('templateSources',signature),meta=S.localTemplateCatalog.find(x=>x.signature===signature)||await localGet('templateCatalog',signature);if(!source?.file||!meta)throw new Error('本机模板缓存不完整。');
-  const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'});try{localStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,signature)}catch{}await loadMaster(file,{skipLocalSave:true});
+  const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'});await loadMaster(file);try{localStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,S.templateSignature||signature)}catch{}
 }
 async function deleteLocalTemplate(signature){
   const meta=S.localTemplateCatalog.find(x=>x.signature===signature);if(!meta||!confirm(`确定从本机模板库删除“${meta.fileName}”吗？`))return;
@@ -1691,6 +1691,22 @@ function templateSig(){
   let h=2166136261;
   for(let i=0;i<paths.length;i++){h^=paths.charCodeAt(i);h=Math.imul(h,16777619)}
   return `${S.master.width}x${S.master.height}:${S.flat.length}:${(h>>>0).toString(16)}`;
+}
+function shortTemplateHash(text){
+  let h=2166136261;for(let i=0;i<String(text||'').length;i++){h^=String(text).charCodeAt(i);h=Math.imul(h,16777619)}
+  return (h>>>0).toString(16);
+}
+async function templateSigForFile(file){
+  const structure=templateSig(),name=String(file?.name||'');let digest='';
+  try{
+    if(file?.arrayBuffer){
+      const raw=await file.arrayBuffer();
+      if(globalThis.crypto?.subtle){const sum=await globalThis.crypto.subtle.digest('SHA-256',raw);digest=[...new Uint8Array(sum)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+      else {const bytes=new Uint8Array(raw),step=Math.max(1,Math.floor(bytes.length/200000));let h=2166136261;for(let i=0;i<bytes.length;i+=step){h^=bytes[i];h=Math.imul(h,16777619)}digest=(h>>>0).toString(16)}
+    }
+  }catch(e){console.warn('template fingerprint',e)}
+  const fallback=`${name}|${Number(file?.size)||0}|${Number(file?.lastModified)||0}`;
+  return `${structure}:${shortTemplateHash(`${name}|${digest||fallback}`)}`;
 }
 function bindingStorageKey(){return 'qq-color-studio:template:'+S.templateSignature}
 function sourceForRole(role){
@@ -2374,6 +2390,29 @@ function newOrderData(){
   };
 }
 function getActiveOrder(){return S.orders.find(o=>o.id===S.activeOrderId)||null}
+function saveActiveTemplateState(signature=S.templateSignature){
+  const order=getActiveOrder();if(!order||!signature)return;
+  order.templateStates=order.templateStates||{};
+  order.templateStates[signature]={layerOverrides:clone(S.manualLayerOverrides||order.layerOverrides||{}),rootStackOrder:clone(S.rootStackOrder||order.rootStackOrder||[]),assetTransforms:clone(order.assetTransforms||{})};
+  order.templateSignature=signature;
+  order.layerOverrides=clone(S.manualLayerOverrides||order.layerOverrides||{});
+  order.rootStackOrder=clone(S.rootStackOrder||order.rootStackOrder||[]);
+  persistOrders();
+}
+function restoreOrderTemplateState(order,signature=S.templateSignature){
+  if(!order){S.manualLayerOverrides={};rebuildLayerOverrideMap();return;}
+  const state=signature&&order?.templateStates?.[signature];
+  if(state){
+    order.layerOverrides=clone(state.layerOverrides||{});order.rootStackOrder=clone(state.rootStackOrder||[]);order.assetTransforms=clone(state.assetTransforms||{});
+  }else if(!signature||order?.templateSignature===signature){
+    order.layerOverrides=clone(order?.layerOverrides||{});order.rootStackOrder=clone(order?.rootStackOrder||[]);order.assetTransforms=clone(order?.assetTransforms||{});
+  }else{
+    // 订单没有当前模板快照，或属于另一套模板：保留旧模板快照，但当前模板从空状态开始。
+    order.layerOverrides={};order.rootStackOrder=[];order.assetTransforms={};
+  }
+  if(signature)order.templateSignature=signature;
+  S.manualLayerOverrides=clone(order.layerOverrides||{});rebuildLayerOverrideMap();
+}
 function sessionExportsForOrder(orderId){return S.exportHistory.filter(x=>x.orderId===orderId)}
 function releaseSessionExport(entry){if(entry?.objectUrl)URL.revokeObjectURL(entry.objectUrl)}
 function renderSessionExportHistory(){
@@ -2442,9 +2481,10 @@ function syncHatManualVisibility(slot){
 function syncAllHatManualVisibility(){syncHatManualVisibility('A');syncHatManualVisibility('B')}
 function selectOrder(id){
   const o=S.orders.find(x=>x.id===id);if(!o)return;
+  const previous=getActiveOrder();if(previous&&previous.id!==id)saveActiveTemplateState(S.templateSignature);
   // 切单时取消上一单尚未完成的拖色预览，避免延迟回调把旧订单的 UI/颜色写回当前订单。
   if(S.liveColorTimer){clearTimeout(S.liveColorTimer);S.liveColorTimer=0;}S.liveColorPending=null;
-  S.activeOrderId=id;S.manualLayerOverrides=clone(o.layerOverrides||{});rebuildLayerOverrideMap();renderOrders();
+  S.activeOrderId=id;restoreOrderTemplateState(o,S.templateSignature);renderOrders();
   $('#orderForm').value=o.formText||'';
   $('#aName').value=o.A?.name||'';$('#bName').value=o.B?.name||'';
   setLinkedColor('aEye',o.A?.eye||'#918DCB');setLinkedColor('aPupilAccent',o.A?.pupilAccent||'#E6F9FF');$('#aEyeScheme').value=o.A?.eyeSchemeId||'AUTO';syncEyeSchemeModeUi('A');setLinkedColor('aHair',o.A?.hair||'#7D718C');
@@ -3985,9 +4025,11 @@ async function parsePsd(file){
 async function loadMaster(file,{skipLocalSave=false}={}){
   stat($('#masterStatus'),'正在解析主模板…');
   try{
+    const previousSignature=S.templateSignature;if(S.master&&previousSignature)saveActiveTemplateState(previousSignature);
     const psd=await parsePsd(file);
     S.master=psd;S.masterFile=file;S.flat=flatten(psd.children||[]);S.masterOrder=detectLayerDrawOrder(psd);S.collapsed={};S.visOverride={};S.bindings={};
-    S.templateSignature=templateSig();S.builderCollapsed={};S.manualLayerOverrides={};S.ruleColorOverrides={};rebuildLayerOverrideMap();
+    S.templateSignature=await templateSigForFile(file);S.builderCollapsed={};S.manualLayerOverrides={};S.ruleColorOverrides={};rebuildLayerOverrideMap();
+    restoreOrderTemplateState(getActiveOrder(),S.templateSignature);persistOrders();
     ensureBindings(false);
     const restored=loadStoredBindings();loadHairInsertion();
     $('#masterMeta').textContent=`${file.name} · ${psd.width}×${psd.height} · ${(file.size/1024/1024).toFixed(1)} MB`;

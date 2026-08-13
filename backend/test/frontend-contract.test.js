@@ -262,6 +262,17 @@ test('completed orders can be deleted without deleting library assets', () => {
   assert.match(html, /#deleteOrder'\)\.onclick=deleteActiveOrder/);
 });
 
+test('template fingerprints separate same-structure PSD revisions', () => {
+  assert.match(html, /async function templateSigForFile\(file\)/);
+  assert.match(html, /crypto\.subtle\.digest\('SHA-256',raw\)/);
+  assert.match(html, /S\.templateSignature=await templateSigForFile\(file\)/);
+  assert.match(html, /templateSources',\{signature,file\}/);
+  assert.match(html, /order\?\.templateSignature===signature/);
+  assert.match(html, /order\.layerOverrides=\{\};order\.rootStackOrder=\[\];order\.assetTransforms=\{\}/);
+  assert.match(html, /restoreOrderTemplateState\(getActiveOrder\(\),S\.templateSignature\);persistOrders\(\)/);
+  assert.match(html, /await loadMaster\(file\);try\{localStorage\.setItem\(LOCAL_LAST_TEMPLATE_KEY,S\.templateSignature\|\|signature\)/);
+});
+
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
