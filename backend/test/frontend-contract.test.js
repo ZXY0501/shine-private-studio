@@ -220,6 +220,15 @@ test('pale white and pink hats use a darker low-chroma outline', () => {
   assert.match(html, /Math\.min\(\.038,o\.C\*\.34\)/);
 });
 
+test('hat outline never derives from eye color', () => {
+  const start = html.indexOf("if(role==='HAT_OUTLINE')");
+  const end = html.indexOf("if(role==='HAT_TRIM_EDGE')", start);
+  assert.ok(start >= 0 && end > start, 'hat outline branch should exist');
+  const branch = html.slice(start, end);
+  assert.doesNotMatch(branch, /shiftColor\(eye/);
+  assert.match(branch, /isNearWhite\(hat\)\)return shiftColor\(hat,-0\.17,0\.72\)/);
+});
+
 test('single-layer adjustment only lists enabled A or B asset instances', () => {
   assert.match(html, /\(S\.assets\|\|\[\]\)\.filter\(a=>a\.enabled\)\.forEach\(a=>\{/);
   assert.match(html, /const prefix=`\[\$\{a\.slot\} \$\{categoryLabel\(a\.type\)\}\] `/);

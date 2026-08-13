@@ -3367,7 +3367,9 @@ function deriveRoleColor(role,slot,order){
     const linked=decorOutlineColor(slot,order);if(linked)return linked;
     if(hatScheme?.outline)return hatScheme.outline;
     if(isPalePinkOrWhiteHat(hat))return paleHatOutlineColor(hat);
-    if(isNearWhite(hat))return shiftColor(eye,-0.17,0.72);
+    // 帽子外轮廓必须由帽子自身底色推导；旧逻辑在近白帽子上误用了眼睛主色，
+    // 会让帽子线稿跟着眼睛变紫/变蓝。保留帽子色相，只压低明度并略降饱和度。
+    if(isNearWhite(hat))return shiftColor(hat,-0.17,0.72);
     if(isNearGray(hat))return shiftColor(hat,-0.26,0.46);
     return shiftColor(hat,g.hatOutlineL,g.hatOutlineC);
   }
