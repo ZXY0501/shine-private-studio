@@ -40,6 +40,18 @@ test('new orders default to manual outfit and hat colors', () => {
   assert.match(html, /!o\.B\?\.hat\?'__CUSTOM__'/);
 });
 
+test('official hat and outfit palettes are independent and support random purple variants', () => {
+  assert.match(html, /const STYLE_SCHEME_KEY='shine:styleSchemes:v0\.14'/);
+  assert.match(html, /const OFFICIAL_COLOR_SCHEMES=\{/);
+  assert.match(html, /'红色':\{aliases:\['正红','大红','红色'\],hat:\{base:'#B01111',outline:'#610000',trim:'#C47D73'\},outfit:\{base:'#CF5959',line:'#8B5555'\}\}/);
+  assert.match(html, /'蓝紫':\{aliases:\['蓝紫'\],hat:\{base:'#E0E2FF',outline:'#B0B3D8',trim:'#CFC1F0'\},outfit:\{base:'#F0E5FF',line:'#B4B1CD'\}\}/);
+  assert.match(html, /'粉紫':\{aliases:\['粉紫'\],hat:\{base:'#FFE0FE',outline:'#CDB8D1',trim:'#F0C1EA'\},outfit:\{base:'#FBE5FF',line:'#CDB1CB'\}\}/);
+  assert.match(html, /function officialStyleSchemes\(\)/);
+  assert.match(html, /if\(\/紫色\/.test\(text\)\&\&!\/\(蓝紫\|粉紫\)\/.test\(text\)\)/);
+  assert.match(html, /Math\.floor\(Math\.random\(\)\*candidates\.length\)/);
+  assert.match(html, /outfitPresetPalette:styleSchemePalette\('outfit'\)/);
+});
+
 test('heavy PSD color previews are debounced and final changes are flushed', () => {
   assert.match(html, /const LIVE_COLOR_PREVIEW_DELAY=110;/);
   assert.match(html, /clearTimeout\(S\.liveColorTimer\);\s*S\.liveColorTimer=setTimeout\(paintPendingLiveProductionColors,LIVE_COLOR_PREVIEW_DELAY\)/);

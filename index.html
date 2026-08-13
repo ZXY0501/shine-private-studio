@@ -2196,17 +2196,27 @@ const PRESET_KEY='shine:presets:v0.6';
 const API_KEY='shine:api:v0.6';
 const LOGIC_KEY='shine:logic:v0.6';
 const EYE_SCHEME_KEY='shine:eyeSchemes:v0.6';
-const STYLE_SCHEME_KEY='shine:styleSchemes:v0.13';
+const STYLE_SCHEME_KEY='shine:styleSchemes:v0.14';
+const LEGACY_STYLE_SCHEME_KEY='shine:styleSchemes:v0.13';
 
+// 帽子与衣服使用同一组语义名称，但颜色值彼此独立；紫色拆成蓝紫/粉紫两个可随机方案。
+const OFFICIAL_COLOR_SCHEMES={
+  '红色':{aliases:['正红','大红','红色'],hat:{base:'#B01111',outline:'#610000',trim:'#C47D73'},outfit:{base:'#CF5959',line:'#8B5555'}},
+  '橙色':{aliases:['橙黄','橘色','橙色'],hat:{base:'#FFDBBD',outline:'#A18978',trim:'#E5BB9A'},outfit:{base:'#FFDECC',line:'#9C8977'}},
+  '黄色':{aliases:['浅黄','淡黄','鹅黄','小鸡黄','黄色'],hat:{base:'#FFF0D6',outline:'#C8BFAC',trim:'#ECE2C5'},outfit:{base:'#FFF8EB',line:'#C8BAA7'}},
+  '绿色':{aliases:['草绿','叶绿','嫩绿','绿色'],hat:{base:'#E7F5E0',outline:'#BFC9AB',trim:'#DDECC5'},outfit:{base:'#F5FFEB',line:'#B8C8A7'}},
+  '青色':{aliases:['薄荷绿','蓝绿','青色'],hat:{base:'#E0F5EC',outline:'#ABC9BB',trim:'#C5ECDF'},outfit:{base:'#EBFFFA',line:'#A7C8C3'}},
+  '蓝':{aliases:['天蓝','浅蓝','婴儿蓝','蓝色','蓝'],hat:{base:'#E0F5FF',outline:'#92AEC3',trim:'#C2E0F0'},outfit:{base:'#E5F6FF',line:'#A4B9D0'}},
+  '蓝紫':{aliases:['蓝紫'],hat:{base:'#E0E2FF',outline:'#B0B3D8',trim:'#CFC1F0'},outfit:{base:'#F0E5FF',line:'#B4B1CD'}},
+  '粉紫':{aliases:['粉紫'],hat:{base:'#FFE0FE',outline:'#CDB8D1',trim:'#F0C1EA'},outfit:{base:'#FBE5FF',line:'#CDB1CB'}},
+  '灰':{aliases:['浅灰','灰色','灰'],hat:{base:'#DEDEDE',outline:'#BABABA',trim:'#D6D6D6'},outfit:{base:'#EDEDED',line:'#B0B0B0'}},
+  '黑':{aliases:['黑色','墨色','玄色','深灰','黑'],hat:{base:'#828282',outline:'#6B6B6B',trim:'#CCCCCC'},outfit:{base:'#757575',line:'#575757'}},
+  '白':{aliases:['白色','白'],hat:{base:'#FFFFFF',outline:'#B5B5B5',trim:'#EDEDED'},outfit:{base:'#FFFFFF',line:'#D1D1D1'}},
+  '粉色':{aliases:['浅粉色','淡粉色','嫩粉色','粉色'],hat:{base:'#FFE5F1',outline:'#BFA6B5',trim:'#ECCBD9'},outfit:{base:'#FFEBF3',line:'#A28B90'}}
+};
 const DEFAULT_PRESETS={
-  hat:{
-    '红色':'#C85B5B','橙色':'#D48B56','黄色':'#D6B04E','绿色':'#6CA36B',
-    '青色':'#58A8B0','蓝色':'#6A8FD1','紫色':'#8A74C9','黑色':'#2D2830','白色':'#F6F3F3'
-  },
-  outfit:{
-    '红白':'#E8CDD3','橙白':'#EFD8C3','黄白':'#EEE3C1','绿白':'#D7E4D7','青白':'#D5E6E8',
-    '蓝白':'#D7DFF0','紫白':'#E1DAF0','黑白':'#B6B2B9','白色':'#F6F3F3','粉白':'#EFD9E3'
-  },
+  hat:Object.fromEntries(Object.entries(OFFICIAL_COLOR_SCHEMES).map(([name,sc])=>[name,sc.hat.base])),
+  outfit:Object.fromEntries(Object.entries(OFFICIAL_COLOR_SCHEMES).map(([name,sc])=>[name,sc.outfit.base])),
   background:{
     '冷蓝':'#DCE5EF','冷绿':'#DCE7E2','冷紫':'#D8DDEA',
     '暖粉':'#F2DEE6','暖杏':'#F1E3D8','暖黄':'#F2E9D0'
@@ -2232,19 +2242,45 @@ const DEFAULT_LOGIC={
 
 
 function uid(prefix='s'){return prefix+'_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7)}
+function officialStyleSchemes(){
+  const hat=[],outfit=[];
+  Object.entries(OFFICIAL_COLOR_SCHEMES).forEach(([name,sc])=>{
+    hat.push({id:uid('hat'),name,base:sc.hat.base,outline:sc.hat.outline,trim:sc.hat.trim,aliases:sc.aliases.slice()});
+    outfit.push({id:uid('out'),name,base:sc.outfit.base,line:sc.outfit.line,aliases:sc.aliases.slice()});
+  });
+  return {hat,outfit};
+}
 function defaultStyleSchemesFromLegacy(){
-  const hats=Object.entries(S.presets?.hat||DEFAULT_PRESETS.hat).map(([name,base])=>({id:uid('hat'),name,base,outline:shiftColor(base,DEFAULT_LOGIC.hatOutlineL,DEFAULT_LOGIC.hatOutlineC),trim:shiftColor(base,DEFAULT_LOGIC.hatTrimL,DEFAULT_LOGIC.hatTrimC)}));
-  const outfits=Object.entries(S.presets?.outfit||DEFAULT_PRESETS.outfit).map(([name,base])=>({id:uid('out'),name,base,line:shiftColor(base,DEFAULT_LOGIC.outfitLineL,DEFAULT_LOGIC.outfitLineC)}));
-  return {hat:hats,outfit:outfits};
+  return officialStyleSchemes();
 }
 function persistStyleSchemes(){try{localStorage.setItem(STYLE_SCHEME_KEY,JSON.stringify(S.styleSchemes))}catch{}}
+function loadStoredStyleSchemes(){
+  let current=null,legacy=null;
+  try{current=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')}catch{}
+  if(current?.hat?.length&&current?.outfit?.length)return current;
+  try{legacy=JSON.parse(localStorage.getItem(LEGACY_STYLE_SCHEME_KEY)||'null')}catch{}
+  if(!legacy?.hat?.length&&!legacy?.outfit?.length)return officialStyleSchemes();
+  const known=new Set(Object.keys(OFFICIAL_COLOR_SCHEMES));
+  const legacyNames=new Set(['红白','橙白','黄白','绿白','青白','蓝白','紫白','黑白','白色','粉白','红色','橙色','黄色','绿色','青色','蓝色','紫色','黑色']);
+  const custom=(kind)=>(Array.isArray(legacy?.[kind])?legacy[kind]:[]).filter(x=>x&&x.name&&!known.has(x.name)&&!legacyNames.has(x.name)).map(x=>({...x,id:uid(kind==='hat'?'hat':'out')}));
+  const fresh=officialStyleSchemes();
+  return {hat:[...fresh.hat,...custom('hat')],outfit:[...fresh.outfit,...custom('outfit')]};
+}
 function resolveStyleScheme(kind,value){
   const arr=S.styleSchemes?.[kind]||[];if(!arr.length)return null;
   return arr.find(x=>x.id===value)||arr.find(x=>x.name===value)||arr[0]||null;
 }
 function styleSchemeName(kind,value){if(kind==='hat'&&value==='__DECOR_ANCHOR__')return '★ 帽子底色锚定耳朵底色';if(value==='__CUSTOM__')return '★ 自选';return resolveStyleScheme(kind,value)?.name||String(value||'');}
 function styleSchemeCatalog(){return {hat:(S.styleSchemes.hat||[]).map(x=>x.name),outfit:(S.styleSchemes.outfit||[]).map(x=>x.name),background:Object.keys(S.presets?.background||{})}}
-function styleSchemeIdFromName(kind,name){return (S.styleSchemes?.[kind]||[]).find(x=>x.name===name)?.id||null}
+function styleSchemePalette(kind){return (S.styleSchemes?.[kind]||[]).map(x=>({name:x.name,aliases:x.aliases||[],base:x.base,outline:x.outline||null,trim:x.trim||null,line:x.line||null}))}
+function styleSchemeIdFromName(kind,name){
+  const text=String(name||'').trim(),arr=S.styleSchemes?.[kind]||[];
+  if(/紫色/.test(text)&&!/(蓝紫|粉紫)/.test(text)){
+    const candidates=arr.filter(x=>x.name==='蓝紫'||x.name==='粉紫');
+    if(candidates.length)return candidates[Math.floor(Math.random()*candidates.length)].id;
+  }
+  return arr.find(x=>x.name===text||x.aliases?.includes(text))?.id||null;
+}
 function makeBlankScheme(kind){
   if(kind==='hat')return {id:uid('hat'),name:'新帽子方案',base:'#D8B3B8',outline:'#8B6F76',trim:'#C59AA3'};
   return {id:uid('out'),name:'新衣服方案',base:'#E8D4D7',line:'#A98E94'};
@@ -2342,8 +2378,8 @@ function loadProductionState(){
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
   S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderAutoTailSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
-  try{S.styleSchemes=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')||defaultStyleSchemesFromLegacy()}catch{S.styleSchemes=defaultStyleSchemesFromLegacy()}
-  if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=defaultStyleSchemesFromLegacy();
+  try{S.styleSchemes=loadStoredStyleSchemes()}catch{S.styleSchemes=officialStyleSchemes()}
+  if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=officialStyleSchemes();
   migrateDefaultOutfitSchemesV18();
   migrateBackgroundPresetsV21();
   try{S.apiConfig=Object.assign(S.apiConfig,JSON.parse(localStorage.getItem(API_KEY)||'{}'))}catch{}
@@ -2547,7 +2583,13 @@ function field(sec,names){
   return '';
 }
 function matchPreset(text,kind){
-  if(kind==='hat'||kind==='outfit'){const hit=(S.styleSchemes?.[kind]||[]).find(x=>String(text||'').includes(x.name));return hit?.id||null;}
+  if(kind==='hat'||kind==='outfit'){
+    const raw=String(text||''),arr=S.styleSchemes?.[kind]||[];
+    let candidates=/紫色/.test(raw)&&!/(蓝紫|粉紫)/.test(raw)
+      ?arr.filter(x=>x.name==='蓝紫'||x.name==='粉紫')
+      :arr.filter(x=>raw.includes(x.name)||(x.aliases||[]).some(alias=>raw.includes(alias)));
+    const hit=candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;return hit?.id||null;
+  }
   const keys=Object.keys(S.presets[kind]||{});return keys.find(k=>text.includes(k))||null;
 }
 function matchDecor(text){
@@ -2580,7 +2622,8 @@ async function apiParseForm(){
     fixedSlots:{A:'left',B:'right'},
     formText:$('#orderForm').value,
     presetCatalog:styleSchemeCatalog(),
-    hatPresetPalette:(S.styleSchemes?.hat||[]).map(x=>({name:x.name,base:x.base})),
+    hatPresetPalette:styleSchemePalette('hat'),
+    outfitPresetPalette:styleSchemePalette('outfit'),
     backgroundPresetPalette:Object.entries(S.presets.background||{}).map(([name,hex])=>({name,hex,family:/^冷/.test(name)?'cool':'warm'})),
     backgroundVisualContext:{whiteLaceOverlayFixed:true,recolorTarget:'BACKGROUND_BASE',note:'背景颜色必须锚定纯净模板里的“背景底色”像素层；白色蕾丝/图案保持原样，不参与改色'},
     backgroundPresetGroups:{
@@ -2592,7 +2635,7 @@ async function apiParseForm(){
       '只返回结构化选择，不绘画、不生成图片',
       '帽子/衣服/背景只能从 presetCatalog 对应列表里选择已有方案名，不要编造',
       '背景只能从 backgroundPresetPalette 的 6 个现有 preset 中选择，禁止生成新 hex；白色蕾丝纹理固定不改，只选择其下方衬底色',
-      '先根据表单解析 A/B 的帽子方案，再从 hatPresetPalette 读取两个帽子主色；背景选择需要同时考虑 A/B 两个帽子：整体协调、比帽子更浅更低饱和、与人物有足够区分，不要让背景抢人物',
+      '帽子和衣服颜色方案独立选择，不要强制配对；先根据表单分别解析 A/B 的帽子和衣服方案。顾客只写“紫色”时，在蓝紫和粉紫中随机选择一个；明确写蓝紫/粉紫时必须按明确方案。背景选择需要同时考虑 A/B 两个帽子：整体协调、比帽子更浅更低饱和、与人物有足够区分，不要让背景抢人物',
       '若顾客明确写了冷/暖背景倾向，该倾向优先；若未明确：两边帽子明显同为冷色时优先 cold 三张，同为暖色时优先 warm 三张，冷暖混合时从 6 张中选择对两个帽子都最柔和且有区分度的一张',
       '返回 backgroundPreset；可额外返回 backgroundReason，用一句短理由说明为何适合 A/B 两个帽子',
       'A固定左位，B固定右位',
@@ -3476,7 +3519,7 @@ function deriveRoleColor(role,slot,order){
   const hatCustom=order[slot]?.hat==='__CUSTOM__',hatScheme=(hatAnchor||hatCustom)?null:resolveStyleScheme('hat',order[slot]?.hat), outfitCustom=order[slot]?.outfit==='__CUSTOM__', outfitScheme=outfitCustom?null:resolveStyleScheme('outfit',order[slot]?.outfit);
   const decorBase=activeDecorBaseColor(slot,order);
   const hat=safeHex(hatCustom?order[slot]?.hatManual:((hatAnchor&&decorBase)?decorBase:(hatScheme?.base||DEFAULT_PRESETS.hat['红色'])),'#C85B5B');
-  const outfit=safeHex((outfitCustom&&order[slot]?.outfitManual)?order[slot].outfitManual:(outfitScheme?.base||DEFAULT_PRESETS.outfit['红白']),'#E8CDD3');
+  const outfit=safeHex((outfitCustom&&order[slot]?.outfitManual)?order[slot].outfitManual:(outfitScheme?.base||DEFAULT_PRESETS.outfit['红色']),'#CF5959');
   const decorShade=normalizeHex(order[slot]?.decorShade || '');
   const g=S.logic||DEFAULT_LOGIC;
   const eyeV2=eyeRoleColorV2(role,slot,order);if(eyeV2)return eyeV2;
