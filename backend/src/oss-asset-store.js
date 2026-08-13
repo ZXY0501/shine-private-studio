@@ -98,7 +98,12 @@ function createOssAssetStore({ req, env = process.env, client, signingClient } =
     let marker;
     try {
       do {
-        const page = await oss.list({ prefix, marker, 'max-keys': 1000 });
+        // Do not pass an undefined marker. The SDK omits undefined values when
+        // calculating the V4 canonical query, while the URL formatter can emit
+        // `marker=`, producing SignatureDoesNotMatch on the first page.
+        const query = { prefix, 'max-keys': 1000 };
+        if (marker) query.marker = marker;
+        const page = await oss.list(query);
         for (const object of page.objects || []) {
           if (!object.name.endsWith('.json')) continue;
           const result = await oss.get(object.name);
@@ -109,7 +114,11 @@ function createOssAssetStore({ req, env = process.env, client, signingClient } =
       return records;
     } catch (error) {
       if (error instanceof SyntaxError) throw new StoreError(502, 'ASSET_METADATA_INVALID', error);
-      throw new StoreError(502, 'OSS_READ_FAILED', error);
+      const wrapped = new StoreError(502, 'OSS_READ_FAILED', error);
+      wrapped.ossCode = error?.code || null;
+      wrapped.ossStatus = error?.status || error?.statusCode || null;
+      wrapped.ossRequestId = error?.requestId || error?.request_id || null;
+      throw wrapped;
     }
   }
 

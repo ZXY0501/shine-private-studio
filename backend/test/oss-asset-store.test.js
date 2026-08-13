@@ -18,6 +18,7 @@ test('signs source URLs and stores only server-chosen asset paths', async () => 
   const objects = new Map();
   const signed = [];
   const deleted = [];
+  const listed = [];
   objects.set(assetSourceObjectKey(ASSET_ID), Buffer.alloc(4096));
   const client = {
     signatureUrl(key, options) {
@@ -35,7 +36,9 @@ test('signs source URLs and stores only server-chosen asset paths', async () => 
       if (!objects.has(key)) throw Object.assign(new Error('missing'), { status: 404, code: 'NoSuchKey' });
       return { content: objects.get(key) };
     },
-    async list({ prefix }) {
+    async list(query) {
+      listed.push(query);
+      const { prefix } = query;
       return { objects: [...objects.keys()].filter(name => name.startsWith(prefix)).map(name => ({ name })) };
     },
     async delete(key) {
@@ -58,6 +61,7 @@ test('signs source URLs and stores only server-chosen asset paths', async () => 
   await store.putMetadata(ASSET_ID, metadata);
   assert.deepEqual(await store.getMetadata(ASSET_ID), metadata);
   assert.deepEqual(await store.listMetadata(), [metadata]);
+  assert.equal(Object.prototype.hasOwnProperty.call(listed[0], 'marker'), false);
 
   const download = await store.createDownloadTicket(ASSET_ID, 600);
   assert.equal(download.metadata.assetId, ASSET_ID);

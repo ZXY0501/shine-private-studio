@@ -440,7 +440,10 @@ function createApp(options = {}) {
         logger.error?.('Shine backend request failed', {
           method: req.method,
           path: req.url?.split('?')[0],
-          code
+          code,
+          ...(error?.ossCode ? { ossCode: error.ossCode } : {}),
+          ...(error?.ossStatus ? { ossStatus: error.ossStatus } : {}),
+          ...(error?.ossRequestId ? { ossRequestId: error.ossRequestId } : {})
         });
       }
       return sendJson(req, res, status, { ok: false, error: code }, allowedOrigin);
