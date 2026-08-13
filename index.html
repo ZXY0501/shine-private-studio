@@ -1047,9 +1047,14 @@ async function persistAssetFamilyLocal(familyKey){
   return true;
 }
 const localAssetPersistTimers=new Map();
-function queuePersistAssetFamilyLocal(familyKey,delay=180){
+function syncLocalAssetStorageUi(familyKey){document.querySelectorAll('[data-storage-family]').forEach(el=>{if(el.dataset.storageFamily===familyKey)el.textContent='已自动保存到本机'})}
+function queuePersistAssetFamilyLocal(familyKey,delay=420){
   if(!familyKey)return;clearTimeout(localAssetPersistTimers.get(familyKey));
-  localAssetPersistTimers.set(familyKey,setTimeout(async()=>{localAssetPersistTimers.delete(familyKey);try{await persistAssetFamilyLocal(familyKey);renderAssetLibrary();}catch(e){S.localPersistenceError=e;console.warn('persist local asset',e)}},delay));
+  localAssetPersistTimers.set(familyKey,setTimeout(()=>{
+    localAssetPersistTimers.delete(familyKey);
+    const save=async()=>{try{await persistAssetFamilyLocal(familyKey);syncLocalAssetStorageUi(familyKey)}catch(e){S.localPersistenceError=e;console.warn('persist local asset',e)}};
+    if(typeof requestIdleCallback==='function')requestIdleCallback(save,{timeout:1800});else save();
+  },delay));
 }
 function localMetadataToPlaceholders(meta){
   const rows=Array.isArray(meta.records)&&meta.records.length?meta.records:[{slot:meta.defaultSlot||'A',type:rendererTypeForCategory(meta.categoryId,'PROP'),variant:meta.variant,name:meta.name,categoryId:meta.categoryId,characterCompatibility:meta.characterCompatibility,defaultSlot:meta.defaultSlot}];
@@ -1064,7 +1069,7 @@ async function hydrateLocalAsset(record){
     if(!source?.file||!meta)throw new Error('本机缓存不完整，请重新上传这份 PSD。');
     const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'}),psd=await parsePsd(file),order=detectLayerDrawOrder(psd),made=[];
     (meta.records||[]).forEach(row=>{const a=makeAssetRecord(file,psd,order,row.slot,row.type,row.variant,row.groupPath,{assetId:meta.assetId,categoryId:row.categoryId||meta.categoryId,characterCompatibility:row.characterCompatibility||meta.characterCompatibility,createdAt:meta.createdAt,layerVisibility:row.layerVisibility||{}});Object.assign(a,{name:row.name||a.name,colorMode:row.colorMode||'PRESERVE_ORIGINAL',defaultSlot:row.defaultSlot||a.defaultSlot,defaultTransform:{...(row.defaultTransform||a.defaultTransform)},templateTransforms:JSON.parse(JSON.stringify(row.templateTransforms||{})),bindings:{...(row.bindings||a.bindings)},sourceObjectKey:meta.sourceObjectKey||null,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,updatedAt:meta.updatedAt,localOnly:false,localCached:true,cloudOnly:false});a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());made.push(a);});
-    S.assets=S.assets.filter(a=>a.assetId!==record.assetId);made.forEach(upsertAssetRecord);syncAssetEnabledFromOrder(getActiveOrder());renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#assetRuntimeStatus'),`已从本机打开：${meta.name||meta.variant}`,'good');return made;
+    S.assets=S.assets.filter(a=>a.assetId!==record.assetId);made.forEach(upsertAssetRecord);syncAssetEnabledFromOrder(getActiveOrder());renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();stat($('#assetRuntimeStatus'),`已从本机打开：${meta.name||meta.variant}`,'good');return made;
   })();
   try{return await record._loading}catch(e){record._loading=null;stat($('#assetRuntimeStatus'),e.message||String(e),'bad');throw e}
 }
@@ -1329,8 +1334,8 @@ function makeHairInsertionPanel(){
   const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示：勾选的头发、耳朵、嘴巴、尾巴和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="libraryTransformTitle">整体调整素材</div><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><button id="assetTransformSmaller" class="btn" type="button">－ 缩小</button><button id="assetTransformLarger" class="btn" type="button">＋ 放大</button><button id="assetTransformRotateLeft" class="btn" type="button">↶ 左转 90°</button><button id="assetTransformRotateRight" class="btn" type="button">↷ 右转 90°</button><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">在左侧预览任意空白处拖动即可移动整份 PSD。</span></div></div>`;return box;
 }
 function rootStackLabel(id){
-  if(id===hairStackId('A')){const a=S.assets.find(x=>x.type==='HAIR'&&x.slot==='A');return {name:'A头发',meta:a?'已上传':'未上传 · 占位',kind:'hair'};}
-  if(id===hairStackId('B')){const a=S.assets.find(x=>x.type==='HAIR'&&x.slot==='B');return {name:'B头发',meta:a?'已上传':'未上传 · 占位',kind:'hair'};}
+  if(id===hairStackId('A')){const a=rootStackHairAsset('A');return {name:'A头发',meta:a?`当前：${a.variant||a.name||'已上传'}`:'未选择 · 占位',kind:'hair'};}
+  if(id===hairStackId('B')){const a=rootStackHairAsset('B');return {name:'B头发',meta:a?`当前：${a.variant||a.name||'已上传'}`:'未选择 · 占位',kind:'hair'};}
   const a=assetFromStackId(id);if(a){const frame=a.categoryId==='FRAME',placement=frameSelection(getActiveOrder(),assetFamilyKey(a))?.placement;return {name:frame?`边框 · ${a.variant||a.name||'未命名'}`:`${a.slot} · ${a.variant||a.name||categoryLabel(a.categoryId)}`,meta:frame?`${placement==='BACK'?'置底':'置顶'} · 由素材卡控制`:`${categoryLabel(a.categoryId)} · ${a.enabled?'已勾选':'未勾选'}`,kind:frame?'frame':'asset'};}
   if(id?.startsWith('asset:'))return {name:'已保存的素材插槽',meta:'等待载入对应素材',kind:'asset'};
   const l=rootLayerFromId(id);if(!l)return {name:id,meta:'未知',kind:'pixel'};
@@ -1939,12 +1944,13 @@ async function uploadAssetFamilyToCloud(familyKey){
   if(records.some(a=>a.sourceObjectKey)){stat($('#cloudAssetStatus'),'这个素材已经在云端。','good');return;}
   S.cloudAssetBusy=true;updateCloudAssetControls();stat($('#cloudAssetStatus'),`正在保存 ${first.variant||first.file.name} 到云端…`,'');
   try{
-    const oldAssetIds=[...new Set(records.map(a=>a.assetId).filter(Boolean))],mime=first.file.type||'application/octet-stream',ticket=await cloudAssetRequest('/api/assets/upload-ticket',{method:'POST',body:{fileName:first.file.name,size:first.file.size,contentType:mime}});
+    const oldFamilyKey=familyKey,oldAssetIds=[...new Set(records.map(a=>a.assetId).filter(Boolean))],mime=first.file.type||'application/octet-stream',ticket=await cloudAssetRequest('/api/assets/upload-ticket',{method:'POST',body:{fileName:first.file.name,size:first.file.size,contentType:mime}});
     const uploaded=await fetch(ticket.uploadUrl,{method:'PUT',headers:{'Content-Type':mime},body:first.file});if(!uploaded.ok)throw new Error(`OSS 上传失败（${uploaded.status}）。请检查 Bucket CORS 是否允许 PUT。`);
     const slots=new Set(records.map(a=>a.slot)),compatibility=slots.has('A')&&slots.has('B')?'BOTH':(first.characterCompatibility||first.slot);
     const familyLayerVisibility=Object.assign({},...records.map(a=>a.layerVisibility||{}));
     const completed=await cloudAssetRequest(`/api/assets/${encodeURIComponent(ticket.assetId)}/complete`,{method:'POST',body:{receipt:ticket.receipt,asset:{categoryId:first.categoryId,characterCompatibility:compatibility,defaultSlot:first.slot,variant:first.variant||first.name,name:first.name||first.variant,layerVisibility:familyLayerVisibility}}});
     records.forEach(a=>{a.assetId=completed.asset.assetId;a.sourceObjectKey=completed.asset.sourceObjectKey;a.contentHash=completed.asset.contentHash;a.version=completed.asset.version;a.createdAt=completed.asset.createdAt;a.updatedAt=completed.asset.updatedAt;a.cloudOnly=false;a.localOnly=false});
+    const newFamilyKey=assetFamilyKey(records[0]);if(newFamilyKey!==oldFamilyKey)S.orders.forEach(order=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(order);if(selections[slot][first.categoryId]===oldFamilyKey)selections[slot][first.categoryId]=newFamilyKey}));persistOrders();
     await Promise.all(oldAssetIds.filter(id=>id!==completed.asset.assetId).flatMap(id=>[localDelete('assetCatalog',id),localDelete('assetSources',id)]));await persistAssetFamilyLocal(assetFamilyKey(records[0]));
     stat($('#cloudAssetStatus'),`已保存到云端：${completed.asset.name}`,'good');renderAssetLibrary();renderHairInsertionControls();debug();
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
@@ -2866,18 +2872,16 @@ function refreshOneAssetComposite(asset,order=getActiveOrder()||newOrderData()){
     asset.composite=prevMass>5000?prev:asset.originalComposite;S.assetRenderWarnings.push(`${asset.variant}/${asset.slot} 变色重绘为空，已自动保留上一张可见合成`);
   }else if(next)asset.composite=next;
 }
+function prepareAssetCompositeForOrder(a,order=getActiveOrder()||newOrderData()){
+  if(!a?.psd)return;
+  const explicitEar=a.categoryId==='EAR'&&(normalizeHex(order?.[a.slot]?.decorBase||'')||normalizeHex(order?.[a.slot]?.decorShade||''));
+  const explicitFrame=a.categoryId==='FRAME'&&Object.values(frameSelection(order,assetFamilyKey(a))?.colors||{}).some(value=>!!normalizeHex(value));
+  const hasManual=assetRelevantLeaves(a).some(n=>S.manualLayerOverrides?.[assetLayerKey(a,n.path)]);
+  if(a.colorMode!=='FOLLOW_ORDER'&&!explicitEar&&!explicitFrame&&!hasManual){a.composite=a.originalComposite;return;}
+  refreshOneAssetComposite(a,order);
+}
 function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
-  S.assets.forEach(a=>{if(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='FRAME'){
-    const explicitEar=a.categoryId==='EAR'&&(normalizeHex(order?.[a.slot]?.decorBase||'')||normalizeHex(order?.[a.slot]?.decorShade||''));
-    const explicitFrame=a.categoryId==='FRAME'&&Object.values(frameSelection(order,assetFamilyKey(a))?.colors||{}).some(value=>!!normalizeHex(value));
-    const hasManual=assetRelevantLeaves(a).some(n=>S.manualLayerOverrides?.[assetLayerKey(a,n.path)]);
-    if(a.colorMode!=='FOLLOW_ORDER'&&!explicitEar&&!explicitFrame&&!hasManual){a.composite=a.originalComposite;return;}
-    initAssetBindings(a,false);const prev=a.composite;let next=null;try{next=renderAssetComposite(a,order)}catch(e){console.error('asset render',a.variant,e)}
-    const nextMass=sampledAlphaMass(next),prevMass=sampledAlphaMass(prev),baseMass=sampledAlphaMass(a.originalComposite);
-    if(a.type==='HAT_DECOR'&&nextMass<2000&&(prevMass>5000||baseMass>5000)){
-      a.composite=prevMass>5000?prev:a.originalComposite;S.assetRenderWarnings.push(`${a.variant}/${a.slot} 变色重绘为空，已自动保留上一张可见合成`);
-    }else if(next)a.composite=next;
-  }});
+  S.assets.forEach(a=>{if(a.enabled&&(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='FRAME'))prepareAssetCompositeForOrder(a,order)});
 }
 function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',TAIL_BASE:'尾巴底色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
 function loadAssetCategories(){
@@ -2915,7 +2919,7 @@ function ensureAssetRecordV2(a){
   a.createdAt=a.createdAt||new Date().toISOString();a.updatedAt=a.updatedAt||a.createdAt;
   return a;
 }
-function assetFamilyKey(a){ensureAssetRecordV2(a);return `${a.categoryId}::${normalizeVariantName(a.variant||a.name)}`}
+function assetFamilyKey(a){ensureAssetRecordV2(a);return a.categoryId==='HAIR'?`HAIR::${a.assetId}`:`${a.categoryId}::${normalizeVariantName(a.variant||a.name)}`}
 function ensureOrderAssetSelections(order){
   if(!order)return {A:{},B:{}};
   if(!order.assetSelections||typeof order.assetSelections!=='object')order.assetSelections={A:{},B:{}};
@@ -2975,7 +2979,16 @@ function sampleCanvasMedianColor(canvas,clientX,clientY,radius=3){
 }
 function hasAssetSelectionDecision(order,slot,categoryId){return !!order&&Object.prototype.hasOwnProperty.call(ensureOrderAssetSelections(order)[slot],categoryId)}
 function selectedAssetFamily(order,slot,categoryId){
-  const selections=ensureOrderAssetSelections(order);if(order&&Object.prototype.hasOwnProperty.call(selections[slot],categoryId))return selections[slot][categoryId]||null;
+  const selections=ensureOrderAssetSelections(order);
+  if(order&&Object.prototype.hasOwnProperty.call(selections[slot],categoryId)){
+    const selected=selections[slot][categoryId]||null;
+    if(categoryId==='HAIR'&&selected&&!S.assets.some(a=>a.categoryId==='HAIR'&&a.slot===slot&&assetFamilyKey(a)===selected)){
+      const legacyName=selected.replace(/^HAIR::/,'');
+      const legacy=S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===slot&&sameVariant(a.variant||a.name,legacyName));
+      if(legacy){selections[slot][categoryId]=assetFamilyKey(legacy);return selections[slot][categoryId]}
+    }
+    return selected;
+  }
   if(categoryId==='EAR'){
     const wanted=order?.[slot]?.decor||'NONE';if(wanted!=='NONE')return `EAR::${normalizeVariantName(wanted)}`;
   }
@@ -2987,6 +3000,7 @@ function syncAssetEnabledFromOrder(order){
   S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
 async function setAssetFamilySelection(familyKey,slot,on){
+  const started=performance.now();
   let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
   let record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.slot===slot||a.characterCompatibility==='BOTH'));if(!record)return;
   if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey);if(!record)return;}
@@ -2998,8 +3012,12 @@ async function setAssetFamilySelection(familyKey,slot,on){
     order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
   }
   syncEarColorAnchorUi(slot,order);
-  syncAssetEnabledFromOrder(order);persistOrders();refreshAllAssetComposites(order);
-  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();renderAssetRuntimeStatus();
+  syncAssetEnabledFromOrder(order);persistOrders();syncAssetLibrarySelectionUi(order);
+  stat($('#assetRuntimeStatus'),on?`正在切换到 ${record.variant||record.name||categoryLabel(categoryId)}…`:`已从当前订单取消 ${record.variant||record.name||categoryLabel(categoryId)}。`,on?'':'good');
+  await new Promise(resolve=>setTimeout(resolve,0));
+  if(on)S.assets.filter(a=>a.enabled&&assetFamilyKey(a)===familyKey).forEach(a=>prepareAssetCompositeForOrder(a,order));
+  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRuntimeStatus();
+  if(on)stat($('#assetRuntimeStatus'),`已切换素材 · ${Math.max(1,Math.round(performance.now()-started))} ms`,'good');
 }
 function paintAssetThumbnail(canvas,source){
   if(!canvas||!source)return;const ctx=canvas.getContext('2d'),w=64,h=64;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
@@ -3068,6 +3086,11 @@ function frameColorControlsHtml(familyKey,selection){
   if(!selection)return '';
   return `<div class="frameColorGrid">${Object.entries(FRAME_COLOR_FIELDS).map(([field,label])=>{const value=normalizeHex(selection.colors?.[field]||''),display=value||'#888888',armed=S.previewEyedropTarget?.familyKey===familyKey&&S.previewEyedropTarget?.field===field;return `<div class="frameColorControl"><button type="button" class="${armed?'armed':''}" data-frame-eyedrop="${field}" data-family="${safe(familyKey)}" title="先点这里，再去左侧预览吸色"><i style="background:${display}"></i>${safe(label)}${value?'':'（原色）'}</button><input type="color" data-frame-color="${field}" data-family="${safe(familyKey)}" value="${display.toLowerCase()}" title="手动微调"></div>`}).join('')}</div>`;
 }
+function syncAssetLibrarySelectionUi(order=getActiveOrder()){
+  const host=$('#assetLibraryList');if(!host||!order)return;
+  host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>{const record=S.assets.find(a=>assetFamilyKey(a)===el.dataset.family&&(a.slot===el.dataset.slot||a.characterCompatibility==='BOTH'));el.checked=!!record&&selectedAssetFamily(order,el.dataset.slot,record.categoryId)===el.dataset.family});
+  host.querySelectorAll('[data-ak="frame-check"]').forEach(el=>{el.checked=!!frameSelection(order,el.dataset.family)});
+}
 function renderAssetLibrary(){
   const host=$('#assetLibraryList'); if(!host) return;
   if(!S.assetCategories.length)loadAssetCategories();host.innerHTML='';S.assets.forEach(ensureAssetRecordV2);
@@ -3093,17 +3116,17 @@ function renderAssetLibrary(){
       const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
       const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
-      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?'正在打开 PSD…':cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:'',card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
+      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?'正在打开 PSD…':cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',storageHtml=`<span data-storage-family="${safe(group.key)}">${storageLabel}</span>`,layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:'',card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
       if(category.id==='FRAME'){
         const selection=frameSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
         card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-          <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名边框')}</b><div class="assetFamilyMeta">可叠加 · ${audit||'保留原 PSD 图层'}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageLabel}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
+          <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名边框')}</b><div class="assetFamilyMeta">可叠加 · ${audit||'保留原 PSD 图层'}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
           <div class="frameControls"><label class="assetSlotCheck"><input data-ak="frame-check" data-family="${safe(group.key)}" type="checkbox" ${on?'checked':''}> 加入画面</label><div class="framePlacementRow"><button class="btn ${on&&placement==='BACK'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="BACK" ${on?'':'disabled'}>置底</button><button class="btn ${on&&placement==='FRONT'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="FRONT" ${on?'':'disabled'}>置顶</button></div></div>
           <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>${frameColorControlsHtml(group.key,selection)}`;
         details.appendChild(card);return;
       }
       card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageLabel}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> 跟随订单配色（默认关闭）</label></div>
+        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> 跟随订单配色（默认关闭）</label></div>
         <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
         <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
       details.appendChild(card);
@@ -3637,13 +3660,13 @@ function sameVariant(a,b){return normalizeVariantName(a)===normalizeVariantName(
 async function loadHairAsset(file,slot){
   try{
     const psd=await parsePsd(file),order=detectLayerDrawOrder(psd);
-    const now=new Date().toISOString(),variant=file.name.replace(/\.psd$/i,''),previous=S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===slot&&sameVariant(a.variant,variant)),asset={schemaVersion:'shine-asset-v2',assetId:previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant,name:variant,enabled:true,renderMode:'overlay',categoryId:'HAIR',characterCompatibility:slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',layerVisibility:{},compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:previous?.createdAt||now,updatedAt:now,bindings:{}};applyPendingAssetPlacement(asset);
+    const now=new Date().toISOString(),variant=file.name.replace(/\.psd$/i,''),asset={schemaVersion:'shine-asset-v2',assetId:'asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),file,psd,composite:null,originalComposite:null,order,slot,type:'HAIR',variant,name:variant,enabled:true,renderMode:'overlay',categoryId:'HAIR',characterCompatibility:slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',layerVisibility:{},compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:now,updatedAt:now,bindings:{}};applyPendingAssetPlacement(asset);
     initAssetBindings(asset,true);asset.originalComposite=renderAssetComposite(asset,getActiveOrder()||newOrderData());asset.composite=asset.originalComposite;upsertAssetRecord(asset);
     let active=getActiveOrder();if(!active){active=newOrderData();S.orders.unshift(active);S.activeOrderId=active.id;renderOrders()}
     ensureOrderAssetSelections(active)[slot].HAIR=assetFamilyKey(asset);syncAssetEnabledFromOrder(active);persistOrders();
-    try{await persistAssetFamilyLocal(assetFamilyKey(asset))}catch(e){S.localPersistenceError=e;console.warn('persist local hair',e)}
+    queuePersistAssetFamilyLocal(assetFamilyKey(asset),40);
     S.selectedTransformStackId=assetStackId(asset);
-    renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();
+    renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();
     stat($('#apiStatus'),`${slot} 位头发已载入；已进入“大夹子顺序”，可以直接拖动层级。`,'good');
   }catch(e){stat($('#apiStatus'),'头发 PSD 解析失败：'+(e.message||e),'bad')}
 }
@@ -3989,14 +4012,14 @@ function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null,metadat
   if(type==='HAT_DECOR'&&sampledAlphaMass(a.composite)<2000)a.composite=a.originalComposite;return a;
 }
 function upsertAssetRecord(rec){
-  const idx=S.assets.findIndex(a=>a.type===rec.type&&a.slot===rec.slot&&sameVariant(a.variant,rec.variant));
+  const idx=S.assets.findIndex(a=>a.assetId===rec.assetId&&a.slot===rec.slot);
   if(idx>=0)S.assets[idx]=rec;else S.assets.push(rec);
 }
 async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
   const loaded=[];
   for(const file of files){
     try{
-      const psd=await parsePsd(file),inf=inferAsset(file),order=detectLayerDrawOrder(psd),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),pair=inferPairGroups(psd),previous=S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
+      const psd=await parsePsd(file),inf=inferAsset(file),order=detectLayerDrawOrder(psd),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),pair=inferPairGroups(psd),previous=categoryId==='HAIR'?null:S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
       if(categoryId==='FRAME'){
         const rec=makeAssetRecord(file,psd,order,'GLOBAL',type,variant,null,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec);
       }else if(forcedSlot==='AUTO'&&pair.a&&pair.b){
@@ -4008,7 +4031,7 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
       }
     }catch(e){alert(file.name+' 解析失败：'+(e.message||e))}
   }
-  const loadedFamilies=[...new Set(loaded.map(assetFamilyKey))];await Promise.all(loadedFamilies.map(async key=>{try{await persistAssetFamilyLocal(key)}catch(e){S.localPersistenceError=e;console.warn('persist local asset',e)}}));
+  const loadedFamilies=[...new Set(loaded.map(assetFamilyKey))];loadedFamilies.forEach(key=>queuePersistAssetFamilyLocal(key,40));
   // 自用工作流：第一次上传某个帽饰时直接试戴；已有明确选择则绝不擅自覆盖。
   let o=getActiveOrder();
   if(!o&&loaded.some(a=>a.categoryId==='EAR')){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders();}
@@ -4029,7 +4052,7 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
     }
     persistOrders();
   }
-  renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();renderOverlay();syncProductionPreview();debug();
+  renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();debug();
 }
 function exportTree(){
   const nodes=S.flat.map(n=>{
@@ -4141,8 +4164,8 @@ $('#quickLayer').onchange=syncQuickColorFromSelection;
 $('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B',before=getActiveOrder()?.[slot]?.decor||'NONE',after=e.target.value;S.autoDecorSlots[slot]=null;if(before!==after)clearEarColorAnchors(slot);const order=captureActiveOrder(),chosen=S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,after));ensureOrderAssetSelections(order)[slot].EAR=chosen?assetFamilyKey(chosen):null;persistOrders();applyDecorSelection()};
 $('#orderStatus').onchange=()=>{captureActiveOrder()};
 $('#watermarkMode').onchange=()=>{if(S.master){applyWatermarkMode($('#watermarkMode').value==='preview');reconstruct();renderOverlay()}};
-$('#aHairFile').onchange=e=>e.target.files?.[0]&&loadHairAsset(e.target.files[0],'A');
-$('#bHairFile').onchange=e=>e.target.files?.[0]&&loadHairAsset(e.target.files[0],'B');
+$('#aHairFile').onchange=e=>{const file=e.target.files?.[0];e.target.value='';if(file)loadHairAsset(file,'A')};
+$('#bHairFile').onchange=e=>{const file=e.target.files?.[0];e.target.value='';if(file)loadHairAsset(file,'B')};
 $('#saveLogic').onclick=()=>{persistLogic(); stat($('#apiStatus'),'衍生色逻辑参数已保存。','good');};
 $('#resetLogic').onclick=()=>{S.logic=clone(DEFAULT_LOGIC); renderLogicEditor(); persistLogic(); stat($('#apiStatus'),'已恢复默认逻辑。','good');};
 $('#swatchFile').onchange=e=>e.target.files?.[0]&&loadSwatchImage(e.target.files[0]);

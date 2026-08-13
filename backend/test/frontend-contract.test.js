@@ -172,13 +172,24 @@ test('phase two automatically keeps templates and assets in IndexedDB with lazy 
   assert.match(html, /保存当前纯净模板到云端/);
 });
 
-test('the dedicated hair uploader also keeps reusable variants in the local library', () => {
+test('dedicated hair uploads stay reusable and isolated even when two orders use the same filename', () => {
+  const hairLoader = html.match(/async function loadHairAsset\(file,slot\)[\s\S]+?\/\/ ===== v0\.16/)?.[0] || '';
   assert.match(html, /async function loadHairAsset\(file,slot\)/);
   assert.match(html, /upsertAssetRecord\(asset\)/);
   assert.match(html, /ensureOrderAssetSelections\(active\)\[slot\]\.HAIR=assetFamilyKey\(asset\)/);
-  assert.match(html, /await persistAssetFamilyLocal\(assetFamilyKey\(asset\)\)/);
-  assert.match(html, /assetId:previous\?\.assetId\|\|\('asset_'/);
+  assert.match(html, /queuePersistAssetFamilyLocal\(assetFamilyKey\(asset\),40\)/);
+  assert.match(html, /function assetFamilyKey\(a\)\{ensureAssetRecordV2\(a\);return a\.categoryId==='HAIR'\?`HAIR::\$\{a\.assetId\}`/);
+  assert.match(html, /const idx=S\.assets\.findIndex\(a=>a\.assetId===rec\.assetId&&a\.slot===rec\.slot\)/);
+  assert.doesNotMatch(hairLoader, /previous|sameVariant/);
   assert.doesNotMatch(html, /S\.assets=S\.assets\.filter\(a=>!\(a\.type==='HAIR'&&a\.slot===slot\)\)/);
+});
+
+test('asset selection yields before rendering and avoids full library and disabled-asset recomposition', () => {
+  assert.match(html, /function syncAssetLibrarySelectionUi\(order=getActiveOrder\(\)\)/);
+  assert.match(html, /await new Promise\(resolve=>setTimeout\(resolve,0\)\)/);
+  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
+  assert.match(html, /requestIdleCallback\(save,\{timeout:1800\}\)/);
+  assert.match(html, /已切换素材 · \$\{Math\.max\(1,Math\.round\(performance\.now\(\)-started\)\)\} ms/);
 });
 
 test('hat presets default to manual color while retaining optional ear anchoring', () => {
