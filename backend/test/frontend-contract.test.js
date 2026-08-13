@@ -113,6 +113,14 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
   assert.match(html, /if\(chosen\)syncTailForEarSelection\(order,slot,chosen\);else clearAutoTailForSlot\(order,slot\)/);
 });
 
+test('ear base color anchors the paired tail base without recoloring other tail layers', () => {
+  assert.match(html, /\(asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'\)\&\&\(explicitDecorBase\|\|explicitDecorShade\)/);
+  assert.match(html, /if\(asset\.categoryId==='TAIL'\&\&role!=='TAIL_BASE'\)continue/);
+  assert.match(html, /asset\.categoryId==='TAIL'\&\&role==='TAIL_BASE'\?explicitDecorBase/);
+  assert.match(html, /const explicitDecor=\(a\.categoryId==='EAR'\|\|a\.categoryId==='TAIL'\)/);
+  assert.match(html, /a\.type==='TAIL'/);
+});
+
 test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
   assert.match(html, /function assetLayerVisible\(asset,layer,path\)/);
   assert.match(html, /data-avpath=/);
@@ -128,7 +136,7 @@ test('ear assets keep original colors until an explicit form color anchors the e
   assert.match(html, /耳朵底色（空=原色）/);
   assert.match(html, /function fillDecorFallbackBindings\(asset\)/);
   assert.match(html, /asset\.bindings\[base\.n\.path\]='DECOR_BASE'/);
-  assert.match(html, /asset\.categoryId==='EAR'&&\(explicitDecorBase\|\|explicitDecorShade\)/);
+  assert.match(html, /asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'/);
   assert.match(html, /function syncEarColorAnchorUi\(slot,order=getActiveOrder\(\)\)/);
   assert.match(html, /hatAnchor=order\[slot\]\?\.hat==='__DECOR_ANCHOR__'/);
 });
@@ -198,7 +206,7 @@ test('dedicated hair uploads stay reusable and isolated even when two orders use
 test('asset selection yields before rendering and avoids full library and disabled-asset recomposition', () => {
   assert.match(html, /function syncAssetLibrarySelectionUi\(order=getActiveOrder\(\)\)/);
   assert.match(html, /await new Promise\(resolve=>setTimeout\(resolve,0\)\)/);
-  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
+  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='TAIL'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
   assert.match(html, /requestIdleCallback\(save,\{timeout:1800\}\)/);
   assert.match(html, /已切换素材 · \$\{Math\.max\(1,Math\.round\(performance\.now\(\)-started\)\)\} ms/);
 });
