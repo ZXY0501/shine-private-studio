@@ -225,6 +225,10 @@ test('single-layer adjustment only lists enabled A or B asset instances', () => 
   assert.match(html, /const prefix=`\[\$\{a\.slot\} \$\{categoryLabel\(a\.type\)\}\] `/);
 });
 
+test('selecting a tail or other asset refreshes single-layer adjustment immediately', () => {
+  assert.match(html, /S\.selectedTransformStackId=assetStackId\(record\);renderHairInsertionControls\(\);reconstruct\(\);renderAssetRuntimeStatus\(\);renderEditableLayerSelectors\(\)/);
+});
+
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);

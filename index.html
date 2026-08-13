@@ -3016,7 +3016,7 @@ async function setAssetFamilySelection(familyKey,slot,on){
   stat($('#assetRuntimeStatus'),on?`正在切换到 ${record.variant||record.name||categoryLabel(categoryId)}…`:`已从当前订单取消 ${record.variant||record.name||categoryLabel(categoryId)}。`,on?'':'good');
   await new Promise(resolve=>setTimeout(resolve,0));
   if(on)S.assets.filter(a=>a.enabled&&assetFamilyKey(a)===familyKey).forEach(a=>prepareAssetCompositeForOrder(a,order));
-  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRuntimeStatus();
+  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRuntimeStatus();renderEditableLayerSelectors();
   if(on)stat($('#assetRuntimeStatus'),`已切换素材 · ${Math.max(1,Math.round(performance.now()-started))} ms`,'good');
 }
 function paintAssetThumbnail(canvas,source){
