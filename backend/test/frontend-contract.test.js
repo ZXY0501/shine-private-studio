@@ -115,8 +115,12 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
 
 test('ear base color anchors the paired tail base without recoloring other tail layers', () => {
   assert.match(html, /\(asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'\)\&\&\(explicitDecorBase\|\|explicitDecorShade\)/);
-  assert.match(html, /if\(asset\.categoryId==='TAIL'\&\&role!=='TAIL_BASE'\)continue/);
-  assert.match(html, /asset\.categoryId==='TAIL'\&\&role==='TAIL_BASE'\?explicitDecorBase/);
+  assert.match(html, /function sharedDecorRoleColor\(role,slot,order\)/);
+  assert.match(html, /role==='DECOR_BASE'\|\|role==='TAIL_BASE'\)return base/);
+  assert.match(html, /role==='DECOR_SHADOW'\|\|role==='TAIL_SHADE'\)return shade/);
+  assert.match(html, /role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)/);
+  assert.match(html, /asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)/);
+  assert.match(html, /TAIL_SHADE/);
   assert.match(html, /const explicitDecor=\(a\.categoryId==='EAR'\|\|a\.categoryId==='TAIL'\)/);
   assert.match(html, /a\.type==='TAIL'/);
 });

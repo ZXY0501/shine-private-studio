@@ -1680,7 +1680,7 @@ const ROLE_OPTIONS=[
   'DECOR_CONTAINER','DECOR_BASE','DECOR_OUTLINE','DECOR_INNER','DECOR_FUR','DECOR_SHADOW','DECOR_ACCENT',
   'BODY_TRAIT_BASE','BODY_TRAIT_OUTLINE','BODY_TRAIT_INNER','BODY_TRAIT_ACCENT',
   'WATERMARK_PREVIEW','RENDER_SLOT_HAIR','RENDER_SLOT_HAT_DECOR','RENDER_SLOT_TAIL','RENDER_SLOT_PROP_FRONT','RENDER_SLOT_PROP_BACK',
-  'TAIL_BASE','TAIL_OUTLINE','TAIL_TIP',
+  'TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE','TAIL_TIP',
   'FACE_FIXED','GROUP','OTHER'
 ];
 const SOURCE_OPTIONS=['AUTO','NONE','FIXED','PRESET','MANUAL_ANCHOR','DERIVED','OVERRIDE'];
@@ -1793,6 +1793,7 @@ function guessSemantic(node){
   }else if(/尾巴|尾尖/.test(t)){
     part='TAIL';
     if(/尾尖/.test(t))role='TAIL_TIP';
+    else if(/重色|阴影|暗部|shade|shadow/.test(t))role='TAIL_SHADE';
     else if(/轮廓|线稿|描边/.test(t))role='TAIL_OUTLINE';
     else role='TAIL_BASE';
   }else if(/嘴|腮红|脸/.test(t)){
@@ -2757,7 +2758,7 @@ function renderLogicEditor(){
 const ASSET_ROLE_OPTIONS={
   HAT_DECOR:['NONE','DECOR_BASE','DECOR_SHADOW','DECOR_INNER','DECOR_OUTLINE','DECOR_ACCENT','DECOR_FUR'],
   HAIR:['NONE','HAIR_BASE','HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','HAIR_HIGHLIGHT_FIXED','HAIR_SKIN_AIR_FIXED'],
-  TAIL:['NONE','TAIL_BASE','TAIL_TIP','TAIL_OUTLINE'],
+  TAIL:['NONE','TAIL_BASE','TAIL_SHADE','TAIL_TIP','TAIL_OUTLINE'],
   FRAME:['NONE','FRAME_FLOWER_BASE','FRAME_FLOWER_SHADE','FRAME_RIBBON_A','FRAME_RIBBON_B'],
   PROP:['NONE'],STICKER:['NONE'],MOUTH:['NONE'],ACCESSORY:['NONE']
 };
@@ -2800,6 +2801,7 @@ function inferAssetLayerRole(path,type){
   }
   if(type==='TAIL'){
     if(/尾尖|tip/.test(leaf))return 'TAIL_TIP';
+    if(/重色|阴影|暗部|shadow|shade/.test(leaf))return 'TAIL_SHADE';
     if(/轮廓|线稿|描边|outline|line/.test(leaf))return 'TAIL_OUTLINE';
     if(/底色|主体|base/.test(leaf))return 'TAIL_BASE';
   }
@@ -2844,6 +2846,21 @@ function initAssetBindings(asset,force=false){
   fillDecorFallbackBindings(asset);
   fillTailFallbackBindings(asset);
 }
+function sharedDecorRoleColor(role,slot,order){
+  // 只有表单明确填了耳朵底色，才把底色/线稿锚点传播到耳朵和尾巴；留空继续保留各自 PSD 原色。
+  const base=normalizeHex(order?.[slot]?.decorBase||'');
+  const shade=normalizeHex(order?.[slot]?.decorShade||'');
+  if(role==='DECOR_BASE'||role==='TAIL_BASE')return base||null;
+  if(role==='DECOR_SHADOW'||role==='TAIL_SHADE')return shade||null;
+  if(role==='DECOR_OUTLINE'||role==='TAIL_OUTLINE'){
+    if(!base)return null;
+    const g=S.logic||DEFAULT_LOGIC;
+    if(isNearWhite(base))return shiftColor(base,-0.18,0.28);
+    if(isNearGray(base))return shiftColor(base,-0.25,0.48);
+    return shiftColor(base,g.decorOutlineL,g.decorOutlineC);
+  }
+  return null;
+}
 function assetOverrideMap(asset,order){
   initAssetBindings(asset,false);const map={};
   const assetIndex=(S.assets||[]).indexOf(asset);
@@ -2862,8 +2879,8 @@ function assetOverrideMap(asset,order){
   if((asset.categoryId==='EAR'||asset.categoryId==='TAIL')&&(explicitDecorBase||explicitDecorShade)){
     for(const [path,role] of Object.entries(asset.bindings||{})){
       if(!role||role==='NONE'||role==='DECOR_FUR')continue;
-      if(asset.categoryId==='TAIL'&&role!=='TAIL_BASE')continue;
-      const c=asset.categoryId==='TAIL'&&role==='TAIL_BASE'?explicitDecorBase:deriveRoleColor(role,asset.slot,order);if(c)map[path]=c;
+      if(asset.categoryId==='TAIL'&&!['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'].includes(role))continue;
+      const c=sharedDecorRoleColor(role,asset.slot,order)||deriveRoleColor(role,asset.slot,order);if(c)map[path]=c;
     }
   }
   // 边框的四个颜色只来自当前订单中这一个边框实例；没取色的字段继续保留 PSD 原色。
@@ -2960,7 +2977,7 @@ function prepareAssetCompositeForOrder(a,order=getActiveOrder()||newOrderData())
 function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
   S.assets.forEach(a=>{if(a.enabled&&(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='TAIL'||a.type==='FRAME'))prepareAssetCompositeForOrder(a,order)});
 }
-function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',TAIL_BASE:'尾巴底色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
+function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
 function loadAssetCategories(){
   let saved=[];try{saved=JSON.parse(localStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
   const builtinIds=new Set(BUILTIN_ASSET_CATEGORIES.map(x=>x.id));
