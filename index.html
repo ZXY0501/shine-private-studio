@@ -2429,6 +2429,8 @@ function syncHatManualVisibility(slot){
 function syncAllHatManualVisibility(){syncHatManualVisibility('A');syncHatManualVisibility('B')}
 function selectOrder(id){
   const o=S.orders.find(x=>x.id===id);if(!o)return;
+  // 切单时取消上一单尚未完成的拖色预览，避免延迟回调把旧订单的 UI/颜色写回当前订单。
+  if(S.liveColorTimer){clearTimeout(S.liveColorTimer);S.liveColorTimer=0;}S.liveColorPending=null;
   S.activeOrderId=id;S.manualLayerOverrides=clone(o.layerOverrides||{});rebuildLayerOverrideMap();renderOrders();
   $('#orderForm').value=o.formText||'';
   $('#aName').value=o.A?.name||'';$('#bName').value=o.B?.name||'';
@@ -2456,7 +2458,10 @@ function selectOrder(id){
   syncAllHatManualVisibility();
   updateBackgroundRecommendationMeta(o);
   renderSessionExportHistory();
-  loadRootStackOrder();syncAssetEnabledFromOrder(o);S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);if(S.master)refreshAllAssetComposites(o);renderAssetLibrary();renderHairInsertionControls();if(S.master)reconstruct();
+  loadRootStackOrder();syncAssetEnabledFromOrder(o);S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);if(S.master)refreshAllAssetComposites(o);renderAssetLibrary();renderHairInsertionControls();
+  // 订单数据和表单控件已经恢复后，重新计算一次派生颜色/方案覆盖层。
+  // 仅 reconstruct 会沿用上一订单的 ruleColorOverrides，导致衣服、帽子、瞳色看起来跟着上一单。
+  if(S.master)applyOrderColors({live:true,persist:false});
 }
 function captureActiveOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}

@@ -244,6 +244,15 @@ test('root layer stack order is isolated per order', () => {
   assert.match(html, /loadRootStackOrder\(\);syncAssetEnabledFromOrder\(o\)/);
 });
 
+test('switching orders reapplies the selected order color scheme', () => {
+  const start = html.indexOf('function selectOrder(id)');
+  const end = html.indexOf('function captureActiveOrder()', start);
+  assert.ok(start >= 0 && end > start, 'selectOrder should exist');
+  const branch = html.slice(start, end);
+  assert.match(branch, /S\.liveColorPending=null/);
+  assert.match(branch, /if\(S\.master\)applyOrderColors\(\{live:true,persist:false\}\)/);
+});
+
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
