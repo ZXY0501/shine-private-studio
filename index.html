@@ -610,7 +610,7 @@ header .badge{display:none!important}
       <div class="orderBox">
         <div class="orderHead">
           <span>今日订单</span>
-          <button id="newOrder" class="btn primary">+ 新订单</button>
+          <div class="toolbar" style="margin:0;gap:4px"><button id="deleteOrder" class="btn">删当前单</button><button id="newOrder" class="btn primary">+ 新订单</button></div>
         </div>
         <div id="orderList" class="orderList"></div>
         <div class="sessionHistory">
@@ -2403,6 +2403,19 @@ function downloadSessionExport(id){const entry=S.exportHistory.find(x=>x.id===id
 function clearActiveOrderHistory(){
   const order=getActiveOrder();if(!order)return;const removed=sessionExportsForOrder(order.id);removed.forEach(releaseSessionExport);S.exportHistory=S.exportHistory.filter(x=>x.orderId!==order.id);renderSessionExportHistory();renderOrders();
 }
+function deleteActiveOrder(){
+  const order=getActiveOrder();if(!order)return;
+  const label=order.customerName||'未命名顾客';
+  if(!confirm(`确定删除订单“${label}”吗？\n只删除本单表单、配色、层级和临时出图，不会删除素材库素材。`))return;
+  sessionExportsForOrder(order.id).forEach(releaseSessionExport);
+  S.exportHistory=S.exportHistory.filter(x=>x.orderId!==order.id);
+  S.orders=S.orders.filter(x=>x.id!==order.id);
+  // 保持工作台始终有一个可编辑订单，避免删除最后一单后残留旧表单/旧预览状态。
+  const next=S.orders[0]||newOrderData();
+  if(!S.orders.length)S.orders.push(next);
+  persistOrders();selectOrder(next.id);
+  stat($('#apiStatus'),`已删除订单“${label}”。${S.orders.length===1&&S.orders[0]===next?'已准备新的空白订单。':''}`,'good');
+}
 function renderOrders(){
   const host=$('#orderList');host.innerHTML='';
   if(!S.orders.length){
@@ -4144,6 +4157,7 @@ $('#importTemplate').onchange=async e=>{
 $('#newOrder').onclick=()=>{
   const o=newOrderData();S.orders.unshift(o);persistOrders();selectOrder(o.id);
 };
+$('#deleteOrder').onclick=deleteActiveOrder;
 $('#clearOrderHistory').onclick=clearActiveOrderHistory;
 $('#saveOrder').onclick=()=>{captureActiveOrder();applyDecorSelection();stat($('#apiStatus'),'订单已保存到今日订单。','good')};
 $('#copyFormTemplate').onclick=async()=>{try{await navigator.clipboard.writeText(CUSTOMER_FORM_TEMPLATE);stat($('#apiStatus'),'顾客表单模板已复制。','good')}catch{$('#orderForm').value=CUSTOMER_FORM_TEMPLATE;stat($('#apiStatus'),'浏览器不允许直接复制，已把模板放进文本框。','good')}};

@@ -253,6 +253,15 @@ test('switching orders reapplies the selected order color scheme', () => {
   assert.match(branch, /if\(S\.master\)applyOrderColors\(\{live:true,persist:false\}\)/);
 });
 
+test('completed orders can be deleted without deleting library assets', () => {
+  assert.match(html, /id="deleteOrder"/);
+  assert.match(html, /function deleteActiveOrder\(\)/);
+  assert.match(html, /S\.exportHistory=S\.exportHistory\.filter\(x=>x\.orderId!==order\.id\)/);
+  assert.match(html, /S\.orders=S\.orders\.filter\(x=>x\.id!==order\.id\)/);
+  assert.match(html, /不会删除素材库素材/);
+  assert.match(html, /#deleteOrder'\)\.onclick=deleteActiveOrder/);
+});
+
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
