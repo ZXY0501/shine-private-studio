@@ -1317,10 +1317,19 @@ function normalizeRootStackOrder(order){
   return [...frameStackIds('FRONT'),...rest,...frameStackIds('BACK'),...(lace?[lace]:[]),...(base?[base]:[]),...(legacy?[legacy]:[])];
 }
 function loadRootStackOrder(){
-  let saved=null;try{saved=JSON.parse(localStorage.getItem(rootStackStorageKey())||'null')}catch{}
-  S.rootStackOrder=normalizeRootStackOrder(saved||defaultRootStackOrder());
+  const active=getActiveOrder();let saved=null;
+  // 图层大夹子顺序属于订单：同一套模板下，不同订单可以独立决定头发/尾巴/配饰的上下关系。
+  if(active&&Object.prototype.hasOwnProperty.call(active,'rootStackOrder'))saved=active.rootStackOrder;
+  else if(active){
+    let legacy=null;try{legacy=JSON.parse(localStorage.getItem(rootStackStorageKey())||'null')}catch{}
+    let migrated=false;try{migrated=localStorage.getItem(rootStackStorageKey()+':order-migrated')==='1'}catch{}
+    saved=!migrated&&Array.isArray(legacy)?legacy:[];
+    active.rootStackOrder=Array.isArray(saved)?clone(saved):[];try{localStorage.setItem(rootStackStorageKey()+':order-migrated','1')}catch{};persistOrders()
+  }
+  S.rootStackOrder=normalizeRootStackOrder(Array.isArray(saved)&&saved.length?saved:defaultRootStackOrder());
+  if(active){active.rootStackOrder=clone(S.rootStackOrder);persistOrders()}
 }
-function saveRootStackOrder(){try{localStorage.setItem(rootStackStorageKey(),JSON.stringify(S.rootStackOrder))}catch{}}
+function saveRootStackOrder(){const active=getActiveOrder();if(active){active.rootStackOrder=clone(S.rootStackOrder);persistOrders()}try{localStorage.setItem(rootStackStorageKey(),JSON.stringify(S.rootStackOrder))}catch{}}
 function resetRootStackOrder(){S.rootStackOrder=defaultRootStackOrder();saveRootStackOrder();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();}
 function loadHairInsertion(){
   // 兼容 v0.10 已保存的 anchor 数据；v0.11 日常改用“大夹子拖动层级”。
@@ -2447,7 +2456,7 @@ function selectOrder(id){
   syncAllHatManualVisibility();
   updateBackgroundRecommendationMeta(o);
   renderSessionExportHistory();
-  syncAssetEnabledFromOrder(o);S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);if(S.master)refreshAllAssetComposites(o);renderAssetLibrary();renderHairInsertionControls();if(S.master)reconstruct();
+  loadRootStackOrder();syncAssetEnabledFromOrder(o);S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);if(S.master)refreshAllAssetComposites(o);renderAssetLibrary();renderHairInsertionControls();if(S.master)reconstruct();
 }
 function captureActiveOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}

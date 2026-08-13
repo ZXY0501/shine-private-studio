@@ -229,6 +229,12 @@ test('selecting a tail or other asset refreshes single-layer adjustment immediat
   assert.match(html, /S\.selectedTransformStackId=assetStackId\(record\);renderHairInsertionControls\(\);reconstruct\(\);renderAssetRuntimeStatus\(\);renderEditableLayerSelectors\(\)/);
 });
 
+test('root layer stack order is isolated per order', () => {
+  assert.match(html, /active&&Object\.prototype\.hasOwnProperty\.call\(active,'rootStackOrder'\)/);
+  assert.match(html, /active\.rootStackOrder=clone\(S\.rootStackOrder\);persistOrders\(\)/);
+  assert.match(html, /loadRootStackOrder\(\);syncAssetEnabledFromOrder\(o\)/);
+});
+
 test('session export history stays in tab memory and records every PNG or JPEG output', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
