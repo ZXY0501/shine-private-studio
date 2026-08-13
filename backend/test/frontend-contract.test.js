@@ -125,6 +125,15 @@ test('ear base color anchors the paired tail base without recoloring other tail 
   assert.match(html, /a\.type==='TAIL'/);
 });
 
+test('ear fur line remains fixed while the main ear outline links to the hat outline', () => {
+  assert.match(html, /绒毛\.\*线稿\|线稿\.\*绒毛\|绒毛线\|fur\.\*line\|line\.\*fur/);
+  assert.match(html, /if\(asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)\)continue/);
+  assert.match(html, /if\(!role\|\|role==='NONE'\|\|role==='DECOR_FUR'\)continue/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)\{/);
+  assert.match(html, /const linked=decorOutlineColor\(slot,order\);if\(linked\)return linked/);
+  assert.match(html, /有耳朵时帽子线稿与耳朵线稿强制联动/);
+});
+
 test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
   assert.match(html, /function assetLayerVisible\(asset,layer,path\)/);
   assert.match(html, /data-avpath=/);

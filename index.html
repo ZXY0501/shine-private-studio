@@ -2777,6 +2777,8 @@ function inferAssetLayerRole(path,type){
     if(/底色|变色底色|decor[_\- ]?base|\bbase\b/.test(leaf))return 'DECOR_BASE';
     // 兼容当前狐狸 PSD：狐A耳 / 狐B耳 是主体底色层。
     if(/^(?:猫|犬|狗|狼|狐|狐狸|兔|狮子)[ab]?(?:位)?耳(?:朵)?$/i.test(leaf))return 'DECOR_BASE';
+    // 耳朵可能同时有“大轮廓线稿”和“绒毛线稿”；绒毛线稿必须保留 PSD 原色，不能冒充大轮廓参与帽子联动。
+    if(/绒毛.*线稿|线稿.*绒毛|绒毛线|fur.*line|line.*fur/.test(leaf))return 'DECOR_FUR';
     if(/线稿|轮廓|描边|outline|lineart|line/.test(leaf))return 'DECOR_OUTLINE';
     if(/重色|变色重色|decor[_\- ]?(shadow|shade)|\bshade\b|\bshadow\b/.test(leaf))return 'DECOR_SHADOW';
     if(/内耳变色|变色内耳|decor[_\- ]?inner/.test(leaf))return 'DECOR_INNER';
