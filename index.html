@@ -627,12 +627,12 @@ header .badge{display:none!important}
           <button id="localReadForm" class="btn">本地读表单</button>
           <button id="apiReadForm" class="btn primary">API 读表单</button>
         </div>
-        <div id="apiStatus" class="status">未配置 API 时会先用本地规则解析；API 接口已预留给 DeepSeek 代理。</div>
-        <details style="margin-top:7px">
+        <div id="apiStatus" class="status">日常入口使用本地规则；DeepSeek 先在隐藏云端入口灰度测试。</div>
+        <details id="deepSeekSettings" style="margin-top:7px">
           <summary style="font-size:10px;cursor:pointer;color:var(--muted)">API 接口设置</summary>
           <div class="apiBox" style="margin-top:7px">
-            <input id="apiEndpoint" type="text" placeholder="你的后端代理地址，例如 /api/deepseek/parse"/>
-            <input id="apiModel" type="text" value="deepseek-v4-flash" placeholder="模型名"/>
+            <input id="apiEndpoint" type="text" placeholder="留空则使用云端测试区的后端地址"/>
+            <input id="apiModel" type="text" value="本地 → flash0731 → pro0813" readonly aria-label="解析策略"/>
           </div>
           <div class="legendMini" style="margin-top:5px">这里故意不放 API Key。支持 GitHub 静态前端 → 你的阿里云/Serverless 后端代理；Key 只放后端。跨域部署时后端放行你的前端域名即可。</div>
         </details>
@@ -970,7 +970,7 @@ const S={
   master:null, masterFile:null, flat:[], assets:[], showHidden:true, overlayBase:'recon',
   collapsed:{}, visOverride:{}, masterOrder:null, bindings:{}, templateSignature:null, builderCollapsed:{},
   layerColorOverrides:{}, ruleColorOverrides:{}, manualLayerOverrides:{}, recolorCache:new Map(),
-  orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:'',model:'deepseek-v4-flash'}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
+  orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:''}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
   rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), selectedTransformStackId:null, transformDrag:null, transformFrame:0, transformPreview:null,
   liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null, exportHistory:[],
@@ -2388,7 +2388,7 @@ function loadProductionState(){
   try{S.eyeSchemes=JSON.parse(localStorage.getItem(EYE_SCHEME_KEY)||'[]')}catch{S.eyeSchemes=[]}
   migrateEyeSchemesV2();
   $('#apiEndpoint').value=S.apiConfig.endpoint||'';
-  $('#apiModel').value=S.apiConfig.model||'deepseek-v4-flash';
+  $('#apiModel').value='本地 → flash0731 → pro0813';
   renderPresetOptions();renderPresetEditor();renderLogicEditor();renderOrders();renderAssetLibrary();renderEyeSchemeOptions();renderEyeSchemeList();
   if(S.orders[0])selectOrder(S.orders[0].id);
 }
@@ -2400,8 +2400,25 @@ function persistEyeSchemes(){try{localStorage.setItem(EYE_SCHEME_KEY,JSON.string
 
 function persistApi(){
   S.apiConfig.endpoint=$('#apiEndpoint').value.trim();
-  S.apiConfig.model=$('#apiModel').value.trim()||'deepseek-v4-flash';
+  delete S.apiConfig.model;
   try{localStorage.setItem(API_KEY,JSON.stringify(S.apiConfig))}catch{}
+}
+
+function deepSeekProxyConfig(){
+  const manual=String(S.apiConfig.endpoint||'').trim().replace(/\/+$/,''),cloud=CLOUD_PROFILE_ENABLED?cloudProfileConfig():{endpoint:'',token:''},automatic=cloud.endpoint?cloud.endpoint+'/api/deepseek/parse':'';
+  const endpoint=manual||automatic,usesCloud=!!automatic&&endpoint===automatic;
+  return {endpoint,token:usesCloud?cloud.token:'',usesCloud};
+}
+
+function deepSeekErrorMessage(code,status){
+  const messages={
+    UNAUTHORIZED:'云端测试口令不正确。',PROFILE_AUTH_NOT_CONFIGURED:'后端还没有配置云端测试口令。',
+    DEEPSEEK_NOT_CONFIGURED:'后端还没有配置 DeepSeek API Key。',DEEPSEEK_AUTH_FAILED:'DeepSeek API Key 无效或无权限。',
+    DEEPSEEK_TIMEOUT:'DeepSeek 响应超时。',DEEPSEEK_RATE_LIMITED:'DeepSeek 当前请求过多，请稍后再试。',
+    DEEPSEEK_OUTPUT_INVALID:'DeepSeek 返回的数据未通过安全校验。',DEEPSEEK_OUTPUT_INCOMPLETE:'Flash 和 Pro 都没能补齐本地未解析字段。',DEEPSEEK_UPSTREAM_INVALID:'DeepSeek 返回了无效响应。',
+    DEEPSEEK_UNAVAILABLE:'DeepSeek 暂时不可用。',DEEPSEEK_REQUEST_TOO_LARGE:'顾客表单或色板数据过大。'
+  };
+  return messages[code]||`API 请求失败（${status||'网络错误'}${code?' / '+code:''}）。`;
 }
 
 function newOrderData(){
@@ -2596,31 +2613,46 @@ function matchDecor(text){
   const dict=['猫耳','犬耳','狗耳','狼耳','狐狸耳','狐耳','垂耳兔','兔耳','狮子耳','鹿角','龙角','恶魔角'];
   return dict.find(k=>text.includes(k))||(/无/.test(text)?'NONE':null);
 }
-function localParseForm(){
+function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
+function localParseForm({announce=true}={}){
   const text=$('#orderForm').value;
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
+  const unresolved=[];
   const a=section(text,'A宝宝','B宝宝'), b=section(text,'B宝宝','背景');
   const cn=parseCustomerName(text);if(cn)o.customerName=cn;
   const an=field(a,['宝宝名字','名字']);if(an)o.A.name=an;
   const bn=field(b,['宝宝名字','名字']);if(bn)o.B.name=bn;
   const ao=field(a,['衣服颜色']);const ah=field(a,['代表色']);const ad=field(a,['帽饰']);
   const bo=field(b,['衣服颜色']);const bh=field(b,['代表色']);const bd=field(b,['帽饰']);
-  o.A.outfit=matchPreset(ao,'outfit')||o.A.outfit;o.A.hat=matchPreset(ah,'hat')||o.A.hat;o.A.decor=matchDecor(ad)||o.A.decor;
-  o.B.outfit=matchPreset(bo,'outfit')||o.B.outfit;o.B.hat=matchPreset(bh,'hat')||o.B.hat;o.B.decor=matchDecor(bd)||o.B.decor;
+  const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
+  const localDecor=(raw,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchDecor(raw);if(hit)return hit;unresolved.push(path);return current};
+  o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
+  o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
+  const ae=explicitFormHex(field(a,['瞳色'])),af=explicitFormHex(field(a,['发色'])),be=explicitFormHex(field(b,['瞳色'])),bf=explicitFormHex(field(b,['发色']));
+  if(ae)o.A.eye=ae;if(af)o.A.hair=af;if(be)o.B.eye=be;if(bf)o.B.hair=bf;
   const bg=field(text,['背景倾向']);if(/冷/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^冷/.test(k))||o.background;o.backgroundSource='local';}
   if(/暖/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^暖/.test(k))||o.background;o.backgroundSource='local';}
+  if((bg&&!/[冷暖]/.test(bg))||(!bg&&(ah||bh)))unresolved.push('backgroundPreset');
   o.formText=text;persistOrders();selectOrder(o.id);
-  stat($('#apiStatus'),'本地规则已读取姓名、帽子/衣服预设、帽饰和背景倾向。瞳色/发色仍保留手动 Anchor，等 API 接口接上后可辅助建议。','good');
+  if(announce)stat($('#apiStatus'),unresolved.length?'本地规则已先读取；仍有少数字段需人工处理。':'本地规则已完整读取，不需要调用 AI。','good');
+  return [...new Set(unresolved)];
 }
 async function apiParseForm(){
   persistApi();
-  if(!S.apiConfig.endpoint){localParseForm();stat($('#apiStatus'),'还没填 API 代理地址，所以先用本地规则完成了能确定的字段。','good');return}
+  const text=$('#orderForm').value;
+  if(!text.trim()){stat($('#apiStatus'),'请先粘贴顾客表单。','bad');return}
+  const unresolvedFields=localParseForm({announce:false});
+  if(!unresolvedFields.length){stat($('#apiStatus'),'本地规则已完整读取，没有调用 DeepSeek。','good');return}
+  const proxy=deepSeekProxyConfig();
+  if(!proxy.endpoint){stat($('#apiStatus'),'本地规则已先读取；还没配置后端地址，未解析字段保留人工处理。','good');return}
+  if(proxy.usesCloud&&!proxy.token){stat($('#apiStatus'),'本地规则已先读取；还没填写云端测试口令，未解析字段保留人工处理。','good');return}
   const payload={
     schemaVersion:'shine-order-0.6',
-    model:S.apiConfig.model,
+    strategy:'local-first-flash0731-pro0813',
+    unresolvedFields,
     task:'parse_commission_form',
     fixedSlots:{A:'left',B:'right'},
-    formText:$('#orderForm').value,
+    formText:text,
     presetCatalog:styleSchemeCatalog(),
     hatPresetPalette:styleSchemePalette('hat'),
     outfitPresetPalette:styleSchemePalette('outfit'),
@@ -2642,14 +2674,18 @@ async function apiParseForm(){
       '瞳色/发色若无法可靠得到十六进制颜色，返回原始文字建议，不要编造'
     ]
   };
-  stat($('#apiStatus'),'正在请求 API 代理…');
+  stat($('#apiStatus'),'本地规则已先读取；正在用 flash0731 补充未解析字段…');
+  const button=$('#apiReadForm'),controller=new AbortController(),timer=setTimeout(()=>controller.abort(),50000);if(button)button.disabled=true;
   try{
-    const r=await fetch(S.apiConfig.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-    if(!r.ok)throw new Error('HTTP '+r.status);
-    const data=await r.json();
+    const headers={'Content-Type':'application/json'};if(proxy.token)headers.Authorization=`Bearer ${proxy.token}`;
+    const r=await fetch(proxy.endpoint,{method:'POST',headers,body:JSON.stringify(payload),cache:'no-store',signal:controller.signal});
+    let data={};try{data=await r.json()}catch{}
+    if(!r.ok)throw new Error(deepSeekErrorMessage(data.error,r.status));
     applyApiOrder(data);
-    stat($('#apiStatus'),'API 已读取表单并回填。请你最后审稿。','good');
-  }catch(e){stat($('#apiStatus'),'API 请求失败：'+(e.message||e)+'；已保留本地流程。','bad')}
+    const tier=data.parseMeta?.tier==='pro0813'?'flash0731 仍有问题，已由 pro0813 补齐':'flash0731 已补齐';
+    stat($('#apiStatus'),`本地规则优先完成；${tier}。请你最后审稿。`,'good');
+  }catch(e){const message=e?.name==='AbortError'?'API 请求超时。':(e.message||e);stat($('#apiStatus'),message+' 已保留先前完成的本地解析结果。','bad')}
+  finally{clearTimeout(timer);if(button)button.disabled=false}
 }
 function applyApiOrder(data){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
@@ -4019,6 +4055,7 @@ function buildWorkspaceUI(){
   const prod=document.querySelector('section.card.prod'); if(!prod)return;
   const preview=$('#productionCanvas')?.closest('.prodPreview'); if(preview)$('#previewBody').appendChild(preview); setPreviewInspect(false);wirePreviewFreeTransform();
   const tabs={upload:$('#tab-upload'),assets:$('#tab-assets'),form:$('#tab-form'),background:$('#tab-background'),quick:$('#tab-quick'),logic:$('#tab-logic')};
+  const apiButton=$('#apiReadForm'),apiSettings=$('#deepSeekSettings');if(apiButton)apiButton.hidden=!CLOUD_PROFILE_ENABLED;if(apiSettings)apiSettings.hidden=!CLOUD_PROFILE_ENABLED;
 
   // 模板上传页是静态 HTML：即使后续某个可选功能报错，主模板入口也永远看得见。
   const hairInsertPanel=makeHairInsertionPanel();

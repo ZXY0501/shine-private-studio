@@ -24,6 +24,7 @@ GET /health
 GET /api/ping
 GET /api/template-profiles/:templateSignature
 PUT /api/template-profiles/:templateSignature
+POST /api/deepseek/parse
 ```
 
 Template Profile 使用 Bearer 测试口令和 ETag/If-Match 防止误覆盖。现有 OSS 前缀默认为 `template-profiles/v1`。
@@ -108,7 +109,16 @@ SHINE_ASSET_METADATA_PREFIX=asset-metadata/v2
 SHINE_STUDIO_SETTINGS_PREFIX=studio-settings/v2
 ASSET_MAX_BYTES
 UPLOAD_TTL_SECONDS
+
+DEEPSEEK_API_KEY=<仅在 FC 控制台填写>
+DEEPSEEK_API_BASE=https://api.deepseek.com
+DEEPSEEK_FLASH_MODEL=deepseek-v4-flash
+DEEPSEEK_PRO_MODEL=deepseek-v4-pro
+DEEPSEEK_TIMEOUT_MS=20000
+DEEPSEEK_MAX_BODY_BYTES=65536
 ```
+
+`DEEPSEEK_API_KEY` 不得写入部署包、GitHub Secrets 以外的源码文件、前端或项目文档。Phase 3 首轮只通过 `?cloudProfiles=1` 隐藏入口测试，复用 `SHINE_PROFILE_TOKEN` 做代理接口鉴权；真实客单回归通过前不开放普通入口。解析固定本地优先，随后按需使用 `flash0731`（默认 `deepseek-v4-flash`），只有 Flash 仍有解析问题时才使用 `pro0813`（默认 `deepseek-v4-pro`）。
 
 ## 7. 发布顺序
 
@@ -116,8 +126,9 @@ UPLOAD_TTL_SECONDS
 2. 部署到独立 Phase 2 后端函数或独立版本/别名。
 3. 发布独立 Phase 2 Preview。
 4. 使用真实纯净模板、复杂挑染头发、A/B 耳朵、嘴巴和配饰完成至少一单回归。
-5. 用户明确确认“可以合并生产版”。
-6. 才允许合并 `main` 并切换生产入口。
+5. 使用脱敏真实客单验证 DeepSeek 结构化输出、非法输出拦截、超时与本地规则回退。
+6. 用户明确确认“可以合并生产版”。
+7. 才允许合并 `main` 并切换生产入口。
 
 ## 8. 回滚
 

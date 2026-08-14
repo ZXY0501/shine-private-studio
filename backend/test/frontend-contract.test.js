@@ -18,6 +18,19 @@ test('cloud profiles are opt-in and do not replace local save', () => {
   assert.match(html, /读取到云端版本后仍需人工确认才会应用/);
 });
 
+test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', () => {
+  assert.match(html, /id="deepSeekSettings"/);
+  assert.match(html, /apiButton\.hidden=!CLOUD_PROFILE_ENABLED/);
+  assert.match(html, /automatic=cloud\.endpoint\?cloud\.endpoint\+'\/api\/deepseek\/parse':''/);
+  assert.match(html, /headers\.Authorization=`Bearer \$\{proxy\.token\}`/);
+  assert.match(html, /DEEPSEEK_NOT_CONFIGURED:'后端还没有配置 DeepSeek API Key。'/);
+  assert.match(html, /const unresolvedFields=localParseForm\(\{announce:false\}\)/);
+  assert.match(html, /strategy:'local-first-flash0731-pro0813'/);
+  assert.match(html, /if\(!unresolvedFields\.length\).*没有调用 DeepSeek/);
+  assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
+  assert.doesNotMatch(html, /DEEPSEEK_API_KEY\s*[:=]/);
+});
+
 test('cloud assets use authenticated short-lived upload tickets and lazy source downloads', () => {
   assert.match(html, /cloudAssetRequest\('\/api\/assets\/upload-ticket',\{method:'POST'/);
   assert.match(html, /fetch\(ticket\.uploadUrl,\{method:'PUT'/);

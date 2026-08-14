@@ -52,6 +52,18 @@ Web 函数配置：
   - 单个素材 PSD 上限，默认 200 MiB。
 - `ASSET_TICKET_SECONDS`
   - 上传/下载签名有效期，默认 900 秒，最大 3600 秒。
+- `DEEPSEEK_API_KEY`
+  - 必需；只保存在 FC 环境变量中。缺失时解析接口以 `503 DEEPSEEK_NOT_CONFIGURED` 关闭。
+- `DEEPSEEK_API_BASE`
+  - 可选；默认 `https://api.deepseek.com`。
+- `DEEPSEEK_FLASH_MODEL`
+  - 可选；`flash0731` 逻辑层实际调用的模型 ID，默认 `deepseek-v4-flash`。
+- `DEEPSEEK_PRO_MODEL`
+  - 可选；`pro0813` 逻辑层实际调用的模型 ID，默认 `deepseek-v4-pro`。若账户提供日期版 ID，可只在 FC 环境变量中替换。
+- `DEEPSEEK_TIMEOUT_MS`
+  - 可选；默认 20000 ms，服务端限制在 3000～60000 ms。
+- `DEEPSEEK_MAX_BODY_BYTES`
+  - 可选；客单解析请求体上限，默认 65536 bytes，且不会超过 Profile 请求体上限。
 
 OSS 凭证不写入配置文件。代码优先读取 FC 角色注入的 `ALIBABA_CLOUD_ACCESS_KEY_ID`、`ALIBABA_CLOUD_ACCESS_KEY_SECRET`、`ALIBABA_CLOUD_SECURITY_TOKEN`，并兼容自定义运行时请求头中的临时凭证。
 
@@ -97,9 +109,25 @@ DELETE /api/assets/:assetId
 - `DELETE` 同时移除源 PSD 和 metadata，前端必须先做人类确认。
 - Bucket 需要只为测试/正式 GitHub Pages Origin 放行 `PUT`、`GET`、`HEAD` 所需的 CORS；不要设为公共读写。
 
+## DeepSeek 客单解析 API（Phase 3 灰度）
+
+```text
+POST /api/deepseek/parse
+```
+
+- 与 Profile API 共用 `Authorization: Bearer <SHINE_PROFILE_TOKEN>`；普通生产入口暂不显示 AI 按钮。
+- 前端只在 `?cloudProfiles=1` 隐藏入口复用当前标签页的测试口令，DeepSeek API Key 永不进入浏览器。
+- 解析顺序固定为“浏览器本地规则 → flash0731 → pro0813”：本地无未决字段时不调用 API；Flash 输出合法且补齐未决字段时不调用 Pro。
+- `flash0731` 默认映射 `deepseek-v4-flash`，只有 Flash JSON/结构无效或仍缺少本地未决字段时才调用 `pro0813`（默认 `deepseek-v4-pro`）。
+- 后端使用 DeepSeek Chat Completions JSON 模式，关闭思考模式，每次模型调用默认 20 秒超时。
+- 客单正文最多 20000 字；后端忽略前端传来的自定义 instructions，只使用固定服务端提示词。
+- 返回值只允许顾客名、A/B 名字、明确提供的瞳色/发色十六进制值、现有帽子/衣服/帽饰/背景选项和简短背景理由。
+- Pro 仍未补齐、模型编造不存在的预设、返回非法 JSON、超时或上游失败时，接口返回受控错误；前端保留已经完成的本地解析结果。
+- 日志不记录顾客表单、模型响应、测试口令或 API Key。
+
 注意：
 
-- 本基线不包含任何 DeepSeek API Key。
+- 本基线不包含任何 DeepSeek API Key；Key 必须仅由 FC 环境变量注入。
 - v0.2 基线只保存 Template Profile JSON；Phase 2 分支新增素材 PSD 与 metadata 接口，仍不保存订单。
 - 不要把 `SHINE_PROFILE_TOKEN`、AccessKey 或临时 STS 凭证提交进 Git。
 - 本地测试不会访问真实 OSS；只有实际启动并调用 Profile API 时才会创建 OSS client。

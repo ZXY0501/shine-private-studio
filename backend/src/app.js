@@ -1,9 +1,12 @@
 const crypto = require('crypto');
+const { createDeepSeekOrderParser, validateDeepSeekRequest } = require('./deepseek-order-parser');
 
 const PROFILE_PATH_PREFIX = '/api/template-profiles/';
 const ASSET_PATH_PREFIX = '/api/assets';
+const DEEPSEEK_PATH = '/api/deepseek/parse';
 const PROFILE_SCHEMA_VERSION = 'shine-template-0.28-alpha';
 const DEFAULT_MAX_BODY_BYTES = 512 * 1024;
+const DEFAULT_MAX_DEEPSEEK_BODY_BYTES = 64 * 1024;
 const DEFAULT_MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const DEFAULT_ASSET_TICKET_SECONDS = 15 * 60;
 const ASSET_CATEGORIES = new Set(['CLEAN_TEMPLATE', 'HAIR', 'EAR', 'MOUTH', 'TAIL', 'FRAME', 'ACCESSORY', 'PROP']);
@@ -275,6 +278,18 @@ function createApp(options = {}) {
     : DEFAULT_ASSET_TICKET_SECONDS;
   const now = options.now || (() => new Date());
   const logger = options.logger || console;
+  const configuredDeepSeekBodyBytes = Number(options.maxDeepSeekBodyBytes ?? process.env.DEEPSEEK_MAX_BODY_BYTES ?? DEFAULT_MAX_DEEPSEEK_BODY_BYTES);
+  const maxDeepSeekBodyBytes = Number.isFinite(configuredDeepSeekBodyBytes) && configuredDeepSeekBodyBytes > 0
+    ? Math.min(configuredDeepSeekBodyBytes, DEFAULT_MAX_BODY_BYTES)
+    : DEFAULT_MAX_DEEPSEEK_BODY_BYTES;
+  const deepSeekParser = options.deepSeekParser || createDeepSeekOrderParser({
+    apiKey: options.deepSeekApiKey,
+    baseUrl: options.deepSeekApiBase,
+    flashModel: options.deepSeekFlashModel,
+    proModel: options.deepSeekProModel,
+    timeoutMs: options.deepSeekTimeoutMs,
+    fetchImpl: options.fetchImpl
+  });
 
   return async function app(req, res) {
     try {
@@ -300,6 +315,17 @@ function createApp(options = {}) {
           message: 'Shine backend is connected.',
           time: now().toISOString()
         }, allowedOrigin);
+      }
+
+      if (url.pathname === DEEPSEEK_PATH) {
+        if (req.method !== 'POST') {
+          return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
+        }
+        authorizeProfileRequest(req, profileToken);
+        const body = await readJsonBody(req, maxDeepSeekBodyBytes, 'DEEPSEEK_REQUEST_TOO_LARGE');
+        const input = validateDeepSeekRequest(body);
+        const parsed = await deepSeekParser(input);
+        return sendJson(req, res, 200, parsed, allowedOrigin, { 'Cache-Control': 'no-store' });
       }
 
       const assetRoute = parseAssetRoute(url.pathname);
