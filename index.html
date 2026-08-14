@@ -2312,32 +2312,35 @@ function captureStyleSchemeFromTemplate(kind,slot){
 }
 function decorOutlineColor(slot,order){const base=normalizeHex(order?.[slot]?.decorBase||'');if(!base)return null;const g=S.logic||DEFAULT_LOGIC;if(isNearWhite(base))return shiftColor(base,-0.18,0.28);if(isNearGray(base))return shiftColor(base,-0.25,0.48);return shiftColor(base,g.decorOutlineL,g.decorOutlineC)}
 
-const CUSTOMER_FORM_TEMPLATE=`【双人模板委托表单】
-顾客名字 / 称呼：
-
-A宝宝（固定左位）
-宝宝名字：
+const CUSTOMER_FORM_TEMPLATE=`约稿人微信id：
+A：
 瞳色：
-发色：
+（如果是国乙男主直接报名字）
 衣服颜色：
-代表色（用于帽子颜色）：
-帽饰：猫耳（免费）/ 犬耳（加价）/ 狼耳（加价）/ 狐狸耳（加价）/ 垂耳兔（加价）/ 狮子耳（加价）/ 鹿角（加价）/ 龙角（加价）/ 恶魔角（加价）/ 无
-是否需要尾巴：
-其他设定：
+帽子颜色：
+耳朵类型：
+（换耳朵➕1r/角色，需填写具体类型）
+耳朵颜色：
+（与帽子颜色不一致➕1r/角色）
+发色：
+（发色单一颜色（免费），有锚点渐变色挑染/两三种颜色混合的发色➕2r）
+发型：请发例图给我
+表情：保持/更换已有表情/开发新表情
 
-B宝宝（固定右位）
-宝宝名字：
+B：
 瞳色：
-发色：
+（如果是国乙男主直接报名字）
 衣服颜色：
-代表色（用于帽子颜色）：
-帽饰：猫耳（免费）/ 犬耳（加价）/ 狼耳（加价）/ 狐狸耳（加价）/ 垂耳兔（加价）/ 狮子耳（加价）/ 鹿角（加价）/ 龙角（加价）/ 恶魔角（加价）/ 无
-是否需要尾巴：
-其他设定：
-
-背景倾向：暖色 / 冷色 / 都可以
-不能接受的颜色：
-其他备注：`;
+帽子颜色：
+耳朵类型：
+（换耳朵➕1r/角色，需填写具体类型）
+耳朵颜色：
+（与帽子颜色不一致➕1r/角色）
+发色：
+（发色单一颜色（免费），有锚点渐变色挑染/两三种颜色混合的发色➕2r）
+发型：请发例图给我
+表情：
+保持/更换已有表情/开发新表情`;
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
 function migrateDefaultOutfitSchemesV18(){
@@ -2585,17 +2588,31 @@ function captureActiveOrder(){
   persistOrders();renderOrders();return o;
 }
 function parseCustomerName(text){
-  return (text.match(/(?:顾客名字|你的名字|名字\s*\/\s*称呼|称呼)[：:]\s*([^\n]+)/)?.[1]||'').trim();
+  const value=(text.match(/(?:约稿人微信\s*id|顾客名字|你的名字|名字\s*\/\s*称呼|称呼)[ \t]*[：:][ \t]*([^\r\n]*)/i)?.[1]||'').trim();
+  return isUnfilledTemplateValue('约稿人微信id',value)?'':value;
 }
-function section(text,label,nextLabel){
-  const i=text.indexOf(label);if(i<0)return '';
-  const j=nextLabel?text.indexOf(nextLabel,i+label.length):-1;
-  return text.slice(i,j>i?j:text.length);
+function characterSection(text,slot){
+  const marker=new RegExp('^[ \\t]*'+slot+'(?:宝宝)?(?:[（(][^\\r\\n]*[）)])?[ \\t]*[：:]?[ \\t]*$','mi');
+  const match=marker.exec(text);if(!match)return '';
+  const rest=text.slice(match.index+match[0].length);
+  const endMarker=slot==='A'
+    ?/^[ \t]*B(?:宝宝)?(?:[（(][^\r\n]*[）)])?[ \t]*[：:]?[ \t]*$/mi
+    :/^[ \t]*(?:背景|背景倾向)[ \t]*[：:]?/mi;
+  const end=endMarker.exec(rest);return rest.slice(0,end?end.index:rest.length);
+}
+function isUnfilledTemplateValue(name,value){
+  const text=String(value||'').trim();if(!text)return true;
+  if(/^[（(][\s\S]*[）)]$/.test(text)&&/(如果|免费|加价|➕|需填写|请|颜色不一致|角色)/.test(text))return true;
+  if(name==='发型'&&/^请发例图给我[。！!]?$/.test(text))return true;
+  if(name==='表情'&&/保持\s*[\/／]\s*更换已有表情\s*[\/／]\s*开发新表情/.test(text))return true;
+  if(name==='帽饰'&&/猫耳[\s\S]*犬耳[\s\S]*狼耳[\s\S]*(?:狐狸耳|狐耳)/.test(text))return true;
+  return false;
 }
 function field(sec,names){
   for(const n of names){
-    const m=sec.match(new RegExp(n+'[：:]\\\\s*([^\\\\n]+)'));
-    if(m)return m[1].trim();
+    const m=sec.match(new RegExp(n+'[ \\t]*[：:][ \\t]*([^\\r\\n]*)'));
+    const value=(m?.[1]||'').trim();
+    if(m&&!isUnfilledTemplateValue(n,value))return value;
   }
   return '';
 }
@@ -2618,12 +2635,12 @@ function localParseForm({announce=true}={}){
   const text=$('#orderForm').value;
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
   const unresolved=[];
-  const a=section(text,'A宝宝','B宝宝'), b=section(text,'B宝宝','背景');
+  const a=characterSection(text,'A'), b=characterSection(text,'B');
   const cn=parseCustomerName(text);if(cn)o.customerName=cn;
   const an=field(a,['宝宝名字','名字']);if(an)o.A.name=an;
   const bn=field(b,['宝宝名字','名字']);if(bn)o.B.name=bn;
-  const ao=field(a,['衣服颜色']);const ah=field(a,['代表色']);const ad=field(a,['帽饰']);
-  const bo=field(b,['衣服颜色']);const bh=field(b,['代表色']);const bd=field(b,['帽饰']);
+  const ao=field(a,['衣服颜色']);const ah=field(a,['帽子颜色','代表色']);const ad=field(a,['耳朵类型','帽饰']);
+  const bo=field(b,['衣服颜色']);const bh=field(b,['帽子颜色','代表色']);const bd=field(b,['耳朵类型','帽饰']);
   const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
   const localDecor=(raw,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchDecor(raw);if(hit)return hit;unresolved.push(path);return current};
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);

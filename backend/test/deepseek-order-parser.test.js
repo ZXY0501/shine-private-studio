@@ -92,6 +92,11 @@ test('calls DeepSeek JSON mode and returns only validated order fields', async (
   assert.deepEqual(upstreamBody.response_format, { type: 'json_object' });
   assert.deepEqual(upstreamBody.thinking, { type: 'disabled' });
   assert.equal(upstreamBody.model, 'deepseek-v4-flash');
+  const systemPrompt = upstreamBody.messages.find(message => message.role === 'system').content;
+  assert.match(systemPrompt, /括号内的填写说明、收费说明、示例、候选项和操作提示都不是顾客答案/);
+  assert.match(systemPrompt, /字段冒号后为空时，不得把下一行的括号说明或候选项列表补成答案/);
+  assert.match(systemPrompt, /请发例图给我/);
+  assert.match(systemPrompt, /保持\/更换已有表情\/开发新表情/);
   assert.equal(result.B.eyeHex, '#112233');
   assert.equal(result.backgroundPreset, '冷蓝');
   assert.equal(result.parseMeta.tier, 'flash0731');

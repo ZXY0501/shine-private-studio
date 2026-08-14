@@ -31,6 +31,51 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.doesNotMatch(html, /DEEPSEEK_API_KEY\s*[:=]/);
 });
 
+test('customer form template residue is not parsed as a customer answer', () => {
+  assert.match(html, /约稿人微信id：/);
+  assert.match(html, /function characterSection\(text,slot\)/);
+  assert.match(html, /function isUnfilledTemplateValue\(name,value\)/);
+  assert.ok(html.includes("new RegExp(n+'[ \\\\t]*[：:][ \\\\t]*([^\\\\r\\\\n]*)')"));
+  assert.match(html, /请发例图给我/);
+  assert.match(html, /保持\\s\*\[\\\/／\]\\s\*更换已有表情/);
+  assert.match(html, /field\(a,\['帽子颜色','代表色'\]\)/);
+  assert.match(html, /field\(a,\['耳朵类型','帽饰'\]\)/);
+
+  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field'];
+  const sources = names.map(name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  }).join('\n');
+  const helpers = new Function(`${sources}\nreturn {${names.join(',')}};`)();
+  const blank = `约稿人微信id：
+A：
+瞳色：
+（如果是国乙男主直接报名字）
+衣服颜色：
+帽子颜色：
+耳朵类型：
+（换耳朵➕1r/角色，需填写具体类型）
+发型：请发例图给我
+表情：保持/更换已有表情/开发新表情
+B：
+瞳色：`;
+  const blankA = helpers.characterSection(blank, 'A');
+  assert.equal(helpers.parseCustomerName(blank), '');
+  assert.equal(helpers.field(blankA, ['瞳色']), '');
+  assert.equal(helpers.field(blankA, ['耳朵类型']), '');
+  assert.equal(helpers.field(blankA, ['发型']), '');
+  assert.equal(helpers.field(blankA, ['表情']), '');
+
+  const filled = `约稿人微信id：wx_123\nA：\n衣服颜色：红色\n帽子颜色：粉紫\n耳朵类型：狐狸耳\nB：\n衣服颜色：蓝色`;
+  const filledA = helpers.characterSection(filled, 'A');
+  assert.equal(helpers.parseCustomerName(filled), 'wx_123');
+  assert.equal(helpers.field(filledA, ['衣服颜色']), '红色');
+  assert.equal(helpers.field(filledA, ['帽子颜色']), '粉紫');
+  assert.equal(helpers.field(filledA, ['耳朵类型']), '狐狸耳');
+});
+
 test('cloud assets use authenticated short-lived upload tickets and lazy source downloads', () => {
   assert.match(html, /cloudAssetRequest\('\/api\/assets\/upload-ticket',\{method:'POST'/);
   assert.match(html, /fetch\(ticket\.uploadUrl,\{method:'PUT'/);
