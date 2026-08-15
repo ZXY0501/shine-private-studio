@@ -31,6 +31,8 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
   assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
   assert.match(html, /bestUploadedEarVariant\(original,slot,o\[slot\]\.decor\)\|\|bestUploadedEarVariant\(d\.decor,slot,o\[slot\]\.decor\)/);
+  assert.match(html, /paletteEye=formAnchorHex\(field\(sec,\['瞳色'\]\),'eye'\)/);
+  assert.match(html, /if\(paletteEye\)o\[slot\]\.eye=paletteEye;else if\(d\.eyeHex/);
   assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
   assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
   assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
@@ -118,7 +120,7 @@ test('customer form template residue is not parsed as a customer answer', () => 
   assert.match(html, /field\(a,\['帽子颜色','代表色','帽子'\]\)/);
   assert.match(html, /field\(a,\['耳朵类型','帽饰','耳朵'\]\)/);
 
-  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'splitEarAnswer', 'explicitFormHex', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
+  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'splitEarAnswer', 'explicitFormHex', 'formPresetAnchor', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
   const sources = names.map(name => {
     const start = html.indexOf(`function ${name}(`);
     const end = html.indexOf('\nfunction ', start + 1);
@@ -180,10 +182,10 @@ B：穆祉丞
   assert.equal(helpers.field(inlineB, ['名字']), '穆祉丞');
   assert.equal(helpers.field(inlineA, ['衣服颜色']), '蓝色');
   assert.equal(helpers.field(inlineB, ['帽子颜色']), '浅蓝色');
-  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#B9853E');
+  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#8B6249');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineB, ['发色']), 'hair'), '#2B2830');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['耳朵颜色']), 'decor'), '#FFFFFF');
-  assert.equal(helpers.formAnchorHex('浅黄色', 'eye'), '#F3DA8A');
+  assert.equal(helpers.formAnchorHex('浅黄色', 'eye'), '#A47A2F');
   assert.deepEqual(helpers.apiReviewFields(inlineNames), [
     'customerName','A.name','A.eyeHex','A.hairHex','A.outfitPreset','A.hatPreset','A.decor',
     'B.name','B.eyeHex','B.hairHex','B.outfitPreset','B.hatPreset','B.decor','backgroundPreset'
@@ -208,10 +210,14 @@ B
   assert.equal(helpers.field(shortB, ['帽子颜色','代表色','帽子']), '蓝色');
   assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortA, ['耳朵类型','帽饰','耳朵'])), { type: '小狗耳', color: '黄色' });
   assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortB, ['耳朵类型','帽饰','耳朵'])), { type: '小猫耳', color: '' });
-  assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['瞳色']), 'eye'), '#C3912F');
-  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['瞳色']), 'eye'), '#315A98');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['瞳色']), 'eye'), '#86611F');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['瞳色']), 'eye'), '#3E608D');
   assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['发色']), 'hair'), '#C9AA76');
   assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['发色']), 'hair'), '#D8BC82');
+  assert.equal(helpers.formAnchorHex('黄色', 'decor'), '#FFF8EB');
+  assert.equal(helpers.formAnchorHex('蓝色', 'decor'), '#E5F6FF');
+  assert.equal(helpers.formAnchorHex('粉红', 'eye'), '#AA7890');
+  assert.equal(helpers.formAnchorHex('薄荷绿', 'decor'), '#EBFFFA');
   assert.ok(helpers.apiReviewFields(shortForm).includes('A.hatPreset'));
   assert.ok(helpers.apiReviewFields(shortForm).includes('B.decor'));
 });

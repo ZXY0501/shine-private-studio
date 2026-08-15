@@ -2703,8 +2703,33 @@ function matchDecor(text,slot='',current=''){
   return /(?:无|不要|不换)/.test(text)?'NONE':null;
 }
 function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
+function formPresetAnchor(value,kind){
+  if(kind!=='eye'&&kind!=='decor')return '';
+  const raw=String(value||'').replace(/[\s，,。.!！]/g,''),families=[
+    ['蓝紫',/(?:蓝紫)/],['粉紫',/(?:粉紫)/],['棕色',/(?:浅棕|深棕|棕色|咖啡色|咖色|咖)/],
+    ['粉色',/(?:浅粉|深粉|淡粉|嫩粉|粉红|粉色|粉)/],['红色',/(?:浅红|深红|正红|大红|红色|红)/],
+    ['橙色',/(?:橙黄|浅橙|深橙|橘色|橙色|橙)/],
+    ['黄色',/(?:奶金|浅金|深金|金色|浅黄|深黄|淡黄|鹅黄|奶黄|小鸡黄|黄色|黄)/],
+    ['青色',/(?:薄荷绿|蓝绿|浅青|深青|青色|青)/],['绿色',/(?:浅绿|深绿|草绿|叶绿|嫩绿|绿色|绿)/],
+    ['蓝',/(?:浅蓝|深蓝|天蓝|婴儿蓝|蓝色|蓝)/],['灰',/(?:浅灰|深灰|灰色|灰)/],
+    ['黑',/(?:纯黑|乌黑|墨色|玄色|黑色|黑)/],['白',/(?:纯白|乳白|奶白|米白|白色|白)/]
+  ];
+  const family=families.find(([,pattern])=>pattern.test(raw))?.[0];if(!family)return '';
+  // 耳朵底色直接复用既有衣服预设底色；眼睛使用同色系、加深后的协调锚点。
+  const palette={
+    红色:{eye:'#A34F57',deep:'#7E353E',decor:'#CF5959'},橙色:{eye:'#9D6B4F',deep:'#76503C',decor:'#FFDECC'},
+    黄色:{eye:'#A47A2F',deep:'#86611F',decor:'#FFF8EB'},绿色:{eye:'#628A66',deep:'#416447',decor:'#F5FFEB'},
+    青色:{eye:'#528B86',deep:'#3B6663',decor:'#EBFFFA'},蓝:{eye:'#557FAC',deep:'#3E608D',decor:'#E5F6FF'},
+    蓝紫:{eye:'#6F75A8',deep:'#545A86',decor:'#F0E5FF'},粉紫:{eye:'#98739E',deep:'#745579',decor:'#FBE5FF'},
+    灰:{eye:'#77737B',deep:'#55525A',decor:'#EDEDED'},黑:{eye:'#3A353A',deep:'#2B2830',decor:'#757575'},
+    白:{eye:'#877D85',deep:'#625B62',decor:'#FFFFFF'},粉色:{eye:'#AA7890',deep:'#795568',decor:'#FFEBF3'},
+    棕色:{eye:'#8B6249',deep:'#654A38',decor:'#E7D5C6'}
+  };
+  const entry=palette[family];return kind==='decor'?entry.decor:(/深/.test(raw)?entry.deep:entry.eye);
+}
 function formAnchorHex(value,kind='generic'){
   const raw=String(value||'').trim(),explicit=explicitFormHex(raw);if(explicit)return explicit;
+  const preset=formPresetAnchor(raw,kind);if(preset)return preset;
   const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',深蓝:'深蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',浅黄:'浅黄色',淡黄:'浅黄色',鹅黄:'浅黄色',深黄:'深黄色',绿:'绿色',青:'青色',紫:'紫色',金:'金色',奶金:'奶金色',浅金:'浅金色'};
   const key=aliases[raw.replace(/[\s，,。.!！]/g,'')]||raw.replace(/[\s，,。.!！]/g,'');
   const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',深蓝色:'#365F9C',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',浅黄色:'#F3DA8A',深黄色:'#C49A3A',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5',金色:'#C49A58',奶金色:'#C9AA76',浅金色:'#D8BC82'};
@@ -2819,13 +2844,14 @@ function applyApiOrder(data){
   if(data.customerName)o.customerName=data.customerName;
   ['A','B'].forEach(slot=>{
     const d=data[slot]||data[slot.toLowerCase()]||{};
+    const sec=characterSection($('#orderForm').value,slot),paletteEye=formAnchorHex(field(sec,['瞳色']),'eye');
     if(d.name)o[slot].name=d.name;
-    if(d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex))o[slot].eye=d.eyeHex;
+    if(paletteEye)o[slot].eye=paletteEye;else if(d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex))o[slot].eye=d.eyeHex;
     if(d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex))o[slot].hair=d.hairHex;
     if(d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
     if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
     if(d.decor){
-      const original=field(characterSection($('#orderForm').value,slot),['耳朵类型','帽饰']);
+      const original=splitEarAnswer(field(sec,['耳朵类型','帽饰','耳朵'])).type;
       const requested=bestUploadedEarVariant(original,slot,o[slot].decor)||bestUploadedEarVariant(d.decor,slot,o[slot].decor)||d.decor;
       setOrderEarVariant(o,slot,requested,{source:'api'});
     }
