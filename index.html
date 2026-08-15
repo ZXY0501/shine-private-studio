@@ -2662,9 +2662,12 @@ function earCandidateVariants(text,slot=''){
     return wanted.animal||wanted.pose||wanted.text===candidate.text||wanted.text.includes(candidate.text)||candidate.text.includes(wanted.text);
   });
 }
-function bestUploadedEarVariant(text,slot=''){
+function bestUploadedEarVariant(text,slot='',current=''){
   const wanted=earIntentSignature(text);if(!wanted.text)return null;
-  const ranked=earCandidateVariants(text,slot).map(variant=>{
+  const candidates=earCandidateVariants(text,slot),currentName=normalizeVariantName(current||'');
+  const currentMatch=currentName&&candidates.find(variant=>normalizeVariantName(variant)===currentName);
+  if(currentMatch)return currentMatch;
+  const ranked=candidates.map(variant=>{
     const candidate=earIntentSignature(variant);let score=0;
     if(wanted.text===candidate.text)score+=100;
     else if(wanted.text.includes(candidate.text)||candidate.text.includes(wanted.text))score+=35;
@@ -2674,15 +2677,15 @@ function bestUploadedEarVariant(text,slot=''){
     if(wanted.pose&&candidate.pose===wanted.pose)score+=18;
     if(wanted.core&&candidate.core){const chars=new Set(wanted.core);score+=[...new Set(candidate.core)].filter(c=>chars.has(c)).length;}
     return {variant,score};
-  }).filter(x=>x.score>=24).sort((a,b)=>b.score-a.score||a.variant.localeCompare(b.variant,'zh-CN'));
-  if(!ranked.length||ranked[1]?.score===ranked[0].score)return null;
+  }).filter(x=>x.score>=24).sort((a,b)=>b.score-a.score);
+  if(!ranked.length)return null;
   return ranked[0].variant;
 }
 function earDecorCatalog(){
   return [...new Set(['NONE',...uploadedEarVariants()])].slice(0,64);
 }
-function matchDecor(text,slot=''){
-  const uploaded=bestUploadedEarVariant(text,slot);if(uploaded)return uploaded;
+function matchDecor(text,slot='',current=''){
+  const uploaded=bestUploadedEarVariant(text,slot,current);if(uploaded)return uploaded;
   return /(?:无|不要|不换)/.test(text)?'NONE':null;
 }
 function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
@@ -2720,9 +2723,14 @@ function localParseForm({announce=true}={}){
   const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
   const localDecor=(raw,path,current)=>{
     if(!String(raw||'').trim())return current;
-    const slot=path.startsWith('A.')?'A':'B',hit=matchDecor(raw,slot);
-    if(hit){const selected=setOrderEarVariant(o,slot,hit,{source:'local'});if(selected.ok)return selected.variant;}
-    const choices=earCandidateVariants(raw,slot);if(choices.length>1)choiceNotes.push(`${slot} 的“${String(raw).trim()}”有 ${choices.length} 款：${choices.join(' / ')}`);
+    const slot=path.startsWith('A.')?'A':'B',choices=earCandidateVariants(raw,slot),hit=matchDecor(raw,slot,current);
+    if(hit){
+      const selected=setOrderEarVariant(o,slot,hit,{source:'local'});
+      if(selected.ok){
+        if(choices.length>1){const kept=normalizeVariantName(current||'')===normalizeVariantName(selected.variant);choiceNotes.push(`${slot} 的“${String(raw).trim()}”有 ${choices.length} 款，${kept?'已沿用当前':'已自动选素材库首项'}“${selected.variant}”，可在下拉框更改`);}
+        return selected.variant;
+      }
+    }
     unresolved.push(path);return current;
   };
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
@@ -2735,7 +2743,7 @@ function localParseForm({announce=true}={}){
   if(/暖/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^暖/.test(k))||o.background;o.backgroundSource='local';}
   if((bg&&!/[冷暖]/.test(bg))||(!bg&&(ah||bh)))unresolved.push('backgroundPreset');
   o.formText=text;persistOrders();selectOrder(o.id);
-  if(announce)stat($('#apiStatus'),unresolved.length?(choiceNotes.length?`本地规则已读取；${choiceNotes.join('；')}，请点选具体款。`:'本地规则已先读取；仍有少数字段需人工处理。'):'本地规则已完整读取，不需要调用 AI。','good');
+  if(announce)stat($('#apiStatus'),unresolved.length?(choiceNotes.length?`本地规则已读取；${choiceNotes.join('；')}。`:'本地规则已先读取；仍有少数字段需人工处理。'):(choiceNotes.length?`本地规则已完整读取；${choiceNotes.join('；')}。`:'本地规则已完整读取，不需要调用 AI。'),'good');
   return [...new Set(unresolved)];
 }
 async function apiParseForm(){
@@ -2801,7 +2809,7 @@ function applyApiOrder(data){
     if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
     if(d.decor){
       const original=field(characterSection($('#orderForm').value,slot),['耳朵类型','帽饰']);
-      const requested=bestUploadedEarVariant(original,slot)||bestUploadedEarVariant(d.decor,slot)||d.decor;
+      const requested=bestUploadedEarVariant(original,slot,o[slot].decor)||bestUploadedEarVariant(d.decor,slot,o[slot].decor)||d.decor;
       setOrderEarVariant(o,slot,requested,{source:'api'});
     }
   });

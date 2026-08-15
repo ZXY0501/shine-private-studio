@@ -30,7 +30,7 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /if\(!unresolvedFields\.length\).*没有可交给 DeepSeek 复核的表单字段/);
   assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
   assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
-  assert.match(html, /bestUploadedEarVariant\(original,slot\)\|\|bestUploadedEarVariant\(d\.decor,slot\)/);
+  assert.match(html, /bestUploadedEarVariant\(original,slot,o\[slot\]\.decor\)\|\|bestUploadedEarVariant\(d\.decor,slot,o\[slot\]\.decor\)/);
   assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
   assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
   assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
@@ -49,15 +49,18 @@ test('form ear descriptions select the closest uploaded animal and pose variant'
     { categoryId: 'EAR', variant: '趴狗耳', slot: 'A' },
     { categoryId: 'EAR', variant: '立狗耳', slot: 'A' },
     { categoryId: 'EAR', variant: '立猫耳', slot: 'B' },
+    { categoryId: 'EAR', variant: '细猫', slot: 'B' },
     { categoryId: 'TAIL', variant: '趴狗尾' }
   ] };
   const helpers = new Function('S', `${sources}\nreturn {${names.join(',')}};`)(S);
   assert.equal(helpers.matchDecor('小狗耳  趴着的', 'A'), '趴狗耳');
   assert.equal(helpers.matchDecor('猫耳  立着的', 'B'), '立猫耳');
-  assert.equal(helpers.bestUploadedEarVariant('狗耳', 'A'), null, 'ambiguous posture should not pick arbitrarily');
+  assert.equal(helpers.bestUploadedEarVariant('狗耳', 'A'), '趴狗耳', 'generic animal should use the first compatible uploaded variant');
+  assert.equal(helpers.bestUploadedEarVariant('猫', 'B'), '立猫耳', 'generic cat should resolve to the first B-compatible cat asset');
+  assert.equal(helpers.bestUploadedEarVariant('猫', 'B', '细猫'), '细猫', 'generic cat should keep the current compatible variant');
   assert.equal(helpers.bestUploadedEarVariant('趴狗耳', 'B'), null, 'slot without that uploaded ear should not be selected');
   assert.deepEqual(helpers.earCandidateVariants('狗耳', 'A'), ['趴狗耳', '立狗耳']);
-  assert.deepEqual(helpers.earDecorCatalog().slice(0, 4), ['NONE', '趴狗耳', '立狗耳', '立猫耳']);
+  assert.deepEqual(helpers.earDecorCatalog().slice(0, 5), ['NONE', '趴狗耳', '立狗耳', '立猫耳', '细猫']);
 });
 
 test('ear switching is atomic per slot and keeps the previous selection when unavailable', () => {
