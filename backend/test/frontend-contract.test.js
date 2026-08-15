@@ -340,27 +340,42 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
   assert.match(html, /已保留原来的耳朵和尾巴/);
 });
 
-test('ear base color anchors the paired tail base without recoloring other tail layers', () => {
+test('ear colors anchor the paired tail while both outlines share the A/B hat outline', () => {
   assert.match(html, /\(asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'\)\&\&\(explicitDecorBase\|\|explicitDecorShade\)/);
   assert.match(html, /function sharedDecorRoleColor\(role,slot,order\)/);
   assert.match(html, /role==='DECOR_BASE'\|\|role==='TAIL_BASE'\)return base/);
   assert.match(html, /role==='DECOR_SHADOW'\|\|role==='TAIL_SHADE'\)return shade/);
-  assert.match(html, /if\(role==='DECOR_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
-  assert.match(html, /if\(role==='TAIL_OUTLINE'\)\{/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
   assert.match(html, /asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)/);
   assert.match(html, /TAIL_SHADE/);
   assert.match(html, /const explicitDecor=\(a\.categoryId==='EAR'\|\|a\.categoryId==='TAIL'\)/);
   assert.match(html, /a\.type==='TAIL'/);
+  assert.match(html, /asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'/);
+  assert.match(html, /asset\.categoryId==='TAIL'\&\&role==='TAIL_OUTLINE'/);
+  assert.match(html, /a\.categoryId==='TAIL'\&\&Object\.values\(a\.bindings\|\|\{\}\)\.includes\('TAIL_OUTLINE'\)/);
+  const start = html.indexOf('function sharedDecorRoleColor(');
+  const end = html.indexOf('\nfunction ', start + 1);
+  const sharedDecorRoleColor = new Function(
+    'normalizeHex', 'hatOutlineColor',
+    `${html.slice(start, end)}\nreturn sharedDecorRoleColor;`
+  )(value => value || '', slot => `${slot}-hat-outline`);
+  const order = { A: { decorBase: '', decorShade: '' }, B: { decorBase: '#eeeeee', decorShade: '#bbbbbb' } };
+  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'A', order), 'A-hat-outline');
+  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'A', order), 'A-hat-outline');
+  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'B', order), 'B-hat-outline');
+  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'B', order), 'B-hat-outline');
 });
 
-test('ear fur line remains fixed while the main ear outline links to the hat outline', () => {
+test('ear and tail fur lines remain fixed while their main outlines share the hat outline', () => {
   assert.match(html, /绒毛\.\*线稿\|线稿\.\*绒毛\|绒毛线\|fur\.\*line\|line\.\*fur/);
+  assert.match(html, /return 'TAIL_FUR'/);
+  assert.match(html, /oldFurOutline=.*TAIL_OUTLINE.*TAIL_FUR/);
   assert.match(html, /if\(asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)\)continue/);
-  assert.match(html, /if\(!role\|\|role==='NONE'\|\|role==='DECOR_FUR'\)continue/);
+  assert.match(html, /role==='DECOR_FUR'\|\|role==='TAIL_FUR'/);
   assert.match(html, /function hatOutlineColor\(slot,order\)/);
   assert.match(html, /if\(role==='HAT_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
   assert.match(html, /if\(role==='DECOR_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
-  assert.match(html, /if\(role==='DECOR_OUTLINE'\)map\[path\]=hatOutlineColor\(asset\.slot,order\)/);
+  assert.match(html, /if\(linkedOutline\)map\[path\]=hatOutlineColor\(asset\.slot,order\)/);
   assert.match(html, /命名为“绒毛线稿”的层保持素材原色/);
 });
 
@@ -375,14 +390,14 @@ test('uploaded asset PSD layers can be shown or hidden without mutating the sour
   assert.doesNotMatch(html, /\.layer\.hidden\s*=/);
 });
 
-test('ear assets keep base and fur colors until an explicit form color while the main outline follows the hat', () => {
+test('animal assets keep base and fur colors until an explicit form color while linked outlines follow the hat', () => {
   assert.match(html, /耳朵底色（空=原色）/);
   assert.match(html, /function fillDecorFallbackBindings\(asset\)/);
   assert.match(html, /asset\.bindings\[base\.n\.path\]='DECOR_BASE'/);
   assert.match(html, /asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'/);
   assert.match(html, /function syncEarColorAnchorUi\(slot,order=getActiveOrder\(\)\)/);
   assert.match(html, /hatAnchor=order\[slot\]\?\.hat==='__DECOR_ANCHOR__'/);
-  assert.match(html, /linkedEarOutline=a\.categoryId==='EAR'/);
+  assert.match(html, /const linkedAnimalOutline=/);
   assert.match(html, /__preserveOriginal:true/);
 });
 

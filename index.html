@@ -1692,7 +1692,7 @@ const ROLE_OPTIONS=[
   'DECOR_CONTAINER','DECOR_BASE','DECOR_OUTLINE','DECOR_INNER','DECOR_FUR','DECOR_SHADOW','DECOR_ACCENT',
   'BODY_TRAIT_BASE','BODY_TRAIT_OUTLINE','BODY_TRAIT_INNER','BODY_TRAIT_ACCENT',
   'WATERMARK_PREVIEW','RENDER_SLOT_HAIR','RENDER_SLOT_HAT_DECOR','RENDER_SLOT_TAIL','RENDER_SLOT_PROP_FRONT','RENDER_SLOT_PROP_BACK',
-  'TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE','TAIL_TIP',
+  'TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE','TAIL_FUR','TAIL_TIP',
   'FACE_FIXED','GROUP','OTHER'
 ];
 const SOURCE_OPTIONS=['AUTO','NONE','FIXED','PRESET','MANUAL_ANCHOR','DERIVED','OVERRIDE'];
@@ -1722,7 +1722,7 @@ async function templateSigForFile(file){
 }
 function bindingStorageKey(){return 'qq-color-studio:template:'+S.templateSignature}
 function sourceForRole(role){
-  if(['REFERENCE','BACKGROUND_LACE_FIXED','FIXED','LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','EYE_PUPIL_HIGHLIGHT','HAT_FUR_FIXED','FACE_FIXED','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED'].includes(role))return 'FIXED';
+  if(['REFERENCE','BACKGROUND_LACE_FIXED','FIXED','LASH_FIXED','PUPIL_HIGHLIGHT_FIXED','EYE_PUPIL_HIGHLIGHT','HAT_FUR_FIXED','TAIL_FUR','FACE_FIXED','WATERMARK_PREVIEW','HAIR_SKIN_AIR_FIXED','HAIR_HIGHLIGHT_FIXED'].includes(role))return 'FIXED';
   if(['HAT_BASE','OUTFIT_BASE','BACKGROUND_BASE'].includes(role))return 'PRESET';
   if(['HAIR_BASE','EYE_IRIS_BASE'].includes(role))return 'MANUAL_ANCHOR';
   if(role==='UNKNOWN'||role==='GROUP'||role==='DECOR_CONTAINER'||role.startsWith('RENDER_SLOT_')||role==='OTHER')return 'NONE';
@@ -2913,7 +2913,7 @@ function renderStyleSchemeEditor(kind){
   const host=$('#'+kind+'SchemeEditor');if(!host)return;const arr=S.styleSchemes[kind]||[];let id=S.editingStyleScheme[kind];let sc=arr.find(x=>x.id===id)||arr[0]||makeBlankScheme(kind);if(!arr.some(x=>x.id===sc.id)){arr.push(sc);S.styleSchemes[kind]=arr;persistStyleSchemes()}S.editingStyleScheme[kind]=sc.id;
   const selectOpts=arr.map(x=>`<option value="${safe(x.id)}" ${x.id===sc.id?'selected':''}>${safe(x.name)}</option>`).join('');
   const colorRow=(label,key)=>`<label>${label}</label><div class="schemeColorLine"><input data-sk="${key}" type="text" value="${safe(sc[key]||'#888888')}"><input data-skc="${key}" type="color" value="${safe((sc[key]||'#888888').toLowerCase())}"></div>`;
-  host.innerHTML=`<div class="schemeGrid"><label>编辑方案</label><select data-style-select>${selectOpts}</select><label>方案名</label><input data-sk="name" type="text" value="${safe(sc.name)}">${colorRow(kind==='hat'?'帽子底色':'衣服底色','base')}${colorRow(kind==='hat'?'帽子线稿':'衣服线稿',kind==='hat'?'outline':'line')}${kind==='hat'?colorRow('帽子绒边/辅色','trim'):''}</div><div class="schemeToolbar"><button class="btn" data-style-new>新建</button><button class="btn primary" data-style-save>保存 / 更新方案</button><button class="btn" data-style-apply="A">试到 A</button><button class="btn" data-style-apply="B">试到 B</button><button class="btn" data-style-capture="A">从 A${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-capture="B">从 B${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-delete>删除</button></div><div class="schemeApplyState">先点“试到 A/B”，之后拖色盘会直接在左侧预览实时变化。${kind==='hat'?'耳朵大轮廓线稿会跟随对应 A/B 帽子线稿；命名为“绒毛线稿”的层保持素材原色。':''}</div><div class="schemeNote">“读取”只抓纯净模板大夹子里的代表色作为起点，不修改你的 PSD。保存后方案会立即出现在表单清洗的 A/B 下拉框里。当前先保存在本机 localStorage，后端接好后会迁移为账号/项目级保存，不需要重做方案。</div>`;
+  host.innerHTML=`<div class="schemeGrid"><label>编辑方案</label><select data-style-select>${selectOpts}</select><label>方案名</label><input data-sk="name" type="text" value="${safe(sc.name)}">${colorRow(kind==='hat'?'帽子底色':'衣服底色','base')}${colorRow(kind==='hat'?'帽子线稿':'衣服线稿',kind==='hat'?'outline':'line')}${kind==='hat'?colorRow('帽子绒边/辅色','trim'):''}</div><div class="schemeToolbar"><button class="btn" data-style-new>新建</button><button class="btn primary" data-style-save>保存 / 更新方案</button><button class="btn" data-style-apply="A">试到 A</button><button class="btn" data-style-apply="B">试到 B</button><button class="btn" data-style-capture="A">从 A${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-capture="B">从 B${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-delete>删除</button></div><div class="schemeApplyState">先点“试到 A/B”，之后拖色盘会直接在左侧预览实时变化。${kind==='hat'?'耳朵与配对尾巴的大轮廓线稿会跟随对应 A/B 帽子线稿；命名为“绒毛线稿”的层保持素材原色。':''}</div><div class="schemeNote">“读取”只抓纯净模板大夹子里的代表色作为起点，不修改你的 PSD。保存后方案会立即出现在表单清洗的 A/B 下拉框里。当前先保存在本机 localStorage，后端接好后会迁移为账号/项目级保存，不需要重做方案。</div>`;
   host.querySelector('[data-style-select]').onchange=e=>{S.editingStyleScheme[kind]=e.target.value;renderStyleSchemeEditor(kind)};
   const syncDraftToScheme=(persist=false)=>{const target=S.styleSchemes[kind].find(x=>x.id===S.editingStyleScheme[kind]);if(!target)return;target.name=(host.querySelector('input[data-sk="name"]')?.value||target.name).trim();['base',kind==='hat'?'outline':'line',...(kind==='hat'?['trim']:[])].forEach(k=>{target[k]=safeHex(host.querySelector(`input[data-sk="${k}"]`)?.value,target[k])});if(persist){persistStyleSchemes();renderPresetOptions();flushLiveProductionColors({persist:true})}else scheduleLiveProductionColors({persist:false});};
   host.querySelectorAll('input[data-skc]').forEach(el=>{
@@ -2960,7 +2960,7 @@ const ASSET_ROLE_OPTIONS={
   HAT_DECOR:['NONE','DECOR_BASE','DECOR_SHADOW','DECOR_INNER','DECOR_OUTLINE','DECOR_ACCENT','DECOR_FUR'],
   HAIR:['NONE','HAIR_BASE','HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','HAIR_HIGHLIGHT_FIXED','HAIR_SKIN_AIR_FIXED'],
   EYE:['NONE','EYE_IRIS_BASE','EYE_IRIS_DARK','EYE_IRIS_DEEP','EYE_IRIS_HIGHLIGHT','EYE_PUPIL','EYE_PUPIL_DARK','EYE_PUPIL_HIGHLIGHT','EYE_OUTLINE','EYE_LASH','EYE_LASH_HIGHLIGHT'],
-  TAIL:['NONE','TAIL_BASE','TAIL_SHADE','TAIL_TIP','TAIL_OUTLINE'],
+  TAIL:['NONE','TAIL_BASE','TAIL_SHADE','TAIL_TIP','TAIL_OUTLINE','TAIL_FUR'],
   FRAME:['NONE','FRAME_FLOWER_BASE','FRAME_FLOWER_SHADE','FRAME_RIBBON_A','FRAME_RIBBON_B'],
   PROP:['NONE'],STICKER:['NONE'],MOUTH:['NONE'],ACCESSORY:['NONE']
 };
@@ -3016,6 +3016,8 @@ function inferAssetLayerRole(path,type){
     if(/虹膜|瞳色|iris/.test(leaf))return 'EYE_IRIS_BASE';
   }
   if(type==='TAIL'){
+    // 和耳朵一致：明确写“绒毛线稿”的层固定，只有普通大轮廓线稿参与 A/B 线稿联动。
+    if(/绒毛.*线稿|线稿.*绒毛|绒毛线|fur.*line|line.*fur/.test(leaf))return 'TAIL_FUR';
     if(/尾尖|tip/.test(leaf))return 'TAIL_TIP';
     if(/重色|阴影|暗部|shadow|shade/.test(leaf))return 'TAIL_SHADE';
     if(/轮廓|线稿|描边|outline|line/.test(leaf))return 'TAIL_OUTLINE';
@@ -3056,26 +3058,20 @@ function fillTailFallbackBindings(asset){
 function initAssetBindings(asset,force=false){
   if(!asset.bindings||force)asset.bindings={};
   assetRelevantLeaves(asset).forEach(n=>{
-    if(force||asset.bindings[n.path]===undefined)asset.bindings[n.path]=inferAssetLayerRole(n.path,asset.type);
+    const inferred=inferAssetLayerRole(n.path,asset.type),oldFurOutline=(asset.type==='HAT_DECOR'&&asset.bindings[n.path]==='DECOR_OUTLINE'&&inferred==='DECOR_FUR')||(asset.type==='TAIL'&&asset.bindings[n.path]==='TAIL_OUTLINE'&&inferred==='TAIL_FUR');
+    if(force||asset.bindings[n.path]===undefined||oldFurOutline)asset.bindings[n.path]=inferred;
   });
   fillHairFallbackBindings(asset);
   fillDecorFallbackBindings(asset);
   fillTailFallbackBindings(asset);
 }
 function sharedDecorRoleColor(role,slot,order){
-  // 只有表单明确填了耳朵底色，才把底色/线稿锚点传播到耳朵和尾巴；留空继续保留各自 PSD 原色。
+  // 底色/重色只在表单明确填写后传播；耳朵与配对尾巴的大轮廓线稿始终共享对应 A/B 帽子线稿色。
   const base=normalizeHex(order?.[slot]?.decorBase||'');
   const shade=normalizeHex(order?.[slot]?.decorShade||'');
   if(role==='DECOR_BASE'||role==='TAIL_BASE')return base||null;
   if(role==='DECOR_SHADOW'||role==='TAIL_SHADE')return shade||null;
-  if(role==='DECOR_OUTLINE')return hatOutlineColor(slot,order);
-  if(role==='TAIL_OUTLINE'){
-    if(!base)return null;
-    const g=S.logic||DEFAULT_LOGIC;
-    if(isNearWhite(base))return shiftColor(base,-0.18,0.28);
-    if(isNearGray(base))return shiftColor(base,-0.25,0.48);
-    return shiftColor(base,g.decorOutlineL,g.decorOutlineC);
-  }
+  if(role==='DECOR_OUTLINE'||role==='TAIL_OUTLINE')return hatOutlineColor(slot,order);
   return null;
 }
 function assetOverrideMap(asset,order){
@@ -3085,7 +3081,7 @@ function assetOverrideMap(asset,order){
   // 只有用户明确打开「跟随订单配色」后，才应用自动派生色。
   if(asset.colorMode==='FOLLOW_ORDER'){
     for(const [path,role] of Object.entries(asset.bindings||{})){
-      if(!role||role==='NONE'||role==='DECOR_FUR'||role==='HAIR_HIGHLIGHT_FIXED'||role==='HAIR_SKIN_AIR_FIXED')continue;
+      if(!role||role==='NONE'||role==='DECOR_FUR'||role==='TAIL_FUR'||role==='HAIR_HIGHLIGHT_FIXED'||role==='HAIR_SKIN_AIR_FIXED')continue;
       let c=null;
       if(asset.type==='HAT_DECOR'||asset.type==='HAIR'||asset.type==='EYE')c=deriveRoleColor(role,asset.slot,order);
       if(c)map[path]=c;
@@ -3095,15 +3091,16 @@ function assetOverrideMap(asset,order){
   const explicitDecorBase=normalizeHex(order?.[asset.slot]?.decorBase||''),explicitDecorShade=normalizeHex(order?.[asset.slot]?.decorShade||'');
   if((asset.categoryId==='EAR'||asset.categoryId==='TAIL')&&(explicitDecorBase||explicitDecorShade)){
     for(const [path,role] of Object.entries(asset.bindings||{})){
-      if(!role||role==='NONE'||role==='DECOR_FUR')continue;
+      if(!role||role==='NONE'||role==='DECOR_FUR'||role==='TAIL_FUR')continue;
       if(asset.categoryId==='TAIL'&&!['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'].includes(role))continue;
       const c=sharedDecorRoleColor(role,asset.slot,order)||deriveRoleColor(role,asset.slot,order);if(c)map[path]=c;
     }
   }
-  // 耳朵的大轮廓线稿始终跟随对应 A/B 帽子线稿；明确标成 DECOR_FUR 的绒毛线稿永远不参与联动。
-  if(asset.categoryId==='EAR'&&!order?.__preserveOriginal){
+  // 耳朵与配对尾巴的大轮廓线稿始终同色；明确标成绒毛线稿的层永远保持素材原色。
+  if((asset.categoryId==='EAR'||asset.categoryId==='TAIL')&&!order?.__preserveOriginal){
     for(const [path,role] of Object.entries(asset.bindings||{})){
-      if(role==='DECOR_OUTLINE')map[path]=hatOutlineColor(asset.slot,order);
+      const linkedOutline=(asset.categoryId==='EAR'&&role==='DECOR_OUTLINE')||(asset.categoryId==='TAIL'&&role==='TAIL_OUTLINE');
+      if(linkedOutline)map[path]=hatOutlineColor(asset.slot,order);
     }
   }
   // 边框的四个颜色只来自当前订单中这一个边框实例；没取色的字段继续保留 PSD 原色。
@@ -3197,14 +3194,14 @@ function prepareAssetCompositeForOrder(a,order=getActiveOrder()||newOrderData())
   const explicitDecor=(a.categoryId==='EAR'||a.categoryId==='TAIL')&&(normalizeHex(order?.[a.slot]?.decorBase||'')||normalizeHex(order?.[a.slot]?.decorShade||''));
   const explicitFrame=a.categoryId==='FRAME'&&Object.values(frameSelection(order,assetFamilyKey(a))?.colors||{}).some(value=>!!normalizeHex(value));
   const hasManual=assetRelevantLeaves(a).some(n=>S.manualLayerOverrides?.[assetLayerKey(a,n.path)]);
-  initAssetBindings(a,false);const linkedEarOutline=a.categoryId==='EAR'&&Object.values(a.bindings||{}).includes('DECOR_OUTLINE');
-  if(a.colorMode!=='FOLLOW_ORDER'&&!explicitDecor&&!explicitFrame&&!hasManual&&!linkedEarOutline){a.composite=a.originalComposite;return;}
+  initAssetBindings(a,false);const linkedAnimalOutline=(a.categoryId==='EAR'&&Object.values(a.bindings||{}).includes('DECOR_OUTLINE'))||(a.categoryId==='TAIL'&&Object.values(a.bindings||{}).includes('TAIL_OUTLINE'));
+  if(a.colorMode!=='FOLLOW_ORDER'&&!explicitDecor&&!explicitFrame&&!hasManual&&!linkedAnimalOutline){a.composite=a.originalComposite;return;}
   refreshOneAssetComposite(a,order);
 }
 function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
   S.assets.forEach(a=>{if(a.enabled&&(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='EYE'||a.type==='TAIL'||a.type==='FRAME'))prepareAssetCompositeForOrder(a,order)});
 }
-function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',EYE_IRIS_BASE:'虹膜主色',EYE_IRIS_DARK:'虹膜暗色',EYE_IRIS_DEEP:'虹膜深色',EYE_IRIS_HIGHLIGHT:'虹膜高光',EYE_PUPIL:'瞳孔',EYE_PUPIL_DARK:'瞳孔暗部',EYE_PUPIL_HIGHLIGHT:'瞳孔高光固定',EYE_OUTLINE:'眼睛轮廓',EYE_LASH:'睫毛',EYE_LASH_HIGHLIGHT:'睫毛高光',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
+function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',EYE_IRIS_BASE:'虹膜主色',EYE_IRIS_DARK:'虹膜暗色',EYE_IRIS_DEEP:'虹膜深色',EYE_IRIS_HIGHLIGHT:'虹膜高光',EYE_PUPIL:'瞳孔',EYE_PUPIL_DARK:'瞳孔暗部',EYE_PUPIL_HIGHLIGHT:'瞳孔高光固定',EYE_OUTLINE:'眼睛轮廓',EYE_LASH:'睫毛',EYE_LASH_HIGHLIGHT:'睫毛高光',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',TAIL_FUR:'尾巴绒毛线稿固定',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
 function loadAssetCategories(){
   let saved=[];try{saved=JSON.parse(localStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
   const builtinIds=new Set(BUILTIN_ASSET_CATEGORIES.map(x=>x.id));
