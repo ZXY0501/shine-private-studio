@@ -115,10 +115,10 @@ test('customer form template residue is not parsed as a customer answer', () => 
   assert.ok(html.includes("new RegExp(n+'[ \\\\t]*[：:][ \\\\t]*([^\\\\r\\\\n]*)')"));
   assert.match(html, /请发例图给我/);
   assert.match(html, /保持\\s\*\[\\\/／\]\\s\*更换已有表情/);
-  assert.match(html, /field\(a,\['帽子颜色','代表色'\]\)/);
-  assert.match(html, /field\(a,\['耳朵类型','帽饰'\]\)/);
+  assert.match(html, /field\(a,\['帽子颜色','代表色','帽子'\]\)/);
+  assert.match(html, /field\(a,\['耳朵类型','帽饰','耳朵'\]\)/);
 
-  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'explicitFormHex', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
+  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'splitEarAnswer', 'explicitFormHex', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
   const sources = names.map(name => {
     const start = html.indexOf(`function ${name}(`);
     const end = html.indexOf('\nfunction ', start + 1);
@@ -185,9 +185,35 @@ B：穆祉丞
   assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['耳朵颜色']), 'decor'), '#FFFFFF');
   assert.equal(helpers.formAnchorHex('浅黄色', 'eye'), '#F3DA8A');
   assert.deepEqual(helpers.apiReviewFields(inlineNames), [
-    'customerName','A.name','A.outfitPreset','A.hatPreset','A.decor',
-    'B.name','B.outfitPreset','B.hatPreset','B.decor','backgroundPreset'
+    'customerName','A.name','A.eyeHex','A.hairHex','A.outfitPreset','A.hatPreset','A.decor',
+    'B.name','B.eyeHex','B.hairHex','B.outfitPreset','B.hatPreset','B.decor','backgroundPreset'
   ]);
+
+  const shortForm = `A
+瞳色:深黄
+衣服:黄色
+帽子:黄色
+耳朵:小狗耳，黄色
+发色:奶金色
+表情:保持
+B
+瞳色:深蓝
+衣服:蓝色
+帽子:蓝色
+耳朵:小猫耳
+发色:浅金色
+表情:保持`;
+  const shortA = helpers.characterSection(shortForm, 'A'), shortB = helpers.characterSection(shortForm, 'B');
+  assert.equal(helpers.field(shortA, ['衣服颜色','衣服']), '黄色');
+  assert.equal(helpers.field(shortB, ['帽子颜色','代表色','帽子']), '蓝色');
+  assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortA, ['耳朵类型','帽饰','耳朵'])), { type: '小狗耳', color: '黄色' });
+  assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortB, ['耳朵类型','帽饰','耳朵'])), { type: '小猫耳', color: '' });
+  assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['瞳色']), 'eye'), '#C3912F');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['瞳色']), 'eye'), '#315A98');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['发色']), 'hair'), '#C9AA76');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['发色']), 'hair'), '#D8BC82');
+  assert.ok(helpers.apiReviewFields(shortForm).includes('A.hatPreset'));
+  assert.ok(helpers.apiReviewFields(shortForm).includes('B.decor'));
 });
 
 test('cloud assets use authenticated short-lived upload tickets and lazy source downloads', () => {

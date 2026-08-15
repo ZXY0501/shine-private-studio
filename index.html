@@ -2633,6 +2633,12 @@ function field(sec,names){
   }
   return '';
 }
+function splitEarAnswer(value){
+  const parts=String(value||'').split(/[，,、；;|]/).map(x=>x.trim()).filter(Boolean);
+  if(!parts.length)return {type:'',color:''};
+  const color=parts.slice(1).find(part=>!!formAnchorHex(part,'decor'))||'';
+  return {type:parts[0],color};
+}
 function matchPreset(text,kind){
   if(kind==='hat'||kind==='outfit'){
     const raw=String(text||'').trim(),compact=raw.replace(/[\s，,。.!！]/g,''),arr=S.styleSchemes?.[kind]||[];
@@ -2699,10 +2705,10 @@ function matchDecor(text,slot='',current=''){
 function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
 function formAnchorHex(value,kind='generic'){
   const raw=String(value||'').trim(),explicit=explicitFormHex(raw);if(explicit)return explicit;
-  const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',浅黄:'浅黄色',淡黄:'浅黄色',鹅黄:'浅黄色',绿:'绿色',青:'青色',紫:'紫色'};
+  const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',深蓝:'深蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',浅黄:'浅黄色',淡黄:'浅黄色',鹅黄:'浅黄色',深黄:'深黄色',绿:'绿色',青:'青色',紫:'紫色',金:'金色',奶金:'奶金色',浅金:'浅金色'};
   const key=aliases[raw.replace(/[\s，,。.!！]/g,'')]||raw.replace(/[\s，,。.!！]/g,'');
-  const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',浅黄色:'#F3DA8A',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5'};
-  const specialized={eye:{棕色:'#B9853E',黑色:'#3A353A'},hair:{棕色:'#5B4036',黑色:'#2B2830'}};
+  const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',深蓝色:'#365F9C',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',浅黄色:'#F3DA8A',深黄色:'#C49A3A',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5',金色:'#C49A58',奶金色:'#C9AA76',浅金色:'#D8BC82'};
+  const specialized={eye:{棕色:'#B9853E',黑色:'#3A353A',深黄色:'#C3912F',深蓝色:'#315A98'},hair:{棕色:'#5B4036',黑色:'#2B2830',金色:'#B99155',奶金色:'#C9AA76',浅金色:'#D8BC82'}};
   return specialized[kind]?.[key]||common[key]||'';
 }
 function apiReviewFields(text){
@@ -2710,12 +2716,14 @@ function apiReviewFields(text){
   ['A','B'].forEach(slot=>{
     const sec=characterSection(text,slot);if(!sec)return;
     if(field(sec,['宝宝名字','名字']))review.push(`${slot}.name`);
-    if(field(sec,['衣服颜色']))review.push(`${slot}.outfitPreset`);
-    if(field(sec,['帽子颜色','代表色']))review.push(`${slot}.hatPreset`);
-    if(field(sec,['耳朵类型','帽饰']))review.push(`${slot}.decor`);
+    if(field(sec,['瞳色']))review.push(`${slot}.eyeHex`);
+    if(field(sec,['发色']))review.push(`${slot}.hairHex`);
+    if(field(sec,['衣服颜色','衣服']))review.push(`${slot}.outfitPreset`);
+    if(field(sec,['帽子颜色','代表色','帽子']))review.push(`${slot}.hatPreset`);
+    if(field(sec,['耳朵类型','帽饰','耳朵']))review.push(`${slot}.decor`);
   });
   const bg=field(text,['背景倾向']),a=characterSection(text,'A'),b=characterSection(text,'B');
-  if(bg||field(a,['帽子颜色','代表色'])||field(b,['帽子颜色','代表色']))review.push('backgroundPreset');
+  if(bg||field(a,['帽子颜色','代表色','帽子'])||field(b,['帽子颜色','代表色','帽子']))review.push('backgroundPreset');
   return [...new Set(review)];
 }
 function localParseForm({announce=true}={}){
@@ -2726,8 +2734,8 @@ function localParseForm({announce=true}={}){
   const cn=parseCustomerName(text);if(cn)o.customerName=cn;
   const an=field(a,['宝宝名字','名字']);if(an)o.A.name=an;
   const bn=field(b,['宝宝名字','名字']);if(bn)o.B.name=bn;
-  const ao=field(a,['衣服颜色']);const ah=field(a,['帽子颜色','代表色']);const ad=field(a,['耳朵类型','帽饰']);
-  const bo=field(b,['衣服颜色']);const bh=field(b,['帽子颜色','代表色']);const bd=field(b,['耳朵类型','帽饰']);
+  const ao=field(a,['衣服颜色','衣服']);const ah=field(a,['帽子颜色','代表色','帽子']);const aEar=splitEarAnswer(field(a,['耳朵类型','帽饰','耳朵'])),ad=aEar.type;
+  const bo=field(b,['衣服颜色','衣服']);const bh=field(b,['帽子颜色','代表色','帽子']);const bEar=splitEarAnswer(field(b,['耳朵类型','帽饰','耳朵'])),bd=bEar.type;
   const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
   const localDecor=(raw,path,current)=>{
     if(!String(raw||'').trim())return current;
@@ -2743,9 +2751,10 @@ function localParseForm({announce=true}={}){
   };
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
   o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
-  const ae=formAnchorHex(field(a,['瞳色']),'eye'),af=formAnchorHex(field(a,['发色']),'hair'),be=formAnchorHex(field(b,['瞳色']),'eye'),bf=formAnchorHex(field(b,['发色']),'hair');
-  if(ae)o.A.eye=ae;if(af)o.A.hair=af;if(be)o.B.eye=be;if(bf)o.B.hair=bf;
-  const aDecorBase=formAnchorHex(field(a,['耳朵颜色']),'decor'),bDecorBase=formAnchorHex(field(b,['耳朵颜色']),'decor');
+  const aeRaw=field(a,['瞳色']),afRaw=field(a,['发色']),beRaw=field(b,['瞳色']),bfRaw=field(b,['发色']);
+  const ae=formAnchorHex(aeRaw,'eye'),af=formAnchorHex(afRaw,'hair'),be=formAnchorHex(beRaw,'eye'),bf=formAnchorHex(bfRaw,'hair');
+  if(ae)o.A.eye=ae;else if(aeRaw)unresolved.push('A.eyeHex');if(af)o.A.hair=af;else if(afRaw)unresolved.push('A.hairHex');if(be)o.B.eye=be;else if(beRaw)unresolved.push('B.eyeHex');if(bf)o.B.hair=bf;else if(bfRaw)unresolved.push('B.hairHex');
+  const aDecorBase=formAnchorHex(field(a,['耳朵颜色'])||aEar.color,'decor'),bDecorBase=formAnchorHex(field(b,['耳朵颜色'])||bEar.color,'decor');
   if(aDecorBase)o.A.decorBase=aDecorBase;if(bDecorBase)o.B.decorBase=bDecorBase;
   const bg=field(text,['背景倾向']);if(/冷/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^冷/.test(k))||o.background;o.backgroundSource='local';}
   if(/暖/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^暖/.test(k))||o.background;o.backgroundSource='local';}
