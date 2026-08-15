@@ -31,11 +31,14 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
   assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
   assert.match(html, /bestUploadedEarVariant\(original,slot\)\|\|bestUploadedEarVariant\(d\.decor,slot\)/);
+  assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
+  assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
+  assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
   assert.doesNotMatch(html, /DEEPSEEK_API_KEY\s*[:=]/);
 });
 
 test('form ear descriptions select the closest uploaded animal and pose variant', () => {
-  const names = ['normalizeVariantName', 'earIntentSignature', 'uploadedEarVariants', 'bestUploadedEarVariant', 'earDecorCatalog', 'matchDecor'];
+  const names = ['normalizeVariantName', 'earIntentSignature', 'uploadedEarVariants', 'earCandidateVariants', 'bestUploadedEarVariant', 'earDecorCatalog', 'matchDecor'];
   const sources = names.map(name => {
     const start = html.indexOf(`function ${name}(`);
     const end = html.indexOf('\nfunction ', start + 1);
@@ -53,7 +56,53 @@ test('form ear descriptions select the closest uploaded animal and pose variant'
   assert.equal(helpers.matchDecor('猫耳  立着的', 'B'), '立猫耳');
   assert.equal(helpers.bestUploadedEarVariant('狗耳', 'A'), null, 'ambiguous posture should not pick arbitrarily');
   assert.equal(helpers.bestUploadedEarVariant('趴狗耳', 'B'), null, 'slot without that uploaded ear should not be selected');
+  assert.deepEqual(helpers.earCandidateVariants('狗耳', 'A'), ['趴狗耳', '立狗耳']);
   assert.deepEqual(helpers.earDecorCatalog().slice(0, 4), ['NONE', '趴狗耳', '立狗耳', '立猫耳']);
+});
+
+test('ear switching is atomic per slot and keeps the previous selection when unavailable', () => {
+  const names = ['earAssetRecordForSlot', 'setOrderEarVariant'];
+  const sources = names.map(name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  }).join('\n');
+  const fluffyA = { categoryId: 'EAR', slot: 'A', variant: '蓬松猫' };
+  const records = new Map([['EAR::蓬松猫|A', fluffyA]]);
+  const tailSyncs = [];
+  const S = { assets: [fluffyA], autoDecorSlots: { A: null, B: null } };
+  const helpers = new Function(
+    'S','normalizeVariantName','assetRecordForFamilySlot','sameVariant','ensureOrderAssetSelections',
+    'clearEarColorAnchors','clearAutoTailForSlot','assetFamilyKey','syncTailForEarSelection',
+    `${sources}\nreturn {${names.join(',')}};`
+  )(
+    S,
+    value => String(value || '').trim(),
+    (key, slot) => records.get(`${key}|${slot}`) || null,
+    (a, b) => a === b,
+    order => order.assetSelections,
+    () => {},
+    () => {},
+    record => `EAR::${record.variant}`,
+    (order, slot, record) => tailSyncs.push([slot, record.variant])
+  );
+  const order = {
+    A: { decor: '趴狗耳' }, B: { decor: '细猫' },
+    assetSelections: { A: { EAR: 'EAR::趴狗耳' }, B: { EAR: 'EAR::细猫' } }
+  };
+  const selected = helpers.setOrderEarVariant(order, 'A', '蓬松猫', { source: 'manual' });
+  assert.equal(selected.ok, true);
+  assert.equal(order.A.decor, '蓬松猫');
+  assert.equal(order.assetSelections.A.EAR, 'EAR::蓬松猫');
+  assert.deepEqual(tailSyncs, [['A', '蓬松猫']]);
+
+  const before = structuredClone(order.B);
+  const beforeFamily = order.assetSelections.B.EAR;
+  const unavailable = helpers.setOrderEarVariant(order, 'B', '蓬松猫', { source: 'manual' });
+  assert.equal(unavailable.ok, false);
+  assert.deepEqual(order.B, before);
+  assert.equal(order.assetSelections.B.EAR, beforeFamily);
 });
 
 test('customer form template residue is not parsed as a customer answer', () => {
@@ -131,6 +180,7 @@ B：穆祉丞
   assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#B9853E');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineB, ['发色']), 'hair'), '#2B2830');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['耳朵颜色']), 'decor'), '#FFFFFF');
+  assert.equal(helpers.formAnchorHex('浅黄色', 'eye'), '#F3DA8A');
   assert.deepEqual(helpers.apiReviewFields(inlineNames), [
     'customerName','A.name','A.outfitPreset','A.hatPreset','A.decor',
     'B.name','B.outfitPreset','B.hatPreset','B.decor','backgroundPreset'
@@ -241,7 +291,13 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
   assert.match(html, /if\(current&&auto\[slot\]!==current\)return false/);
   assert.match(html, /if\(on\)syncTailForEarSelection\(order,slot,record\);else clearAutoTailForSlot\(order,slot\)/);
   assert.match(html, /else if\(categoryId==='TAIL'\)\{\s*autoTail\[slot\]=null/);
-  assert.match(html, /if\(chosen\)syncTailForEarSelection\(order,slot,chosen\);else clearAutoTailForSlot\(order,slot\)/);
+  assert.match(html, /function setOrderEarVariant\(order,slot,variant,\{source='auto'\}=\{\}\)/);
+  assert.match(html, /order\[slot\]\.decor=record\.variant;selections\[slot\]\.EAR=assetFamilyKey\(record\)/);
+  assert.match(html, /syncTailForEarSelection\(order,slot,record\)/);
+  assert.match(html, /setOrderEarVariant\(o,slot,hit,\{source:'local'\}\)/);
+  assert.match(html, /setOrderEarVariant\(o,slot,requested,\{source:'api'\}\)/);
+  assert.match(html, /const families=uploadedEarVariants\(slot\)/);
+  assert.match(html, /已保留原来的耳朵和尾巴/);
 });
 
 test('ear base color anchors the paired tail base without recoloring other tail layers', () => {
@@ -249,7 +305,8 @@ test('ear base color anchors the paired tail base without recoloring other tail 
   assert.match(html, /function sharedDecorRoleColor\(role,slot,order\)/);
   assert.match(html, /role==='DECOR_BASE'\|\|role==='TAIL_BASE'\)return base/);
   assert.match(html, /role==='DECOR_SHADOW'\|\|role==='TAIL_SHADE'\)return shade/);
-  assert.match(html, /role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
+  assert.match(html, /if\(role==='TAIL_OUTLINE'\)\{/);
   assert.match(html, /asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)/);
   assert.match(html, /TAIL_SHADE/);
   assert.match(html, /const explicitDecor=\(a\.categoryId==='EAR'\|\|a\.categoryId==='TAIL'\)/);
@@ -260,9 +317,11 @@ test('ear fur line remains fixed while the main ear outline links to the hat out
   assert.match(html, /绒毛\.\*线稿\|线稿\.\*绒毛\|绒毛线\|fur\.\*line\|line\.\*fur/);
   assert.match(html, /if\(asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)\)continue/);
   assert.match(html, /if\(!role\|\|role==='NONE'\|\|role==='DECOR_FUR'\)continue/);
-  assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)\{/);
-  assert.match(html, /const linked=decorOutlineColor\(slot,order\);if\(linked\)return linked/);
-  assert.match(html, /有耳朵时帽子线稿与耳朵线稿强制联动/);
+  assert.match(html, /function hatOutlineColor\(slot,order\)/);
+  assert.match(html, /if\(role==='HAT_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\)map\[path\]=hatOutlineColor\(asset\.slot,order\)/);
+  assert.match(html, /命名为“绒毛线稿”的层保持素材原色/);
 });
 
 test('uploaded asset PSD layers can be shown or hidden without mutating the source PSD', () => {
@@ -276,13 +335,15 @@ test('uploaded asset PSD layers can be shown or hidden without mutating the sour
   assert.doesNotMatch(html, /\.layer\.hidden\s*=/);
 });
 
-test('ear assets keep original colors until an explicit form color anchors the ear and hat', () => {
+test('ear assets keep base and fur colors until an explicit form color while the main outline follows the hat', () => {
   assert.match(html, /耳朵底色（空=原色）/);
   assert.match(html, /function fillDecorFallbackBindings\(asset\)/);
   assert.match(html, /asset\.bindings\[base\.n\.path\]='DECOR_BASE'/);
   assert.match(html, /asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'/);
   assert.match(html, /function syncEarColorAnchorUi\(slot,order=getActiveOrder\(\)\)/);
   assert.match(html, /hatAnchor=order\[slot\]\?\.hat==='__DECOR_ANCHOR__'/);
+  assert.match(html, /linkedEarOutline=a\.categoryId==='EAR'/);
+  assert.match(html, /__preserveOriginal:true/);
 });
 
 test('phase two uses manual virtual slots instead of PSD slot markers', () => {
@@ -387,9 +448,9 @@ test('pale white and pink hats use a darker low-chroma outline', () => {
 });
 
 test('hat outline never derives from eye color', () => {
-  const start = html.indexOf("if(role==='HAT_OUTLINE')");
-  const end = html.indexOf("if(role==='HAT_TRIM_EDGE')", start);
-  assert.ok(start >= 0 && end > start, 'hat outline branch should exist');
+  const start = html.indexOf('function hatOutlineColor(slot,order)');
+  const end = html.indexOf('function deriveRoleColor', start);
+  assert.ok(start >= 0 && end > start, 'hat outline helper should exist');
   const branch = html.slice(start, end);
   assert.doesNotMatch(branch, /shiftColor\(eye/);
   assert.match(branch, /isNearWhite\(hat\)\)return shiftColor\(hat,-0\.17,0\.72\)/);

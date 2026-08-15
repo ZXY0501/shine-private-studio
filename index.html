@@ -982,6 +982,8 @@ const S={
 };
 const $=s=>document.querySelector(s);
 const CLOUD_PROFILE_ENABLED=new URLSearchParams(location.search).get('cloudProfiles')==='1';
+const PRODUCTION_BACKEND_ENDPOINT='https://shine-backend-uxgyzdvkcv.cn-hangzhou.fcapp.run';
+const PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT+'/api/deepseek/parse';
 const CLOUD_PROFILE_ENDPOINT_KEY='shine:cloud-profile-endpoint:v1';
 const CLOUD_PROFILE_TOKEN_KEY='shine:cloud-profile-token:v1';
 const cloudProfileEtags=new Map();
@@ -2047,7 +2049,7 @@ function initCloudProfiles(){
   const panel=$('#cloudProfilePanel');if(!panel)return;
   panel.hidden=!CLOUD_PROFILE_ENABLED;if($('#cloudAssetPanel'))$('#cloudAssetPanel').hidden=!CLOUD_PROFILE_ENABLED;
   if(!CLOUD_PROFILE_ENABLED)return;
-  try{$('#cloudProfileEndpoint').value=localStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||''}catch{}
+  try{$('#cloudProfileEndpoint').value=localStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||PRODUCTION_BACKEND_ENDPOINT}catch{$('#cloudProfileEndpoint').value=PRODUCTION_BACKEND_ENDPOINT}
   try{$('#cloudProfileToken').value=sessionStorage.getItem(CLOUD_PROFILE_TOKEN_KEY)||''}catch{}
   if($('#cloudAssetRefresh'))$('#cloudAssetRefresh').onclick=refreshCloudAssetCatalog;
   if($('#cloudTemplateUpload'))$('#cloudTemplateUpload').onclick=uploadMasterToCloud;
@@ -2401,7 +2403,7 @@ function loadProductionState(){
   migrateLogicDefaultsV21();
   try{S.eyeSchemes=JSON.parse(localStorage.getItem(EYE_SCHEME_KEY)||'[]')}catch{S.eyeSchemes=[]}
   migrateEyeSchemesV2();
-  $('#apiEndpoint').value=S.apiConfig.endpoint||'';
+  $('#apiEndpoint').value=S.apiConfig.endpoint||PRODUCTION_DEEPSEEK_ENDPOINT;
   $('#apiModel').value='本地 → flash0731 → pro0813';
   renderPresetOptions();renderPresetEditor();renderLogicEditor();renderOrders();renderAssetLibrary();renderEyeSchemeOptions();renderEyeSchemeList();
   if(S.orders[0])selectOrder(S.orders[0].id);
@@ -2419,8 +2421,8 @@ function persistApi(){
 }
 
 function deepSeekProxyConfig(){
-  const manual=String(S.apiConfig.endpoint||'').trim().replace(/\/+$/,''),cloud=CLOUD_PROFILE_ENABLED?cloudProfileConfig():{endpoint:'',token:''},automatic=cloud.endpoint?cloud.endpoint+'/api/deepseek/parse':'';
-  const endpoint=manual||automatic,usesCloud=!!automatic&&endpoint===automatic;
+  const manual=String(S.apiConfig.endpoint||'').trim().replace(/\/+$/,''),cloud=CLOUD_PROFILE_ENABLED?cloudProfileConfig():{endpoint:'',token:''},automatic=cloud.endpoint?cloud.endpoint+'/api/deepseek/parse':'',endpoint=manual||automatic||PRODUCTION_DEEPSEEK_ENDPOINT;
+  const usesCloud=endpoint===automatic||endpoint===PRODUCTION_DEEPSEEK_ENDPOINT;
   return {endpoint,token:usesCloud?cloud.token:'',usesCloud};
 }
 
@@ -2651,9 +2653,18 @@ function earIntentSignature(value){
 function uploadedEarVariants(slot=''){
   return [...new Set((S.assets||[]).filter(a=>a.categoryId==='EAR'&&(!slot||a.slot===slot||a.slot==='BOTH'||a.characterCompatibility==='BOTH')).map(a=>normalizeVariantName(a.variant||a.name)).filter(Boolean))];
 }
+function earCandidateVariants(text,slot=''){
+  const wanted=earIntentSignature(text);if(!wanted.text)return [];
+  return uploadedEarVariants(slot).filter(variant=>{
+    const candidate=earIntentSignature(variant);
+    if(wanted.animal&&candidate.animal!==wanted.animal)return false;
+    if(wanted.pose&&candidate.pose&&candidate.pose!==wanted.pose)return false;
+    return wanted.animal||wanted.pose||wanted.text===candidate.text||wanted.text.includes(candidate.text)||candidate.text.includes(wanted.text);
+  });
+}
 function bestUploadedEarVariant(text,slot=''){
   const wanted=earIntentSignature(text);if(!wanted.text)return null;
-  const ranked=uploadedEarVariants(slot).map(variant=>{
+  const ranked=earCandidateVariants(text,slot).map(variant=>{
     const candidate=earIntentSignature(variant);let score=0;
     if(wanted.text===candidate.text)score+=100;
     else if(wanted.text.includes(candidate.text)||candidate.text.includes(wanted.text))score+=35;
@@ -2668,19 +2679,18 @@ function bestUploadedEarVariant(text,slot=''){
   return ranked[0].variant;
 }
 function earDecorCatalog(){
-  return [...new Set(['NONE',...uploadedEarVariants(),'猫耳','犬耳','狗耳','狼耳','狐狸耳','狐耳','垂耳兔','兔耳','狮子耳','鹿角','龙角','恶魔角'])].slice(0,64);
+  return [...new Set(['NONE',...uploadedEarVariants()])].slice(0,64);
 }
 function matchDecor(text,slot=''){
   const uploaded=bestUploadedEarVariant(text,slot);if(uploaded)return uploaded;
-  const dict=['猫耳','犬耳','狗耳','狼耳','狐狸耳','狐耳','垂耳兔','兔耳','狮子耳','鹿角','龙角','恶魔角'];
-  return dict.find(k=>text.includes(k))||(/无/.test(text)?'NONE':null);
+  return /(?:无|不要|不换)/.test(text)?'NONE':null;
 }
 function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
 function formAnchorHex(value,kind='generic'){
   const raw=String(value||'').trim(),explicit=explicitFormHex(raw);if(explicit)return explicit;
-  const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',绿:'绿色',青:'青色',紫:'紫色'};
+  const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',浅黄:'浅黄色',淡黄:'浅黄色',鹅黄:'浅黄色',绿:'绿色',青:'青色',紫:'紫色'};
   const key=aliases[raw.replace(/[\s，,。.!！]/g,'')]||raw.replace(/[\s，,。.!！]/g,'');
-  const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5'};
+  const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',浅黄色:'#F3DA8A',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5'};
   const specialized={eye:{棕色:'#B9853E',黑色:'#3A353A'},hair:{棕色:'#5B4036',黑色:'#2B2830'}};
   return specialized[kind]?.[key]||common[key]||'';
 }
@@ -2700,7 +2710,7 @@ function apiReviewFields(text){
 function localParseForm({announce=true}={}){
   const text=$('#orderForm').value;
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
-  const unresolved=[];
+  const unresolved=[],choiceNotes=[];
   const a=characterSection(text,'A'), b=characterSection(text,'B');
   const cn=parseCustomerName(text);if(cn)o.customerName=cn;
   const an=field(a,['宝宝名字','名字']);if(an)o.A.name=an;
@@ -2708,7 +2718,13 @@ function localParseForm({announce=true}={}){
   const ao=field(a,['衣服颜色']);const ah=field(a,['帽子颜色','代表色']);const ad=field(a,['耳朵类型','帽饰']);
   const bo=field(b,['衣服颜色']);const bh=field(b,['帽子颜色','代表色']);const bd=field(b,['耳朵类型','帽饰']);
   const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
-  const localDecor=(raw,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchDecor(raw,path.startsWith('A.')?'A':'B');if(hit)return hit;unresolved.push(path);return current};
+  const localDecor=(raw,path,current)=>{
+    if(!String(raw||'').trim())return current;
+    const slot=path.startsWith('A.')?'A':'B',hit=matchDecor(raw,slot);
+    if(hit){const selected=setOrderEarVariant(o,slot,hit,{source:'local'});if(selected.ok)return selected.variant;}
+    const choices=earCandidateVariants(raw,slot);if(choices.length>1)choiceNotes.push(`${slot} 的“${String(raw).trim()}”有 ${choices.length} 款：${choices.join(' / ')}`);
+    unresolved.push(path);return current;
+  };
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
   o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
   const ae=formAnchorHex(field(a,['瞳色']),'eye'),af=formAnchorHex(field(a,['发色']),'hair'),be=formAnchorHex(field(b,['瞳色']),'eye'),bf=formAnchorHex(field(b,['发色']),'hair');
@@ -2719,7 +2735,7 @@ function localParseForm({announce=true}={}){
   if(/暖/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^暖/.test(k))||o.background;o.backgroundSource='local';}
   if((bg&&!/[冷暖]/.test(bg))||(!bg&&(ah||bh)))unresolved.push('backgroundPreset');
   o.formText=text;persistOrders();selectOrder(o.id);
-  if(announce)stat($('#apiStatus'),unresolved.length?'本地规则已先读取；仍有少数字段需人工处理。':'本地规则已完整读取，不需要调用 AI。','good');
+  if(announce)stat($('#apiStatus'),unresolved.length?(choiceNotes.length?`本地规则已读取；${choiceNotes.join('；')}，请点选具体款。`:'本地规则已先读取；仍有少数字段需人工处理。'):'本地规则已完整读取，不需要调用 AI。','good');
   return [...new Set(unresolved)];
 }
 async function apiParseForm(){
@@ -2783,7 +2799,11 @@ function applyApiOrder(data){
     if(d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex))o[slot].hair=d.hairHex;
     if(d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
     if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
-    if(d.decor){const original=field(characterSection($('#orderForm').value,slot),['耳朵类型','帽饰']);o[slot].decor=bestUploadedEarVariant(original,slot)||bestUploadedEarVariant(d.decor,slot)||d.decor;}
+    if(d.decor){
+      const original=field(characterSection($('#orderForm').value,slot),['耳朵类型','帽饰']);
+      const requested=bestUploadedEarVariant(original,slot)||bestUploadedEarVariant(d.decor,slot)||d.decor;
+      setOrderEarVariant(o,slot,requested,{source:'api'});
+    }
   });
   if(data.backgroundPreset&&S.presets.background[data.backgroundPreset]){o.background=data.backgroundPreset;o.backgroundManual='';o.backgroundSource='api';o.backgroundReason=String(data.backgroundReason||'').slice(0,80);}
   o.formText=$('#orderForm').value;persistOrders();selectOrder(o.id);
@@ -2877,7 +2897,7 @@ function renderStyleSchemeEditor(kind){
   const host=$('#'+kind+'SchemeEditor');if(!host)return;const arr=S.styleSchemes[kind]||[];let id=S.editingStyleScheme[kind];let sc=arr.find(x=>x.id===id)||arr[0]||makeBlankScheme(kind);if(!arr.some(x=>x.id===sc.id)){arr.push(sc);S.styleSchemes[kind]=arr;persistStyleSchemes()}S.editingStyleScheme[kind]=sc.id;
   const selectOpts=arr.map(x=>`<option value="${safe(x.id)}" ${x.id===sc.id?'selected':''}>${safe(x.name)}</option>`).join('');
   const colorRow=(label,key)=>`<label>${label}</label><div class="schemeColorLine"><input data-sk="${key}" type="text" value="${safe(sc[key]||'#888888')}"><input data-skc="${key}" type="color" value="${safe((sc[key]||'#888888').toLowerCase())}"></div>`;
-  host.innerHTML=`<div class="schemeGrid"><label>编辑方案</label><select data-style-select>${selectOpts}</select><label>方案名</label><input data-sk="name" type="text" value="${safe(sc.name)}">${colorRow(kind==='hat'?'帽子底色':'衣服底色','base')}${colorRow(kind==='hat'?'帽子线稿':'衣服线稿',kind==='hat'?'outline':'line')}${kind==='hat'?colorRow('帽子绒边/辅色','trim'):''}</div><div class="schemeToolbar"><button class="btn" data-style-new>新建</button><button class="btn primary" data-style-save>保存 / 更新方案</button><button class="btn" data-style-apply="A">试到 A</button><button class="btn" data-style-apply="B">试到 B</button><button class="btn" data-style-capture="A">从 A${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-capture="B">从 B${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-delete>删除</button></div><div class="schemeApplyState">先点“试到 A/B”，之后拖色盘会直接在左侧预览实时变化。${kind==='hat'?'有耳朵底色时，帽子线稿强制跟耳朵线稿；方案里的帽子线稿保留给无耳朵/无覆写订单。':''}</div><div class="schemeNote">“读取”只抓纯净模板大夹子里的代表色作为起点，不修改你的 PSD。保存后方案会立即出现在表单清洗的 A/B 下拉框里。当前先保存在本机 localStorage，后端接好后会迁移为账号/项目级保存，不需要重做方案。</div>`;
+  host.innerHTML=`<div class="schemeGrid"><label>编辑方案</label><select data-style-select>${selectOpts}</select><label>方案名</label><input data-sk="name" type="text" value="${safe(sc.name)}">${colorRow(kind==='hat'?'帽子底色':'衣服底色','base')}${colorRow(kind==='hat'?'帽子线稿':'衣服线稿',kind==='hat'?'outline':'line')}${kind==='hat'?colorRow('帽子绒边/辅色','trim'):''}</div><div class="schemeToolbar"><button class="btn" data-style-new>新建</button><button class="btn primary" data-style-save>保存 / 更新方案</button><button class="btn" data-style-apply="A">试到 A</button><button class="btn" data-style-apply="B">试到 B</button><button class="btn" data-style-capture="A">从 A${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-capture="B">从 B${kind==='hat'?'帽子':'衣服'}读取</button><button class="btn" data-style-delete>删除</button></div><div class="schemeApplyState">先点“试到 A/B”，之后拖色盘会直接在左侧预览实时变化。${kind==='hat'?'耳朵大轮廓线稿会跟随对应 A/B 帽子线稿；命名为“绒毛线稿”的层保持素材原色。':''}</div><div class="schemeNote">“读取”只抓纯净模板大夹子里的代表色作为起点，不修改你的 PSD。保存后方案会立即出现在表单清洗的 A/B 下拉框里。当前先保存在本机 localStorage，后端接好后会迁移为账号/项目级保存，不需要重做方案。</div>`;
   host.querySelector('[data-style-select]').onchange=e=>{S.editingStyleScheme[kind]=e.target.value;renderStyleSchemeEditor(kind)};
   const syncDraftToScheme=(persist=false)=>{const target=S.styleSchemes[kind].find(x=>x.id===S.editingStyleScheme[kind]);if(!target)return;target.name=(host.querySelector('input[data-sk="name"]')?.value||target.name).trim();['base',kind==='hat'?'outline':'line',...(kind==='hat'?['trim']:[])].forEach(k=>{target[k]=safeHex(host.querySelector(`input[data-sk="${k}"]`)?.value,target[k])});if(persist){persistStyleSchemes();renderPresetOptions();flushLiveProductionColors({persist:true})}else scheduleLiveProductionColors({persist:false});};
   host.querySelectorAll('input[data-skc]').forEach(el=>{
@@ -3032,7 +3052,8 @@ function sharedDecorRoleColor(role,slot,order){
   const shade=normalizeHex(order?.[slot]?.decorShade||'');
   if(role==='DECOR_BASE'||role==='TAIL_BASE')return base||null;
   if(role==='DECOR_SHADOW'||role==='TAIL_SHADE')return shade||null;
-  if(role==='DECOR_OUTLINE'||role==='TAIL_OUTLINE'){
+  if(role==='DECOR_OUTLINE')return hatOutlineColor(slot,order);
+  if(role==='TAIL_OUTLINE'){
     if(!base)return null;
     const g=S.logic||DEFAULT_LOGIC;
     if(isNearWhite(base))return shiftColor(base,-0.18,0.28);
@@ -3061,6 +3082,12 @@ function assetOverrideMap(asset,order){
       if(!role||role==='NONE'||role==='DECOR_FUR')continue;
       if(asset.categoryId==='TAIL'&&!['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'].includes(role))continue;
       const c=sharedDecorRoleColor(role,asset.slot,order)||deriveRoleColor(role,asset.slot,order);if(c)map[path]=c;
+    }
+  }
+  // 耳朵的大轮廓线稿始终跟随对应 A/B 帽子线稿；明确标成 DECOR_FUR 的绒毛线稿永远不参与联动。
+  if(asset.categoryId==='EAR'&&!order?.__preserveOriginal){
+    for(const [path,role] of Object.entries(asset.bindings||{})){
+      if(role==='DECOR_OUTLINE')map[path]=hatOutlineColor(asset.slot,order);
     }
   }
   // 边框的四个颜色只来自当前订单中这一个边框实例；没取色的字段继续保留 PSD 原色。
@@ -3137,7 +3164,7 @@ function renderAssetComposite(asset,order){
   const c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');renderAssetSiblingStack(asset,psd,ctx,psd.children||[],'',mode,true,map);return enforceDecorOutlineAboveFur(asset,c,map);
 }
 function renderAssetOriginalComposite(asset){
-  const mode=asset.colorMode;asset.colorMode='PRESERVE_ORIGINAL';try{return renderAssetComposite(asset,{A:{},B:{}})}finally{asset.colorMode=mode}
+  const mode=asset.colorMode;asset.colorMode='PRESERVE_ORIGINAL';try{return renderAssetComposite(asset,{A:{},B:{},__preserveOriginal:true})}finally{asset.colorMode=mode}
 }
 function sampledAlphaMass(canvas){if(!canvas||!canvas.width)return 0;const w=48,h=48,c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(canvas,0,0,w,h);let d;try{d=x.getImageData(0,0,w,h).data}catch{return 0}let n=0;for(let i=3;i<d.length;i+=4)n+=d[i];return n}
 function refreshOneAssetComposite(asset,order=getActiveOrder()||newOrderData()){
@@ -3154,7 +3181,8 @@ function prepareAssetCompositeForOrder(a,order=getActiveOrder()||newOrderData())
   const explicitDecor=(a.categoryId==='EAR'||a.categoryId==='TAIL')&&(normalizeHex(order?.[a.slot]?.decorBase||'')||normalizeHex(order?.[a.slot]?.decorShade||''));
   const explicitFrame=a.categoryId==='FRAME'&&Object.values(frameSelection(order,assetFamilyKey(a))?.colors||{}).some(value=>!!normalizeHex(value));
   const hasManual=assetRelevantLeaves(a).some(n=>S.manualLayerOverrides?.[assetLayerKey(a,n.path)]);
-  if(a.colorMode!=='FOLLOW_ORDER'&&!explicitDecor&&!explicitFrame&&!hasManual){a.composite=a.originalComposite;return;}
+  initAssetBindings(a,false);const linkedEarOutline=a.categoryId==='EAR'&&Object.values(a.bindings||{}).includes('DECOR_OUTLINE');
+  if(a.colorMode!=='FOLLOW_ORDER'&&!explicitDecor&&!explicitFrame&&!hasManual&&!linkedEarOutline){a.composite=a.originalComposite;return;}
   refreshOneAssetComposite(a,order);
 }
 function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
@@ -3236,6 +3264,27 @@ function assetAnimalKey(value){
 }
 function assetRecordForFamilySlot(familyKey,slot){
   return S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot)||S.assets.find(a=>assetFamilyKey(a)===familyKey&&(a.characterCompatibility==='BOTH'||a.slot==='BOTH'))||null;
+}
+function earAssetRecordForSlot(variant,slot){
+  const normalized=normalizeVariantName(variant||'');if(!normalized||normalized==='NONE')return null;
+  const familyKey=`EAR::${normalized}`;
+  return assetRecordForFamilySlot(familyKey,slot)||S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant||a.name,normalized))||null;
+}
+function setOrderEarVariant(order,slot,variant,{source='auto'}={}){
+  if(!order?.[slot]||!['A','B'].includes(slot))return {ok:false,reason:'INVALID_SLOT'};
+  const requested=normalizeVariantName(variant||'');
+  const selections=ensureOrderAssetSelections(order),before=order[slot].decor||'NONE';
+  if(!requested||requested==='NONE'){
+    if(before!=='NONE')clearEarColorAnchors(slot,order);
+    order[slot].decor='NONE';selections[slot].EAR=null;clearAutoTailForSlot(order,slot);S.autoDecorSlots[slot]=null;
+    return {ok:true,variant:'NONE',record:null};
+  }
+  const record=earAssetRecordForSlot(requested,slot);if(!record)return {ok:false,reason:'SLOT_VARIANT_UNAVAILABLE',variant:requested};
+  if(before!=='NONE'&&!sameVariant(before,record.variant))clearEarColorAnchors(slot,order);
+  order[slot].decor=record.variant;selections[slot].EAR=assetFamilyKey(record);
+  S.autoDecorSlots[slot]=source==='manual'?null:normalizeVariantName(record.variant);
+  syncTailForEarSelection(order,slot,record);
+  return {ok:true,variant:record.variant,record};
 }
 function matchingTailForEar(earRecord,slot){
   const key=assetAnimalKey(earRecord?.variant||earRecord?.name);if(!key)return null;
@@ -3715,6 +3764,17 @@ function isPalePinkOrWhiteHat(base){
 function paleHatOutlineColor(base){
   const o=rgbToOklch(base),h=o.C<.025?350:o.h,c=Math.max(.018,Math.min(.038,o.C*.34));return gamutHex(o.L>.94?.61:.64,c,h);
 }
+function hatOutlineColor(slot,order){
+  const hatAnchor=order?.[slot]?.hat==='__DECOR_ANCHOR__',hatCustom=order?.[slot]?.hat==='__CUSTOM__';
+  const hatScheme=(hatAnchor||hatCustom)?null:resolveStyleScheme('hat',order?.[slot]?.hat),decorBase=activeDecorBaseColor(slot,order);
+  const hat=safeHex(hatCustom?order?.[slot]?.hatManual:((hatAnchor&&decorBase)?decorBase:(hatScheme?.base||DEFAULT_PRESETS.hat['红色'])),'#C85B5B');
+  const g=S.logic||DEFAULT_LOGIC;
+  if(hatScheme?.outline)return hatScheme.outline;
+  if(isPalePinkOrWhiteHat(hat))return paleHatOutlineColor(hat);
+  if(isNearWhite(hat))return shiftColor(hat,-0.17,0.72);
+  if(isNearGray(hat))return shiftColor(hat,-0.26,0.46);
+  return shiftColor(hat,g.hatOutlineL,g.hatOutlineC);
+}
 
 function deriveRoleColor(role,slot,order){
   const eye=safeHex(order[slot]?.eye,'#918DCB');
@@ -3734,20 +3794,11 @@ function deriveRoleColor(role,slot,order){
   if(role==='OUTFIT_BASE')return outfit;
   if(role==='OUTFIT_LINE')return (!outfitCustom&&outfitScheme?.line)||shiftColor(outfit,g.outfitLineL,g.outfitLineC);
   if(role==='HAT_BASE')return hat;
-  if(role==='HAT_OUTLINE'){
-    const linked=decorOutlineColor(slot,order);if(linked)return linked;
-    if(hatScheme?.outline)return hatScheme.outline;
-    if(isPalePinkOrWhiteHat(hat))return paleHatOutlineColor(hat);
-    // 帽子外轮廓必须由帽子自身底色推导；旧逻辑在近白帽子上误用了眼睛主色，
-    // 会让帽子线稿跟着眼睛变紫/变蓝。保留帽子色相，只压低明度并略降饱和度。
-    if(isNearWhite(hat))return shiftColor(hat,-0.17,0.72);
-    if(isNearGray(hat))return shiftColor(hat,-0.26,0.46);
-    return shiftColor(hat,g.hatOutlineL,g.hatOutlineC);
-  }
+  if(role==='HAT_OUTLINE')return hatOutlineColor(slot,order);
   if(role==='HAT_TRIM_EDGE')return (!hatAnchor&&hatScheme?.trim)||hatTrimColor(hat)||shiftColor(hat,g.hatTrimL,g.hatTrimC);
   if(role==='DECOR_BASE')return decorBase||null;
   if(role==='DECOR_SHADOW')return decorShade||null;
-  if(role==='DECOR_OUTLINE')return decorOutlineColor(slot,order);
+  if(role==='DECOR_OUTLINE')return hatOutlineColor(slot,order);
   if(role==='DECOR_INNER')return decorInnerColor(slot,order);
   if(role==='DECOR_ACCENT')return decorBase?shiftColor(decorBase,g.decorAccentL,g.decorAccentC):null;
   if(role==='BODY_TRAIT_BASE')return decorBase||null;
@@ -3895,8 +3946,8 @@ function ensureSystemLinkedTemplateLayers(order){
     if(slot!=='A'&&slot!=='B')return;
     // 帽子 / 衣服方案与眼睛自动衍生都属于“系统明确控制”的已识别层，不要求用户再手动点一次解锁。
     if(schemeRoles.has(b.role)){b.locked=false;b.source='SYSTEM_SCHEME';return;}
-    // 有耳朵时帽子线稿与耳朵线稿强制联动（兼容旧模板只绑定了线稿的情况）。
-    if(b.role==='HAT_OUTLINE'&&activeDecorBaseColor(slot,order)){b.locked=false;b.source='DERIVED';}
+    // 帽子线稿由帽子方案控制；外部耳朵的大轮廓会反向跟随这个颜色，绒毛线稿保持原色。
+    if(b.role==='HAT_OUTLINE'){b.locked=false;b.source='SYSTEM_SCHEME';}
   });
 }
 function applyOrderColors(options={}){
@@ -3988,15 +4039,16 @@ function renderAssetRuntimeStatus(){
   box.className='status assetRuntimeStatus '+(mismatch?'bad':'good');box.innerHTML=one('A')+'<br>'+one('B');
 }
 function updateDecorSelects(){
-  const families=[...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId==='EAR'}).map(a=>normalizeVariantName(a.variant)))],o=getActiveOrder();
+  const o=getActiveOrder();
   [['aDecor','A'],['bDecor','B']].forEach(([id,slot])=>{
     const el=$('#'+id);if(!el)return;
+    const families=uploadedEarVariants(slot);
     const raw=o?.[slot]?.decor||el.value||'NONE';
     const matched=raw==='NONE'?null:families.find(v=>sameVariant(v,raw));
     const desired=matched||raw;
     if(o?.[slot]&&matched&&o[slot].decor!==matched)o[slot].decor=matched;
     let opts='<option value="NONE">无</option>'+families.map(v=>`<option value="${safe(v)}">${safe(v)}</option>`).join('');
-    if(desired!=='NONE'&&!matched)opts+=`<option value="${safe(desired)}">⚠ ${safe(desired)}（素材未上传）</option>`;
+    if(desired!=='NONE'&&!matched)opts+=`<option value="${safe(desired)}">⚠ ${safe(desired)}（${slot}位不可用）</option>`;
     el.innerHTML=opts;el.value=[...el.options].some(x=>x.value===desired)?desired:'NONE';
   });
   syncAllEarColorAnchorUi(o);
@@ -4574,7 +4626,12 @@ $('#quickHex').onchange=e=>{const v=safeHex(e.target.value,currentLayerColor($('
 if($('#quickGroup'))$('#quickGroup').onchange=()=>{if($('#quickSearch'))$('#quickSearch').value='';renderEditableLayerSelectors();};
 if($('#quickSearch'))$('#quickSearch').oninput=renderEditableLayerSelectors;
 $('#quickLayer').onchange=syncQuickColorFromSelection;
-$('#aDecor').onchange=$('#bDecor').onchange=e=>{const slot=e.target.id==='aDecor'?'A':'B',before=getActiveOrder()?.[slot]?.decor||'NONE',after=e.target.value;S.autoDecorSlots[slot]=null;if(before!==after)clearEarColorAnchors(slot);const order=captureActiveOrder(),chosen=S.assets.find(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,after));ensureOrderAssetSelections(order)[slot].EAR=chosen?assetFamilyKey(chosen):null;if(chosen)syncTailForEarSelection(order,slot,chosen);else clearAutoTailForSlot(order,slot);persistOrders();syncAssetEnabledFromOrder(order);applyDecorSelection()};
+$('#aDecor').onchange=$('#bDecor').onchange=e=>{
+  const slot=e.target.id==='aDecor'?'A':'B',order=getActiveOrder()||captureActiveOrder(),before=order?.[slot]?.decor||'NONE',after=e.target.value;
+  const selected=setOrderEarVariant(order,slot,after,{source:'manual'});
+  if(!selected.ok){e.target.value=before;stat($('#apiStatus'),`${slot} 位没有可用的“${after}”素材，已保留原来的耳朵和尾巴。`,'bad');updateDecorSelects();return;}
+  persistOrders();syncAssetEnabledFromOrder(order);applyDecorSelection();setTimeout(()=>warmCurrentOrderAssets(),0);
+};
 $('#orderStatus').onchange=()=>{captureActiveOrder()};
 $('#watermarkMode').onchange=()=>{if(S.master){applyWatermarkMode($('#watermarkMode').value==='preview');reconstruct();renderOverlay()}};
 $('#aHairFile').onchange=e=>{const file=e.target.files?.[0];e.target.value='';if(file)loadHairAsset(file,'A')};
