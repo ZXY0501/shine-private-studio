@@ -2225,7 +2225,7 @@ const OFFICIAL_COLOR_SCHEMES={
   '灰':{aliases:['浅灰','灰色','灰'],hat:{base:'#DEDEDE',outline:'#BABABA',trim:'#D6D6D6'},outfit:{base:'#EDEDED',line:'#B0B0B0'}},
   '黑':{aliases:['黑色','墨色','玄色','深灰','黑'],hat:{base:'#828282',outline:'#6B6B6B',trim:'#CCCCCC'},outfit:{base:'#757575',line:'#575757'}},
   '白':{aliases:['白色','白'],hat:{base:'#FFFFFF',outline:'#B5B5B5',trim:'#EDEDED'},outfit:{base:'#FFFFFF',line:'#D1D1D1'}},
-  '粉色':{aliases:['浅粉色','淡粉色','嫩粉色','粉色'],hat:{base:'#FFE5F1',outline:'#BFA6B5',trim:'#ECCBD9'},outfit:{base:'#FFEBF3',line:'#A28B90'}}
+  '粉色':{aliases:['粉','浅粉','浅粉色','淡粉','淡粉色','嫩粉','嫩粉色','粉色'],hat:{base:'#FFE5F1',outline:'#BFA6B5',trim:'#ECCBD9'},outfit:{base:'#FFEBF3',line:'#A28B90'}}
 };
 const DEFAULT_PRESETS={
   hat:Object.fromEntries(Object.entries(OFFICIAL_COLOR_SCHEMES).map(([name,sc])=>[name,sc.hat.base])),
@@ -2635,11 +2635,19 @@ function field(sec,names){
 }
 function matchPreset(text,kind){
   if(kind==='hat'||kind==='outfit'){
-    const raw=String(text||''),arr=S.styleSchemes?.[kind]||[];
-    let candidates=/紫色/.test(raw)&&!/(蓝紫|粉紫)/.test(raw)
-      ?arr.filter(x=>x.name==='蓝紫'||x.name==='粉紫')
-      :arr.filter(x=>raw.includes(x.name)||(x.aliases||[]).some(alias=>raw.includes(alias)));
-    const hit=candidates.length?candidates[Math.floor(Math.random()*candidates.length)]:null;return hit?.id||null;
+    const raw=String(text||'').trim(),compact=raw.replace(/[\s，,。.!！]/g,''),arr=S.styleSchemes?.[kind]||[];
+    if(/紫色/.test(compact)&&!/(蓝紫|粉紫)/.test(compact)){
+      const purple=arr.filter(x=>x.name==='蓝紫'||x.name==='粉紫');
+      return purple.length?purple[Math.floor(Math.random()*purple.length)]?.id||null:null;
+    }
+    const builtInAliases={粉色:['粉','浅粉','淡粉','嫩粉','粉红']};
+    const ranked=arr.map((scheme,index)=>{
+      const labels=[scheme.name,...(scheme.aliases||[]),...(builtInAliases[scheme.name]||[])].map(x=>String(x||'').replace(/[\s，,。.!！]/g,'')).filter(Boolean);
+      let score=-1;
+      labels.forEach(label=>{if(compact===label)score=Math.max(score,100+label.length);else if(compact.includes(label))score=Math.max(score,50+label.length)});
+      return {scheme,index,score};
+    }).filter(x=>x.score>=0).sort((a,b)=>b.score-a.score||a.index-b.index);
+    return ranked[0]?.scheme?.id||null;
   }
   const keys=Object.keys(S.presets[kind]||{});return keys.find(k=>text.includes(k))||null;
 }

@@ -224,6 +224,43 @@ test('official hat and outfit palettes are independent and support random purple
   assert.match(html, /outfitPresetPalette:styleSchemePalette\('outfit'\)/);
 });
 
+test('single-character pink answers resolve B hat and outfit without stealing pink-purple', () => {
+  const names = ['characterSection', 'isUnfilledTemplateValue', 'field', 'matchPreset'];
+  const sources = names.map(name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  }).join('\n');
+  const helpers = new Function('S', `${sources}\nreturn {${names.join(',')}};`)({
+    styleSchemes: {
+      hat: [
+        { id: 'pink-purple-hat', name: '粉紫', aliases: ['粉紫'] },
+        { id: 'pink-hat', name: '粉色', aliases: ['浅粉色', '粉色'] }
+      ],
+      outfit: [
+        { id: 'pink-purple-outfit', name: '粉紫', aliases: ['粉紫'] },
+        { id: 'pink-outfit', name: '粉色', aliases: ['浅粉色', '粉色'] }
+      ]
+    },
+    presets: {}
+  });
+  const form = `约稿人微信id：乖令、
+A：
+帽子颜色：灰
+耳朵类型：兔双立
+B：
+衣服颜色：粉
+帽子颜色：粉
+耳朵类型：猫`;
+  const b = helpers.characterSection(form, 'B');
+  assert.equal(helpers.field(b, ['帽子颜色']), '粉');
+  assert.equal(helpers.matchPreset(helpers.field(b, ['帽子颜色']), 'hat'), 'pink-hat');
+  assert.equal(helpers.matchPreset(helpers.field(b, ['衣服颜色']), 'outfit'), 'pink-outfit');
+  assert.equal(helpers.matchPreset('浅粉', 'hat'), 'pink-hat');
+  assert.equal(helpers.matchPreset('粉紫', 'hat'), 'pink-purple-hat');
+});
+
 test('heavy PSD color previews are debounced and final changes are flushed', () => {
   assert.match(html, /const LIVE_COLOR_PREVIEW_DELAY=110;/);
   assert.match(html, /clearTimeout\(S\.liveColorTimer\);\s*S\.liveColorTimer=setTimeout\(paintPendingLiveProductionColors,LIVE_COLOR_PREVIEW_DELAY\)/);
