@@ -375,6 +375,7 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
 test('ear colors anchor the paired tail while both outlines share the A/B hat outline', () => {
   assert.match(html, /\(asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'\)\&\&\(explicitDecorBase\|\|explicitDecorShade\)/);
   assert.match(html, /function sharedDecorRoleColor\(role,slot,order\)/);
+  assert.match(html, /normalizeHex\(order\?\.\[slot\]\?\.decorShade\|\|''\)\|\|decorShadeFromBase\(base\)/);
   assert.match(html, /role==='DECOR_BASE'\|\|role==='TAIL_BASE'\)return base/);
   assert.match(html, /role==='DECOR_SHADOW'\|\|role==='TAIL_SHADE'\)return shade/);
   assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
@@ -388,14 +389,30 @@ test('ear colors anchor the paired tail while both outlines share the A/B hat ou
   const start = html.indexOf('function sharedDecorRoleColor(');
   const end = html.indexOf('\nfunction ', start + 1);
   const sharedDecorRoleColor = new Function(
-    'normalizeHex', 'hatOutlineColor',
+    'normalizeHex', 'hatOutlineColor', 'decorShadeFromBase',
     `${html.slice(start, end)}\nreturn sharedDecorRoleColor;`
-  )(value => value || '', slot => `${slot}-hat-outline`);
-  const order = { A: { decorBase: '', decorShade: '' }, B: { decorBase: '#eeeeee', decorShade: '#bbbbbb' } };
+  )(value => value || '', slot => `${slot}-hat-outline`, base => base ? `${base}-shade` : null);
+  const order = { A: { decorBase: '#eeeeee', decorShade: '' }, B: { decorBase: '#dddddd', decorShade: '#bbbbbb' } };
+  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'A', order), '#eeeeee-shade');
+  assert.equal(sharedDecorRoleColor('TAIL_SHADE', 'A', order), '#eeeeee-shade');
+  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'B', order), '#bbbbbb');
   assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'A', order), 'A-hat-outline');
   assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'A', order), 'A-hat-outline');
   assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'B', order), 'B-hat-outline');
   assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'B', order), 'B-hat-outline');
+});
+
+test('tails are pinned directly above the lace and below every other root layer', () => {
+  assert.match(html, /function pinTailStackAboveLace\(panelIds,tailIds,lace,base,legacy\)/);
+  assert.match(html, /return pinTailStackAboveLace\(\[\.\.\.frameStackIds\('FRONT'\),\.\.\.rest,\.\.\.frameStackIds\('BACK'\)\],tailIds,lace,base,legacy\)/);
+  const start = html.indexOf('function pinTailStackAboveLace(');
+  const end = html.indexOf('\nfunction ', start + 1);
+  const pinTailStackAboveLace = new Function(`${html.slice(start, end)}\nreturn pinTailStackAboveLace;`)();
+  const panel = ['front-frame', 'tail:B', 'person', 'tail:A', 'back-frame', 'lace', 'base', 'legacy'];
+  assert.deepEqual(
+    pinTailStackAboveLace(panel, new Set(['tail:A', 'tail:B']), 'lace', 'base', 'legacy'),
+    ['front-frame', 'person', 'back-frame', 'tail:B', 'tail:A', 'lace', 'base', 'legacy']
+  );
 });
 
 test('ear and tail fur lines remain fixed while their main outlines share the hat outline', () => {

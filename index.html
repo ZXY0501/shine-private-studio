@@ -1302,6 +1302,13 @@ function defaultRootStackOrder(){
   else {ids.unshift(...hairs);}
   return [...frameStackIds('FRONT'),...globalAssetStackIds('FRONT'),...stackAssetIds(),...ids,...globalAssetStackIds('BACK'),...frameStackIds('BACK')];
 }
+function pinTailStackAboveLace(panelIds,tailIds,lace,base,legacy){
+  const backgrounds=new Set([lace,base,legacy].filter(Boolean));
+  const tails=panelIds.filter(id=>tailIds.has(id)&&!backgrounds.has(id));
+  const rest=panelIds.filter(id=>!tailIds.has(id)&&!backgrounds.has(id));
+  // 图层面板是“上→下”：所有其他素材 / 人物 → 尾巴 → 蕾丝 → 底色。
+  return [...rest,...tails,...(lace?[lace]:[]),...(base?[base]:[]),...(legacy?[legacy]:[])];
+}
 function normalizeRootStackOrder(order){
   const validLayers=new Set(baseRootPanelOrder());
   const frames=[...frameStackIds('FRONT'),...frameStackIds('BACK')],globals=[...globalAssetStackIds('FRONT'),...globalAssetStackIds('BACK')],validAssets=new Set([...stackAssetIds(),...frames,...globals]),rememberedAssets=(Array.isArray(order)?order:[]).filter(id=>typeof id==='string'&&id.startsWith('asset:')),wanted=[...validLayers,hairStackId('A'),hairStackId('B'),...validAssets,...rememberedAssets];
@@ -1323,8 +1330,10 @@ function normalizeRootStackOrder(order){
   const base=cleaned.find(id=>/layer:.*背景底色/i.test(id));
   const lace=cleaned.find(id=>/layer:.*背景蕾丝|layer:.*蕾丝.*背景|layer:.*背景花纹|layer:.*白色蕾丝/i.test(id));
   const allFrameIds=new Set(S.assets.filter(a=>a.categoryId==='FRAME').map(assetStackId));
+  const tailIds=new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId==='TAIL'}).map(assetStackId));
   const rest=cleaned.filter(id=>id!==legacy&&id!==base&&id!==lace&&!allFrameIds.has(id));
-  return [...frameStackIds('FRONT'),...rest,...frameStackIds('BACK'),...(lace?[lace]:[]),...(base?[base]:[]),...(legacy?[legacy]:[])];
+  // 尾巴是固定的背景前景层：压在蕾丝上面，但不得遮挡人物、耳朵、头发或其他小物。
+  return pinTailStackAboveLace([...frameStackIds('FRONT'),...rest,...frameStackIds('BACK')],tailIds,lace,base,legacy);
 }
 function loadRootStackOrder(){
   const active=getActiveOrder();let saved=null;
@@ -3101,9 +3110,9 @@ function initAssetBindings(asset,force=false){
   fillTailFallbackBindings(asset);
 }
 function sharedDecorRoleColor(role,slot,order){
-  // 底色/重色只在表单明确填写后传播；耳朵与配对尾巴的大轮廓线稿始终共享对应 A/B 帽子线稿色。
+  // 底色只在表单明确填写后传播；未手填重色时，自动沿底色色相压深。耳朵与配对尾巴的大轮廓线稿始终共享对应 A/B 帽子线稿色。
   const base=normalizeHex(order?.[slot]?.decorBase||'');
-  const shade=normalizeHex(order?.[slot]?.decorShade||'');
+  const shade=normalizeHex(order?.[slot]?.decorShade||'')||decorShadeFromBase(base);
   if(role==='DECOR_BASE'||role==='TAIL_BASE')return base||null;
   if(role==='DECOR_SHADOW'||role==='TAIL_SHADE')return shade||null;
   if(role==='DECOR_OUTLINE'||role==='TAIL_OUTLINE')return hatOutlineColor(slot,order);
@@ -3781,6 +3790,14 @@ function activeDecorBaseColor(slot,order){
   if(explicit)return explicit;
   return assetOriginalRoleColor(selectedDecorAsset(slot,order),'DECOR_BASE');
 }
+function decorShadeFromBase(base){
+  const color=normalizeHex(base||'');if(!color)return null;
+  const g=S.logic||DEFAULT_LOGIC;
+  return shiftColor(color,g.decorShadowL,g.decorShadowC);
+}
+function activeDecorShadeColor(slot,order){
+  return normalizeHex(order?.[slot]?.decorShade||'')||decorShadeFromBase(activeDecorBaseColor(slot,order));
+}
 function syncEarColorAnchorUi(slot,order=getActiveOrder()){
   const low=slot.toLowerCase(),text=$('#'+low+'DecorBaseHex'),color=linkedColorEl(low+'DecorBase'),asset=selectedDecorAsset(slot,order),original=assetOriginalRoleColor(asset,'DECOR_BASE'),explicit=normalizeHex(order?.[slot]?.decorBase||'');
   if(text)text.placeholder=original?`原色 ${original}；留空不改色`:(asset?'未找到底色层，可在“图层显示”里指定':'先在素材库勾选耳朵');
@@ -3832,7 +3849,7 @@ function deriveRoleColor(role,slot,order){
   const decorBase=activeDecorBaseColor(slot,order);
   const hat=safeHex(hatCustom?order[slot]?.hatManual:((hatAnchor&&decorBase)?decorBase:(hatScheme?.base||DEFAULT_PRESETS.hat['红色'])),'#C85B5B');
   const outfit=safeHex((outfitCustom&&order[slot]?.outfitManual)?order[slot].outfitManual:(outfitScheme?.base||DEFAULT_PRESETS.outfit['红色']),'#CF5959');
-  const decorShade=normalizeHex(order[slot]?.decorShade || '');
+  const decorShade=activeDecorShadeColor(slot,order);
   const g=S.logic||DEFAULT_LOGIC;
   const eyeV2=eyeRoleColorV2(role,slot,order);if(eyeV2)return eyeV2;
   if(role==='HAIR_BASE')return hair;
