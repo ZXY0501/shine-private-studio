@@ -117,7 +117,8 @@ POST /api/deepseek/parse
 
 - 与 Profile API 共用 `Authorization: Bearer <SHINE_PROFILE_TOKEN>`；普通生产入口暂不显示 AI 按钮。
 - 前端只在 `?cloudProfiles=1` 隐藏入口复用当前标签页的测试口令，DeepSeek API Key 永不进入浏览器。
-- 解析顺序固定为“浏览器本地规则 → flash0731 → pro0813”：本地无未决字段时不调用 API；Flash 输出合法且补齐未决字段时不调用 Pro。
+- 解析顺序固定为“浏览器本地规则 → flash0731 → pro0813”：“本地读表单”不联网；用户明确点击“API 读表单”时，先保留本地结果，再让 Flash 复核表单中已填写且 API 可处理的字段。Flash 输出合法且完成复核时不调用 Pro。
+- 耳朵目录会带上当前素材库中已上传的具体名字；本地与 DeepSeek 都优先按“动物 + 姿态”匹配，例如“小狗耳、趴着的”自动选择“趴狗耳”。同一动物存在多个姿态但顾客未写姿态时，不会随便替用户挑选。
 - `flash0731` 默认映射 `deepseek-v4-flash`，只有 Flash JSON/结构无效或仍缺少本地未决字段时才调用 `pro0813`（默认 `deepseek-v4-pro`）。
 - 后端使用 DeepSeek Chat Completions JSON 模式，关闭思考模式，每次模型调用默认 20 秒超时。
 - 客单正文最多 20000 字；后端忽略前端传来的自定义 instructions，只使用固定服务端提示词。

@@ -97,6 +97,7 @@ test('calls DeepSeek JSON mode and returns only validated order fields', async (
   assert.match(systemPrompt, /字段冒号后为空时，不得把下一行的括号说明或候选项列表补成答案/);
   assert.match(systemPrompt, /请发例图给我/);
   assert.match(systemPrompt, /保持\/更换已有表情\/开发新表情/);
+  assert.match(systemPrompt, /小狗耳、趴着的.*趴狗耳/);
   assert.equal(result.B.eyeHex, '#112233');
   assert.equal(result.backgroundPreset, '冷蓝');
   assert.equal(result.parseMeta.tier, 'flash0731');

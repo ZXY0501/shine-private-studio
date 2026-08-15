@@ -24,11 +24,36 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /automatic=cloud\.endpoint\?cloud\.endpoint\+'\/api\/deepseek\/parse':''/);
   assert.match(html, /headers\.Authorization=`Bearer \$\{proxy\.token\}`/);
   assert.match(html, /DEEPSEEK_NOT_CONFIGURED:'后端还没有配置 DeepSeek API Key。'/);
-  assert.match(html, /const unresolvedFields=localParseForm\(\{announce:false\}\)/);
+  assert.match(html, /const localUnresolved=localParseForm\(\{announce:false\}\)/);
+  assert.match(html, /\.\.\.apiReviewFields\(text\)/);
   assert.match(html, /strategy:'local-first-flash0731-pro0813'/);
-  assert.match(html, /if\(!unresolvedFields\.length\).*没有调用 DeepSeek/);
+  assert.match(html, /if\(!unresolvedFields\.length\).*没有可交给 DeepSeek 复核的表单字段/);
   assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
+  assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
+  assert.match(html, /bestUploadedEarVariant\(original,slot\)\|\|bestUploadedEarVariant\(d\.decor,slot\)/);
   assert.doesNotMatch(html, /DEEPSEEK_API_KEY\s*[:=]/);
+});
+
+test('form ear descriptions select the closest uploaded animal and pose variant', () => {
+  const names = ['normalizeVariantName', 'earIntentSignature', 'uploadedEarVariants', 'bestUploadedEarVariant', 'earDecorCatalog', 'matchDecor'];
+  const sources = names.map(name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  }).join('\n');
+  const S = { assets: [
+    { categoryId: 'EAR', variant: '趴狗耳', slot: 'A' },
+    { categoryId: 'EAR', variant: '立狗耳', slot: 'A' },
+    { categoryId: 'EAR', variant: '立猫耳', slot: 'B' },
+    { categoryId: 'TAIL', variant: '趴狗尾' }
+  ] };
+  const helpers = new Function('S', `${sources}\nreturn {${names.join(',')}};`)(S);
+  assert.equal(helpers.matchDecor('小狗耳  趴着的', 'A'), '趴狗耳');
+  assert.equal(helpers.matchDecor('猫耳  立着的', 'B'), '立猫耳');
+  assert.equal(helpers.bestUploadedEarVariant('狗耳', 'A'), null, 'ambiguous posture should not pick arbitrarily');
+  assert.equal(helpers.bestUploadedEarVariant('趴狗耳', 'B'), null, 'slot without that uploaded ear should not be selected');
+  assert.deepEqual(helpers.earDecorCatalog().slice(0, 4), ['NONE', '趴狗耳', '立狗耳', '立猫耳']);
 });
 
 test('customer form template residue is not parsed as a customer answer', () => {
@@ -41,7 +66,7 @@ test('customer form template residue is not parsed as a customer answer', () => 
   assert.match(html, /field\(a,\['帽子颜色','代表色'\]\)/);
   assert.match(html, /field\(a,\['耳朵类型','帽饰'\]\)/);
 
-  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field'];
+  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'explicitFormHex', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
   const sources = names.map(name => {
     const start = html.indexOf(`function ${name}(`);
     const end = html.indexOf('\nfunction ', start + 1);
@@ -74,6 +99,42 @@ B：
   assert.equal(helpers.field(filledA, ['衣服颜色']), '红色');
   assert.equal(helpers.field(filledA, ['帽子颜色']), '粉紫');
   assert.equal(helpers.field(filledA, ['耳朵类型']), '狐狸耳');
+
+  const inlineNames = `约稿人微信id：她的虎牙很可爱
+A：王橹杰
+瞳色：棕色
+（如果是国乙男主直接报名字）
+衣服颜色：蓝色
+帽子颜色：浅粉色
+耳朵类型：小狗耳  趴着的
+耳朵颜色：白色
+发色：黑色
+发型：请发例图给我
+表情：丹凤眼  有点呆
+
+B：穆祉丞
+瞳色：棕色
+衣服颜色：粉色
+帽子颜色：浅蓝色
+耳朵类型：猫耳  立着的
+耳朵颜色：白色
+发色：黑色
+发型：请发例图给我
+表情：圆眼  比较可爱`;
+  const inlineA = helpers.characterSection(inlineNames, 'A');
+  const inlineB = helpers.characterSection(inlineNames, 'B');
+  assert.equal(helpers.parseCustomerName(inlineNames), '她的虎牙很可爱');
+  assert.equal(helpers.field(inlineA, ['名字']), '王橹杰');
+  assert.equal(helpers.field(inlineB, ['名字']), '穆祉丞');
+  assert.equal(helpers.field(inlineA, ['衣服颜色']), '蓝色');
+  assert.equal(helpers.field(inlineB, ['帽子颜色']), '浅蓝色');
+  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#B9853E');
+  assert.equal(helpers.formAnchorHex(helpers.field(inlineB, ['发色']), 'hair'), '#2B2830');
+  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['耳朵颜色']), 'decor'), '#FFFFFF');
+  assert.deepEqual(helpers.apiReviewFields(inlineNames), [
+    'customerName','A.name','A.outfitPreset','A.hatPreset','A.decor',
+    'B.name','B.outfitPreset','B.hatPreset','B.decor','backgroundPreset'
+  ]);
 });
 
 test('cloud assets use authenticated short-lived upload tickets and lazy source downloads', () => {
@@ -312,6 +373,7 @@ test('form cleaning keeps A and B cards side by side on the desktop workspace', 
 
 test('selected local assets warm in the background with immediate loading feedback', () => {
   assert.match(html, /setTimeout\(warmCurrentOrderAssets,30\)/);
+  assert.match(html, /setTimeout\(\(\)=>warmCurrentOrderAssets\(\),0\)/);
   assert.match(html, /function warmCurrentOrderAssets\(\)/);
   assert.match(html, /record\._loading=true;renderAssetLibrary\(\);renderTransformControls\(\)/);
   assert.match(html, /正在打开 \$\{sourceFormat\}/);

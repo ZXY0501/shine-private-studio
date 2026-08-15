@@ -118,7 +118,7 @@ DEEPSEEK_TIMEOUT_MS=20000
 DEEPSEEK_MAX_BODY_BYTES=65536
 ```
 
-`DEEPSEEK_API_KEY` 不得写入部署包、GitHub Secrets 以外的源码文件、前端或项目文档。Phase 3 首轮只通过 `?cloudProfiles=1` 隐藏入口测试，复用 `SHINE_PROFILE_TOKEN` 做代理接口鉴权；真实客单回归通过前不开放普通入口。解析固定本地优先，随后按需使用 `flash0731`（默认 `deepseek-v4-flash`），只有 Flash 仍有解析问题时才使用 `pro0813`（默认 `deepseek-v4-pro`）。
+`DEEPSEEK_API_KEY` 不得写入部署包、GitHub Secrets 以外的源码文件、前端或项目文档。Phase 3 首轮只通过 `?cloudProfiles=1` 隐藏入口测试，复用 `SHINE_PROFILE_TOKEN` 做代理接口鉴权；真实客单回归通过前不开放普通入口。解析固定本地优先：“本地读表单”完全不联网；用户明确点击“API 读表单”时才调用 `flash0731`（默认 `deepseek-v4-flash`）复核表单中已填写的字段，只有 Flash 仍有解析问题时才使用 `pro0813`（默认 `deepseek-v4-pro`）。
 
 ## 7. 发布顺序
 

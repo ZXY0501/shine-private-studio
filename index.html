@@ -627,7 +627,7 @@ header .badge{display:none!important}
           <button id="localReadForm" class="btn">本地读表单</button>
           <button id="apiReadForm" class="btn primary">API 读表单</button>
         </div>
-        <div id="apiStatus" class="status">日常入口使用本地规则；DeepSeek 先在隐藏云端入口灰度测试。</div>
+        <div id="apiStatus" class="status">“本地读表单”不联网；“API 读表单”会先本地读取，再调用 flash0731 复核，仍有问题才调用 pro0813。</div>
         <details id="deepSeekSettings" style="margin-top:7px">
           <summary style="font-size:10px;cursor:pointer;color:var(--muted)">API 接口设置</summary>
           <div class="apiBox" style="margin-top:7px">
@@ -1105,7 +1105,7 @@ async function initLocalPersistence(){
 }
 async function warmCurrentOrderAssets(){
   const order=getActiveOrder();if(!order)return;const wanted=new Set(),categories=[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))];['A','B'].forEach(slot=>{categories.forEach(categoryId=>selectedAssetFamilies(order,slot,categoryId).forEach(key=>wanted.add(key)))});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));
-  for(const key of wanted){const record=S.assets.find(a=>a.localOnly&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateLocalAsset(record)}catch(e){console.warn('warm local asset',e)}}
+  for(const key of wanted){const record=S.assets.find(a=>(a.localOnly||a.cloudOnly)&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateAssetRecordIfNeeded(record)}catch(e){console.warn('warm selected asset',e)}}
 }
 
 function stat(el,msg,kind=''){el.textContent=msg;el.className='status '+kind}
@@ -2586,6 +2586,7 @@ function selectOrder(id){
   // 订单数据和表单控件已经恢复后，重新计算一次派生颜色/方案覆盖层。
   // 仅 reconstruct 会沿用上一订单的 ruleColorOverrides，导致衣服、帽子、瞳色看起来跟着上一单。
   if(S.master)applyOrderColors({live:true,persist:false});
+  setTimeout(()=>warmCurrentOrderAssets(),0);
 }
 function captureActiveOrder(){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
@@ -2605,13 +2606,14 @@ function parseCustomerName(text){
   return isUnfilledTemplateValue('约稿人微信id',value)?'':value;
 }
 function characterSection(text,slot){
-  const marker=new RegExp('^[ \\t]*'+slot+'(?:宝宝)?(?:[（(][^\\r\\n]*[）)])?[ \\t]*[：:]?[ \\t]*$','mi');
+  const marker=new RegExp('^[ \\t]*'+slot+'(?:宝宝)?(?:[（(][^\\r\\n]*[）)])?[ \\t]*(?:[：:][ \\t]*([^\\r\\n]*))?[ \\t]*$','mi');
   const match=marker.exec(text);if(!match)return '';
   const rest=text.slice(match.index+match[0].length);
   const endMarker=slot==='A'
-    ?/^[ \t]*B(?:宝宝)?(?:[（(][^\r\n]*[）)])?[ \t]*[：:]?[ \t]*$/mi
+    ?/^[ \t]*B(?:宝宝)?(?:[（(][^\r\n]*[）)])?[ \t]*(?:[：:][^\r\n]*)?[ \t]*$/mi
     :/^[ \t]*(?:背景|背景倾向)[ \t]*[：:]?/mi;
-  const end=endMarker.exec(rest);return rest.slice(0,end?end.index:rest.length);
+  const end=endMarker.exec(rest),body=rest.slice(0,end?end.index:rest.length),inlineName=(match[1]||'').trim();
+  return inlineName?`名字：${inlineName}\n${body}`:body;
 }
 function isUnfilledTemplateValue(name,value){
   const text=String(value||'').trim();if(!text)return true;
@@ -2639,11 +2641,62 @@ function matchPreset(text,kind){
   }
   const keys=Object.keys(S.presets[kind]||{});return keys.find(k=>text.includes(k))||null;
 }
-function matchDecor(text){
+function earIntentSignature(value){
+  const text=normalizeVariantName(value||'').toLowerCase().replace(/[\s_\-，,。.!！()（）]/g,'');
+  const animal=/(?:狗|犬)/.test(text)?'DOG':/猫/.test(text)?'CAT':/兔/.test(text)?'RABBIT':/狼/.test(text)?'WOLF':/(?:狐狸|狐)/.test(text)?'FOX':/熊/.test(text)?'BEAR':/虎/.test(text)?'TIGER':/豹/.test(text)?'LEOPARD':/狮/.test(text)?'LION':/鹿/.test(text)?'DEER':/龙/.test(text)?'DRAGON':/恶魔/.test(text)?'DEMON':/羊/.test(text)?'SHEEP':'';
+  const pose=/(?:趴|垂|耷|塌|下垂|折耳)/.test(text)?'DOWN':/(?:立|竖|直立|站立)/.test(text)?'UP':'';
+  const core=text.replace(/(?:耳朵|耳|小|着的|的|款|类型)/g,'');
+  return {text,core,animal,pose};
+}
+function uploadedEarVariants(slot=''){
+  return [...new Set((S.assets||[]).filter(a=>a.categoryId==='EAR'&&(!slot||a.slot===slot||a.slot==='BOTH'||a.characterCompatibility==='BOTH')).map(a=>normalizeVariantName(a.variant||a.name)).filter(Boolean))];
+}
+function bestUploadedEarVariant(text,slot=''){
+  const wanted=earIntentSignature(text);if(!wanted.text)return null;
+  const ranked=uploadedEarVariants(slot).map(variant=>{
+    const candidate=earIntentSignature(variant);let score=0;
+    if(wanted.text===candidate.text)score+=100;
+    else if(wanted.text.includes(candidate.text)||candidate.text.includes(wanted.text))score+=35;
+    if(wanted.animal&&candidate.animal&&wanted.animal!==candidate.animal)return {variant,score:-1};
+    if(wanted.animal&&candidate.animal===wanted.animal)score+=24;
+    if(wanted.pose&&candidate.pose&&wanted.pose!==candidate.pose)return {variant,score:-1};
+    if(wanted.pose&&candidate.pose===wanted.pose)score+=18;
+    if(wanted.core&&candidate.core){const chars=new Set(wanted.core);score+=[...new Set(candidate.core)].filter(c=>chars.has(c)).length;}
+    return {variant,score};
+  }).filter(x=>x.score>=24).sort((a,b)=>b.score-a.score||a.variant.localeCompare(b.variant,'zh-CN'));
+  if(!ranked.length||ranked[1]?.score===ranked[0].score)return null;
+  return ranked[0].variant;
+}
+function earDecorCatalog(){
+  return [...new Set(['NONE',...uploadedEarVariants(),'猫耳','犬耳','狗耳','狼耳','狐狸耳','狐耳','垂耳兔','兔耳','狮子耳','鹿角','龙角','恶魔角'])].slice(0,64);
+}
+function matchDecor(text,slot=''){
+  const uploaded=bestUploadedEarVariant(text,slot);if(uploaded)return uploaded;
   const dict=['猫耳','犬耳','狗耳','狼耳','狐狸耳','狐耳','垂耳兔','兔耳','狮子耳','鹿角','龙角','恶魔角'];
   return dict.find(k=>text.includes(k))||(/无/.test(text)?'NONE':null);
 }
 function explicitFormHex(text){const match=String(text||'').match(/#[0-9a-f]{6}\b|#[0-9a-f]{3}\b/i);return normalizeHex(match?.[0]||'')}
+function formAnchorHex(value,kind='generic'){
+  const raw=String(value||'').trim(),explicit=explicitFormHex(raw);if(explicit)return explicit;
+  const aliases={棕:'棕色',咖:'棕色',咖色:'棕色',咖啡色:'棕色',黑:'黑色',纯黑:'黑色',乌黑:'黑色',白:'白色',纯白:'白色',灰:'灰色',浅灰:'浅灰色',粉:'粉色',浅粉:'浅粉色',蓝:'蓝色',浅蓝:'浅蓝色',红:'红色',橙:'橙色',橘色:'橙色',黄:'黄色',绿:'绿色',青:'青色',紫:'紫色'};
+  const key=aliases[raw.replace(/[\s，,。.!！]/g,'')]||raw.replace(/[\s，,。.!！]/g,'');
+  const common={棕色:'#8B6249',黑色:'#3A353A',白色:'#FFFFFF',灰色:'#8C8890',浅灰色:'#C7C4C8',粉色:'#E8AAC5',浅粉色:'#F3C8DA',蓝色:'#78A9D1',浅蓝色:'#ADD8F0',红色:'#C85B5B',橙色:'#E2A06C',黄色:'#E7C875',绿色:'#88B38D',青色:'#70B8B2',紫色:'#998AC5'};
+  const specialized={eye:{棕色:'#B9853E',黑色:'#3A353A'},hair:{棕色:'#5B4036',黑色:'#2B2830'}};
+  return specialized[kind]?.[key]||common[key]||'';
+}
+function apiReviewFields(text){
+  const review=[],customer=parseCustomerName(text);if(customer)review.push('customerName');
+  ['A','B'].forEach(slot=>{
+    const sec=characterSection(text,slot);if(!sec)return;
+    if(field(sec,['宝宝名字','名字']))review.push(`${slot}.name`);
+    if(field(sec,['衣服颜色']))review.push(`${slot}.outfitPreset`);
+    if(field(sec,['帽子颜色','代表色']))review.push(`${slot}.hatPreset`);
+    if(field(sec,['耳朵类型','帽饰']))review.push(`${slot}.decor`);
+  });
+  const bg=field(text,['背景倾向']),a=characterSection(text,'A'),b=characterSection(text,'B');
+  if(bg||field(a,['帽子颜色','代表色'])||field(b,['帽子颜色','代表色']))review.push('backgroundPreset');
+  return [...new Set(review)];
+}
 function localParseForm({announce=true}={}){
   const text=$('#orderForm').value;
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
@@ -2655,11 +2708,13 @@ function localParseForm({announce=true}={}){
   const ao=field(a,['衣服颜色']);const ah=field(a,['帽子颜色','代表色']);const ad=field(a,['耳朵类型','帽饰']);
   const bo=field(b,['衣服颜色']);const bh=field(b,['帽子颜色','代表色']);const bd=field(b,['耳朵类型','帽饰']);
   const localPreset=(raw,kind,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchPreset(raw,kind);if(hit)return hit;unresolved.push(path);return current};
-  const localDecor=(raw,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchDecor(raw);if(hit)return hit;unresolved.push(path);return current};
+  const localDecor=(raw,path,current)=>{if(!String(raw||'').trim())return current;const hit=matchDecor(raw,path.startsWith('A.')?'A':'B');if(hit)return hit;unresolved.push(path);return current};
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
   o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
-  const ae=explicitFormHex(field(a,['瞳色'])),af=explicitFormHex(field(a,['发色'])),be=explicitFormHex(field(b,['瞳色'])),bf=explicitFormHex(field(b,['发色']));
+  const ae=formAnchorHex(field(a,['瞳色']),'eye'),af=formAnchorHex(field(a,['发色']),'hair'),be=formAnchorHex(field(b,['瞳色']),'eye'),bf=formAnchorHex(field(b,['发色']),'hair');
   if(ae)o.A.eye=ae;if(af)o.A.hair=af;if(be)o.B.eye=be;if(bf)o.B.hair=bf;
+  const aDecorBase=formAnchorHex(field(a,['耳朵颜色']),'decor'),bDecorBase=formAnchorHex(field(b,['耳朵颜色']),'decor');
+  if(aDecorBase)o.A.decorBase=aDecorBase;if(bDecorBase)o.B.decorBase=bDecorBase;
   const bg=field(text,['背景倾向']);if(/冷/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^冷/.test(k))||o.background;o.backgroundSource='local';}
   if(/暖/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^暖/.test(k))||o.background;o.backgroundSource='local';}
   if((bg&&!/[冷暖]/.test(bg))||(!bg&&(ah||bh)))unresolved.push('backgroundPreset');
@@ -2671,8 +2726,9 @@ async function apiParseForm(){
   persistApi();
   const text=$('#orderForm').value;
   if(!text.trim()){stat($('#apiStatus'),'请先粘贴顾客表单。','bad');return}
-  const unresolvedFields=localParseForm({announce:false});
-  if(!unresolvedFields.length){stat($('#apiStatus'),'本地规则已完整读取，没有调用 DeepSeek。','good');return}
+  const localUnresolved=localParseForm({announce:false});
+  const unresolvedFields=[...new Set([...localUnresolved,...apiReviewFields(text)])];
+  if(!unresolvedFields.length){stat($('#apiStatus'),'本地规则已读取；这段文字里没有可交给 DeepSeek 复核的表单字段。','good');return}
   const proxy=deepSeekProxyConfig();
   if(!proxy.endpoint){stat($('#apiStatus'),'本地规则已先读取；还没配置后端地址，未解析字段保留人工处理。','good');return}
   if(proxy.usesCloud&&!proxy.token){stat($('#apiStatus'),'本地规则已先读取；还没填写云端测试口令，未解析字段保留人工处理。','good');return}
@@ -2692,7 +2748,7 @@ async function apiParseForm(){
       cold:Object.keys(S.presets.background||{}).filter(k=>/冷/.test(k)).slice(0,3),
       warm:Object.keys(S.presets.background||{}).filter(k=>/暖/.test(k)).slice(0,3)
     },
-    decorCatalog:['NONE','猫耳','犬耳','狼耳','狐狸耳','垂耳兔','狮子耳','鹿角','龙角','恶魔角'],
+    decorCatalog:earDecorCatalog(),
     instructions:[
       '只返回结构化选择，不绘画、不生成图片',
       '帽子/衣服/背景只能从 presetCatalog 对应列表里选择已有方案名，不要编造',
@@ -2727,7 +2783,7 @@ function applyApiOrder(data){
     if(d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex))o[slot].hair=d.hairHex;
     if(d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
     if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
-    if(d.decor)o[slot].decor=d.decor;
+    if(d.decor){const original=field(characterSection($('#orderForm').value,slot),['耳朵类型','帽饰']);o[slot].decor=bestUploadedEarVariant(original,slot)||bestUploadedEarVariant(d.decor,slot)||d.decor;}
   });
   if(data.backgroundPreset&&S.presets.background[data.backgroundPreset]){o.background=data.backgroundPreset;o.backgroundManual='';o.backgroundSource='api';o.backgroundReason=String(data.backgroundReason||'').slice(0,80);}
   o.formText=$('#orderForm').value;persistOrders();selectOrder(o.id);
