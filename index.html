@@ -746,7 +746,7 @@ header .badge{display:none!important}
             <div style="margin-top:8px">
               <div id="libraryDrop" class="libraryDrop">
                 <b>把素材 PSD / 透明 PNG 直接拖到这里</b>
-                <div class="meta">表情、眼睛状态、配饰和小物都可以。PNG 保留原像素与透明度；眼睛状态 PSD 可沿用当前眼睛方案。</div>
+                <div class="meta">表情、眼睛状态、配饰和小物都可以。PNG 保留原像素与透明度；小物可同时勾选多份叠加；眼睛状态 PSD 可沿用当前眼睛方案。</div>
                 <div class="libraryClassRow">
                   <select id="libraryType">
                     <option value="AUTO">自动识别分类</option>
@@ -763,7 +763,7 @@ header .badge{display:none!important}
                 </div>
               </div>
               <div class="assetCategoryCreator"><input id="newAssetCategoryName" type="text" maxlength="30" placeholder="新建自己的素材大类"><button id="createAssetCategory" class="btn" type="button">＋ 新建大类</button></div>
-              <div class="legendMini">PNG 默认保留原色与透明边缘，可给 A、B 或设为公共装饰。眼睛状态 PSD 默认跟随当前眼睛方案；其他素材仍默认保留原色。重复下载形成的“狐狸(1).psd / 狐狸（2）.png”会自动归一为同一素材名称。</div>
+              <div class="legendMini">PNG 默认保留原色与透明边缘，可给 A、B 或设为公共装饰；小物分类支持多选叠加。眼睛状态 PSD 默认跟随当前眼睛方案；其他素材仍默认保留原色。重复下载形成的“狐狸(1).psd / 狐狸（2）.png”会自动归一为同一素材名称。</div>
               <div id="cloudAssetPanel" class="cloudAssetPanel" hidden><button id="cloudAssetRefresh" class="btn" type="button">读取云端素材</button><button id="cloudTemplateUpload" class="btn" type="button">保存当前纯净模板到云端</button><div id="cloudAssetStatus" class="status">测试入口：使用模板 Profile 的同一后端地址和口令。</div></div>
               <div class="assetList2" id="assetLibraryList" style="margin-top:7px"></div>
               <div id="assetRuntimeStatus" class="status assetRuntimeStatus">帽饰运行状态：等待上传。</div>
@@ -1104,7 +1104,7 @@ async function initLocalPersistence(){
   }catch(e){S.localPersistenceError=e;console.warn('init local library',e);renderAssetLibrary();}
 }
 async function warmCurrentOrderAssets(){
-  const order=getActiveOrder();if(!order)return;const selections=ensureOrderAssetSelections(order),wanted=new Set();['A','B'].forEach(slot=>{Object.values(selections[slot]||{}).filter(Boolean).forEach(key=>wanted.add(key));[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))].forEach(categoryId=>{const key=selectedAssetFamily(order,slot,categoryId);if(key)wanted.add(key)})});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));
+  const order=getActiveOrder();if(!order)return;const wanted=new Set(),categories=[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))];['A','B'].forEach(slot=>{categories.forEach(categoryId=>selectedAssetFamilies(order,slot,categoryId).forEach(key=>wanted.add(key)))});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));
   for(const key of wanted){const record=S.assets.find(a=>a.localOnly&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateLocalAsset(record)}catch(e){console.warn('warm local asset',e)}}
 }
 
@@ -1986,7 +1986,7 @@ async function uploadAssetFamilyToCloud(familyKey){
     const familyLayerVisibility=Object.assign({},...records.map(a=>a.layerVisibility||{}));
     const completed=await cloudAssetRequest(`/api/assets/${encodeURIComponent(ticket.assetId)}/complete`,{method:'POST',body:{receipt:ticket.receipt,asset:{categoryId:first.categoryId,characterCompatibility:compatibility,defaultSlot:first.slot,variant:first.variant||first.name,name:first.name||first.variant,layerVisibility:familyLayerVisibility}}});
     records.forEach(a=>{a.assetId=completed.asset.assetId;a.sourceObjectKey=completed.asset.sourceObjectKey;a.contentHash=completed.asset.contentHash;a.version=completed.asset.version;a.createdAt=completed.asset.createdAt;a.updatedAt=completed.asset.updatedAt;a.cloudOnly=false;a.localOnly=false});
-    const newFamilyKey=assetFamilyKey(records[0]);if(newFamilyKey!==oldFamilyKey)S.orders.forEach(order=>{['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(order);if(selections[slot][first.categoryId]===oldFamilyKey)selections[slot][first.categoryId]=newFamilyKey});ensureOrderGlobalAssetSelections(order).forEach(x=>{if(x.familyKey===oldFamilyKey)x.familyKey=newFamilyKey})});persistOrders();
+    const newFamilyKey=assetFamilyKey(records[0]);if(newFamilyKey!==oldFamilyKey)S.orders.forEach(order=>{['A','B'].forEach(slot=>replaceOrderAssetFamilyKey(order,slot,first.categoryId,oldFamilyKey,newFamilyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>{if(x.familyKey===oldFamilyKey)x.familyKey=newFamilyKey})});persistOrders();
     await Promise.all(oldAssetIds.filter(id=>id!==completed.asset.assetId).flatMap(id=>[localDelete('assetCatalog',id),localDelete('assetSources',id)]));await persistAssetFamilyLocal(assetFamilyKey(records[0]));
     stat($('#cloudAssetStatus'),`已保存到云端：${completed.asset.name}`,'good');renderAssetLibrary();renderHairInsertionControls();debug();
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
@@ -2016,7 +2016,7 @@ async function deleteCloudAsset(assetId){
   try{
     await cloudAssetRequest(`/api/assets/${encodeURIComponent(assetId)}`,{method:'DELETE'});const stackIds=new Set(records.map(assetStackId)),categoryId=records[0]?.categoryId,families=new Set(records.map(assetFamilyKey));
     S.assets=S.assets.filter(a=>a.assetId!==assetId);S.rootStackOrder=S.rootStackOrder.filter(id=>!stackIds.has(id));saveRootStackOrder();
-    S.orders.forEach(o=>{o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>!families.has(x.familyKey));['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(families.has(selections[slot][categoryId]))selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(a=>a.slot===slot&&sameVariant(a.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});persistOrders();updateDecorSelects();
+    S.orders.forEach(o=>{o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>!families.has(x.familyKey));['A','B'].forEach(slot=>{families.forEach(key=>removeOrderAssetFamilyKey(o,slot,categoryId,key));if(categoryId==='EAR'&&records.some(a=>a.slot===slot&&sameVariant(a.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});persistOrders();updateDecorSelects();
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#cloudAssetStatus'),`已从云端删除：${label}`,'good');
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
   finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
@@ -2390,7 +2390,7 @@ function migrateLogicDefaultsV21(){
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
-  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
+  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderMultiAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=loadStoredStyleSchemes()}catch{S.styleSchemes=officialStyleSchemes()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=officialStyleSchemes();
@@ -2451,6 +2451,7 @@ function newOrderData(){
     backgroundBaseVisible:true,
     backgroundLaceVisible:true,
     assetSelections:{A:{},B:{}},
+    assetMultiSelections:{A:{},B:{}},
     autoTailSelections:{A:null,B:null},
     globalAssetSelections:[],
     frameSelections:[],
@@ -3141,11 +3142,28 @@ function ensureAssetRecordV2(a){
   return a;
 }
 function assetFamilyKey(a){ensureAssetRecordV2(a);return a.categoryId==='HAIR'?`HAIR::${a.assetId}`:`${a.categoryId}::${normalizeVariantName(a.variant||a.name)}${a.slot==='GLOBAL'&&a.categoryId!=='FRAME'?'::GLOBAL':''}`}
+const STACKABLE_ASSET_CATEGORIES=new Set(['PROP']);
+function isStackableAssetCategory(categoryId){return STACKABLE_ASSET_CATEGORIES.has(categoryId)}
 function ensureOrderAssetSelections(order){
   if(!order)return {A:{},B:{}};
   if(!order.assetSelections||typeof order.assetSelections!=='object')order.assetSelections={A:{},B:{}};
   ['A','B'].forEach(slot=>{if(!order.assetSelections[slot]||typeof order.assetSelections[slot]!=='object')order.assetSelections[slot]={}});
   return order.assetSelections;
+}
+function ensureOrderMultiAssetSelections(order){
+  if(!order)return {A:{},B:{}};
+  if(!order.assetMultiSelections||typeof order.assetMultiSelections!=='object')order.assetMultiSelections={A:{},B:{}};
+  const singles=ensureOrderAssetSelections(order);
+  ['A','B'].forEach(slot=>{
+    if(!order.assetMultiSelections[slot]||typeof order.assetMultiSelections[slot]!=='object')order.assetMultiSelections[slot]={};
+    STACKABLE_ASSET_CATEGORIES.forEach(categoryId=>{
+      const list=Array.isArray(order.assetMultiSelections[slot][categoryId])?order.assetMultiSelections[slot][categoryId].filter(x=>typeof x==='string'&&x):[];
+      const legacy=singles[slot][categoryId];if(typeof legacy==='string'&&legacy)list.unshift(legacy);
+      order.assetMultiSelections[slot][categoryId]=[...new Set(list)];
+      if(Object.prototype.hasOwnProperty.call(singles[slot],categoryId))delete singles[slot][categoryId];
+    });
+  });
+  return order.assetMultiSelections;
 }
 function ensureOrderAutoTailSelections(order){
   if(!order)return {A:null,B:null};
@@ -3253,8 +3271,9 @@ function sampleCanvasMedianColor(canvas,clientX,clientY,radius=3){
   const rect=canvas?.getBoundingClientRect();if(!rect?.width||!rect?.height)return null;const cx=Math.round((clientX-rect.left)*canvas.width/rect.width),cy=Math.round((clientY-rect.top)*canvas.height/rect.height),x=Math.max(0,cx-radius),y=Math.max(0,cy-radius),w=Math.min(canvas.width-x,radius*2+1),h=Math.min(canvas.height-y,radius*2+1);if(w<1||h<1)return null;
   let data;try{data=canvas.getContext('2d').getImageData(x,y,w,h).data}catch{return null}const rs=[],gs=[],bs=[];for(let i=0;i<data.length;i+=4){if(data[i+3]<32)continue;rs.push(data[i]);gs.push(data[i+1]);bs.push(data[i+2])}if(!rs.length)return null;const median=values=>values.sort((a,b)=>a-b)[Math.floor(values.length/2)];return rgbToHex(median(rs),median(gs),median(bs));
 }
-function hasAssetSelectionDecision(order,slot,categoryId){return !!order&&Object.prototype.hasOwnProperty.call(ensureOrderAssetSelections(order)[slot],categoryId)}
+function hasAssetSelectionDecision(order,slot,categoryId){return !!order&&(isStackableAssetCategory(categoryId)?Object.prototype.hasOwnProperty.call(ensureOrderMultiAssetSelections(order)[slot],categoryId):Object.prototype.hasOwnProperty.call(ensureOrderAssetSelections(order)[slot],categoryId))}
 function selectedAssetFamily(order,slot,categoryId){
+  if(isStackableAssetCategory(categoryId))return ensureOrderMultiAssetSelections(order)[slot]?.[categoryId]?.[0]||null;
   const selections=ensureOrderAssetSelections(order);
   if(order&&Object.prototype.hasOwnProperty.call(selections[slot],categoryId)){
     const selected=selections[slot][categoryId]||null;
@@ -3270,20 +3289,34 @@ function selectedAssetFamily(order,slot,categoryId){
   }
   return null;
 }
+function selectedAssetFamilies(order,slot,categoryId){
+  if(isStackableAssetCategory(categoryId))return [...(ensureOrderMultiAssetSelections(order)[slot]?.[categoryId]||[])];
+  const selected=selectedAssetFamily(order,slot,categoryId);return selected?[selected]:[];
+}
+function isAssetFamilySelected(order,slot,categoryId,familyKey){return selectedAssetFamilies(order,slot,categoryId).includes(familyKey)}
+function replaceOrderAssetFamilyKey(order,slot,categoryId,oldKey,newKey){
+  const selections=ensureOrderAssetSelections(order);if(selections[slot][categoryId]===oldKey)selections[slot][categoryId]=newKey;
+  const multi=ensureOrderMultiAssetSelections(order),list=multi[slot][categoryId];if(Array.isArray(list))multi[slot][categoryId]=[...new Set(list.map(key=>key===oldKey?newKey:key))];
+}
+function removeOrderAssetFamilyKey(order,slot,categoryId,familyKey){
+  const selections=ensureOrderAssetSelections(order);if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
+  const multi=ensureOrderMultiAssetSelections(order),list=multi[slot][categoryId];if(Array.isArray(list))multi[slot][categoryId]=list.filter(key=>key!==familyKey);
+}
 function syncAssetEnabledFromOrder(order){
   if(!order)return;
   const frames=new Set(ensureOrderFrameSelections(order).map(x=>x.familyKey)),globals=new Set(ensureOrderGlobalAssetSelections(order).map(x=>x.familyKey));
-  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}if(a.slot==='GLOBAL'){a.enabled=globals.has(assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
+  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}if(a.slot==='GLOBAL'){a.enabled=globals.has(assetFamilyKey(a));return}if(isStackableAssetCategory(a.categoryId)){a.enabled=isAssetFamilySelected(order,a.slot,a.categoryId,assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
 async function setAssetFamilySelection(familyKey,slot,on){
   const started=performance.now();
   let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
   let record=assetRecordForFamilySlot(familyKey,slot);if(!record)return;
   if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=assetRecordForFamilySlot(familyKey,slot);if(!record)return;}
-  const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId;
+  const selections=ensureOrderAssetSelections(order),categoryId=record.categoryId,stackable=isStackableAssetCategory(categoryId);
   const autoTail=ensureOrderAutoTailSelections(order);
-  const previous=selections[slot][categoryId]||selectedAssetFamily(order,slot,categoryId);
-  if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
+  const previous=stackable?null:(selections[slot][categoryId]||selectedAssetFamily(order,slot,categoryId));
+  if(stackable){const multi=ensureOrderMultiAssetSelections(order),list=multi[slot][categoryId];if(on&&!list.includes(familyKey))list.push(familyKey);if(!on)multi[slot][categoryId]=list.filter(key=>key!==familyKey)}
+  else if(on)selections[slot][categoryId]=familyKey;else if(selections[slot][categoryId]===familyKey)selections[slot][categoryId]=null;
   if(categoryId==='EAR'){
     if(on&&previous&&previous!==familyKey)clearEarColorAnchors(slot,order);
     order[slot].decor=on?record.variant:'NONE';S.autoDecorSlots[slot]=null;updateDecorSelects();
@@ -3293,11 +3326,11 @@ async function setAssetFamilySelection(familyKey,slot,on){
   }
   syncEarColorAnchorUi(slot,order);
   syncAssetEnabledFromOrder(order);refreshAllAssetComposites(order);persistOrders();syncAssetLibrarySelectionUi(order);
-  stat($('#assetRuntimeStatus'),on?`正在切换到 ${record.variant||record.name||categoryLabel(categoryId)}…`:`已从当前订单取消 ${record.variant||record.name||categoryLabel(categoryId)}。`,on?'':'good');
+  stat($('#assetRuntimeStatus'),on?`${stackable?'正在加入':'正在切换到'} ${record.variant||record.name||categoryLabel(categoryId)}…`:`已从当前订单取消 ${record.variant||record.name||categoryLabel(categoryId)}。`,on?'':'good');
   await new Promise(resolve=>setTimeout(resolve,0));
   if(on){const refreshKeys=new Set([familyKey,selections[slot].TAIL].filter(Boolean));S.assets.filter(a=>a.enabled&&refreshKeys.has(assetFamilyKey(a))).forEach(a=>prepareAssetCompositeForOrder(a,order));}
-  S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRuntimeStatus();renderEditableLayerSelectors();
-  if(on)stat($('#assetRuntimeStatus'),`已切换素材 · ${Math.max(1,Math.round(performance.now()-started))} ms`,'good');
+  if(on)S.selectedTransformStackId=assetStackId(record);renderHairInsertionControls();reconstruct();renderAssetRuntimeStatus();renderEditableLayerSelectors();
+  if(on)stat($('#assetRuntimeStatus'),`${stackable?'已加入素材':'已切换素材'} · ${Math.max(1,Math.round(performance.now()-started))} ms`,'good');
 }
 function paintAssetThumbnail(canvas,source){
   if(!canvas||!source)return;const ctx=canvas.getContext('2d'),w=64,h=64;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
@@ -3368,7 +3401,7 @@ function frameColorControlsHtml(familyKey,selection){
 }
 function syncAssetLibrarySelectionUi(order=getActiveOrder()){
   const host=$('#assetLibraryList');if(!host||!order)return;
-  host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>{const record=S.assets.find(a=>assetFamilyKey(a)===el.dataset.family&&(a.slot===el.dataset.slot||a.characterCompatibility==='BOTH'));el.checked=!!record&&selectedAssetFamily(order,el.dataset.slot,record.categoryId)===el.dataset.family});
+  host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>{const record=S.assets.find(a=>assetFamilyKey(a)===el.dataset.family&&(a.slot===el.dataset.slot||a.characterCompatibility==='BOTH'));el.checked=!!record&&isAssetFamilySelected(order,el.dataset.slot,record.categoryId,el.dataset.family)});
   host.querySelectorAll('[data-ak="frame-check"]').forEach(el=>{el.checked=!!frameSelection(order,el.dataset.family)});
   host.querySelectorAll('[data-ak="global-check"]').forEach(el=>{el.checked=!!globalAssetSelection(order,el.dataset.family)});
 }
@@ -3396,7 +3429,7 @@ function renderAssetLibrary(){
     groups.forEach(group=>{
       const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
-      const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
+      const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>isAssetFamilySelected(order,slot,category.id,group.key);
       const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),sourceFormat=first.sourceFormat||(/\.png$/i.test(assetSourceName(first))?'PNG':'PSD'),sourceSummary=sourceFormat==='PNG'?'透明 PNG 原图':'保留原 PSD 图层',cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?`正在打开 ${sourceFormat}…`:cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',storageHtml=`<span data-storage-family="${safe(group.key)}">${storageLabel}</span>`,layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入素材</button>`:'',colorToggle=sourceFormat==='PNG'?'':`<label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> ${category.id==='EYE'?'跟随当前眼睛方案（推荐）':'跟随订单配色（默认关闭）'}</label>`,card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
       if(category.id==='FRAME'){
         const selection=frameSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
@@ -3415,7 +3448,7 @@ function renderAssetLibrary(){
         details.appendChild(card);return;
       }
       card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||sourceSummary}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select>${colorToggle}</div>
+        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${isStackableAssetCategory(category.id)?'可多选叠加 · ':''}${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||sourceSummary}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select>${colorToggle}</div>
         <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
         <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
       details.appendChild(card);
@@ -3437,7 +3470,7 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-frame-color]').forEach(el=>{el.oninput=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:false});el.onchange=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:true})});
   host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
     const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;const oldStackIds=new Set(records.map(assetStackId));
-    S.orders.forEach(o=>{if(oldCategory==='FRAME')o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
+    S.orders.forEach(o=>{if(oldCategory==='FRAME')o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{removeOrderAssetFamilyKey(o,slot,oldCategory,oldKey);if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
     records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);if(el.value==='FRAME'){a.slot='GLOBAL';a.defaultSlot='GLOBAL';a.characterCompatibility='GLOBAL'}a.updatedAt=new Date().toISOString();initAssetBindings(a,true);if(a.psd){if(a.categoryId==='EYE'&&a.colorMode==='PRESERVE_ORIGINAL')a.colorMode='FOLLOW_ORDER';a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())}});
     if(el.value==='FRAME'&&records.length>1){const keep=records[0],discard=new Set(records.slice(1));keep.groupPath=null;initAssetBindings(keep,true);keep.originalComposite=renderAssetComposite(keep,{A:{},B:{}});keep.composite=renderAssetComposite(keep,getActiveOrder()||newOrderData());S.assets=S.assets.filter(a=>!discard.has(a))}
     S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder.filter(id=>!oldStackIds.has(id)));saveRootStackOrder();
@@ -3449,7 +3482,7 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-ak="load-local"]').forEach(el=>el.onclick=()=>hydrateLocalAsset(S.assets[+el.dataset.ai]));
   host.querySelectorAll('[data-ak="upload-cloud"]').forEach(el=>el.onclick=()=>uploadAssetFamilyToCloud(el.dataset.family));
   host.querySelectorAll('[data-ak="delete-cloud"]').forEach(el=>el.onclick=()=>deleteCloudAsset(el.dataset.assetId));
-  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=async()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key);try{if(!(await deleteLocalAssetFamily(key)))return}catch(e){stat($('#assetRuntimeStatus'),'删除本机素材失败：'+(e.message||e),'bad');return}const categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>{o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==key);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==key);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE';if(o.assetTransforms)records.forEach(a=>delete o.assetTransforms[assetStackId(a)])})});persistOrders();if(S.previewEyedropTarget?.familyKey===key){S.previewEyedropTarget=null;$('#previewBody')?.classList.remove('eyedropReady')}if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
+  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=async()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key);try{if(!(await deleteLocalAssetFamily(key)))return}catch(e){stat($('#assetRuntimeStatus'),'删除本机素材失败：'+(e.message||e),'bad');return}const categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>{o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==key);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==key);['A','B'].forEach(slot=>{removeOrderAssetFamilyKey(o,slot,categoryId,key);if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE';if(o.assetTransforms)records.forEach(a=>delete o.assetTransforms[assetStackId(a)])})});persistOrders();if(S.previewEyedropTarget?.familyKey===key){S.previewEyedropTarget=null;$('#previewBody')?.classList.remove('eyedropReady')}if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();renderEditableLayerSelectors();
 }
 function loadSwatchImage(file){
@@ -4158,7 +4191,7 @@ function buildWorkspaceUI(){
 
   const assetPanel=$('#assetLibraryList')?.closest('.softPanel'); if(assetPanel)tabs.assets.appendChild(assetPanel);
   const transformBox=$('#transformAssetSelect')?.closest('.assetTransformBox'),assetList=$('#assetLibraryList');if(transformBox&&assetList){transformBox.classList.add('libraryTransformBox');assetList.before(transformBox)}
-  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 4 素材库：表情与眼睛状态可按 A/B 独立替换；透明 PNG 小物无需转 PSD，可给 A、B 或作为公共装饰。</div><div class="assetNamingGuide"><b>原色保护</b>：PNG 保留原像素和透明度。眼睛状态 PSD 默认沿用当前眼睛方案；其他 PSD 只有主动打开“跟随订单配色”才会改色。</div>');
+  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 4 素材库：表情与眼睛状态可按 A/B 独立替换；透明 PNG 小物无需转 PSD，可给 A、B 或作为公共装饰，同一位置可以多选叠加。</div><div class="assetNamingGuide"><b>原色保护</b>：PNG 保留原像素和透明度。眼睛状态 PSD 默认沿用当前眼睛方案；其他 PSD 只有主动打开“跟随订单配色”才会改色。</div>');
 
   // v0.27 背景独立大类撤掉：日常只使用“表单清洗”里的背景衬底色盘。
   // 旧 bgPreset / orderStatus / watermark 控件继续留在 DOM 中供订单兼容，但不再展示成工作区页面。

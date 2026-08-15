@@ -291,7 +291,9 @@ test('asset selection yields before rendering and avoids full library and disabl
   assert.match(html, /await new Promise\(resolve=>setTimeout\(resolve,0\)\)/);
   assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='EYE'\|\|a\.type==='TAIL'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
   assert.match(html, /requestIdleCallback\(save,\{timeout:1800\}\)/);
-  assert.match(html, /已切换素材 · \$\{Math\.max\(1,Math\.round\(performance\.now\(\)-started\)\)\} ms/);
+  assert.match(html, /已加入素材/);
+  assert.match(html, /已切换素材/);
+  assert.match(html, /Math\.max\(1,Math\.round\(performance\.now\(\)-started\)\)/);
 });
 
 test('hat presets default to manual color while retaining optional ear anchoring', () => {
@@ -419,6 +421,16 @@ test('phase four keeps public PNG decorations independent per order', () => {
   assert.match(html, /globalAssetStackIds\('FRONT'\)/);
   assert.match(html, /globalAssetStackIds\('BACK'\)/);
   assert.match(html, /a\.slot==='GLOBAL'\)\{a\.enabled=globals\.has\(assetFamilyKey\(a\)\)/);
+});
+
+test('phase four allows multiple small items per A or B slot', () => {
+  assert.match(html, /assetMultiSelections:\{A:\{\},B:\{\}\}/);
+  assert.match(html, /const STACKABLE_ASSET_CATEGORIES=new Set\(\['PROP'\]\)/);
+  assert.match(html, /function ensureOrderMultiAssetSelections\(order\)/);
+  assert.match(html, /function selectedAssetFamilies\(order,slot,categoryId\)/);
+  assert.match(html, /if\(isStackableAssetCategory\(a\.categoryId\)\)\{a\.enabled=isAssetFamilySelected/);
+  assert.match(html, /if\(on&&!list\.includes\(familyKey\)\)list\.push\(familyKey\)/);
+  assert.match(html, /可多选叠加/);
 });
 
 test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
