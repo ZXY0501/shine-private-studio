@@ -248,7 +248,7 @@ test('asset free transform works from the whole preview area and stays independe
   assert.match(html, /id="assetTransformFlip"/);
   assert.match(html, /id="assetTransformFlipY"/);
   assert.match(html, /class="libraryTransformTitle">整体调整素材/);
-  assert.match(html, /assetSourceName\(a\)\+' · '\+a\.slot\+' 位/);
+  assert.match(html, /a\.slot==='GLOBAL'\?'公共装饰':a\.slot\+' 位'/);
   assert.match(html, /Math\.max\(\.05,Math\.min\(5/);
   assert.match(html, /\(t\.flipY\?-1:1\)\*scale/);
   assert.match(html, /function beginAssetTransformPreview\(a\)/);
@@ -289,7 +289,7 @@ test('dedicated hair uploads stay reusable and isolated even when two orders use
 test('asset selection yields before rendering and avoids full library and disabled-asset recomposition', () => {
   assert.match(html, /function syncAssetLibrarySelectionUi\(order=getActiveOrder\(\)\)/);
   assert.match(html, /await new Promise\(resolve=>setTimeout\(resolve,0\)\)/);
-  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='TAIL'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
+  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='EYE'\|\|a\.type==='TAIL'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
   assert.match(html, /requestIdleCallback\(save,\{timeout:1800\}\)/);
   assert.match(html, /已切换素材 · \$\{Math\.max\(1,Math\.round\(performance\.now\(\)-started\)\)\} ms/);
 });
@@ -312,7 +312,7 @@ test('selected local assets warm in the background with immediate loading feedba
   assert.match(html, /setTimeout\(warmCurrentOrderAssets,30\)/);
   assert.match(html, /function warmCurrentOrderAssets\(\)/);
   assert.match(html, /record\._loading=true;renderAssetLibrary\(\);renderTransformControls\(\)/);
-  assert.match(html, /正在打开 PSD/);
+  assert.match(html, /正在打开 \$\{sourceFormat\}/);
 });
 
 test('pale white and pink hats use a darker low-chroma outline', () => {
@@ -393,7 +393,45 @@ test('standardized Chinese asset names are inferred without changing the PSD par
   assert.match(html, /n\.includes\('FRAME'\)\|\|n\.includes\('边框'\)/);
   assert.match(html, /n\.includes\('HAIR'\)\|\|n\.includes\('头发'\)/);
   assert.match(html, /n\.includes\('MOUTH'\)\|\|n\.includes\('嘴'\)\|\|n\.includes\('表情'\)/);
-  assert.match(html, /\(\?:模板\|耳朵\|头发\|帽饰\|嘴巴\|表情\|尾巴\|小物\|配饰\|边框/);
+  assert.match(html, /\(\?:模板\|耳朵\|头发\|帽饰\|嘴巴\|表情\|眼睛\|眼睛状态\|尾巴\|小物\|配饰\|边框/);
+});
+
+test('phase four accepts transparent PNG assets without PSD parsing', () => {
+  assert.match(html, /accept="\.psd,\.png,image\/vnd\.adobe\.photoshop,image\/png"/);
+  assert.match(html, /function isPngAssetFile\(file\)/);
+  assert.match(html, /async function loadPngCanvas\(file\)/);
+  assert.match(html, /function makeRasterAssetRecord\(file,canvas,slot,type,variant,metadata=\{\}\)/);
+  assert.match(html, /sourceFormat:'PNG'/);
+  assert.match(html, /originalComposite:canvas/);
+  assert.match(html, /a\.psd\|\|a\.composite/);
+  assert.match(html, /records=S\.assets\.filter\(a=>assetFamilyKey\(a\)===familyKey&&\(a\.psd\|\|a\.composite\)\)/);
+  assert.match(html, /forcedSlot==='AUTO'&&!hasExplicitAssetSlot\(file\)/);
+  assert.match(html, /PNG 原图 \/ 透明通道保留/);
+});
+
+test('phase four keeps public PNG decorations independent per order', () => {
+  assert.match(html, /globalAssetSelections:\[\]/);
+  assert.match(html, /function ensureOrderGlobalAssetSelections\(order\)/);
+  assert.match(html, /function setGlobalAssetFamilyEnabled\(familyKey,on\)/);
+  assert.match(html, /function setGlobalAssetPlacement\(familyKey,placement\)/);
+  assert.match(html, /data-ak="global-check"/);
+  assert.match(html, /data-ak="global-placement"/);
+  assert.match(html, /globalAssetStackIds\('FRONT'\)/);
+  assert.match(html, /globalAssetStackIds\('BACK'\)/);
+  assert.match(html, /a\.slot==='GLOBAL'\)\{a\.enabled=globals\.has\(assetFamilyKey\(a\)\)/);
+});
+
+test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
+  assert.match(html, /id:'EYE',name:'眼睛状态'/);
+  assert.match(html, /EYE:\['NONE','EYE_IRIS_BASE'/);
+  assert.match(html, /if\(type==='EYE'\)\{/);
+  assert.match(html, /categoryId==='EYE'\?'FOLLOW_ORDER':'PRESERVE_ORIGINAL'/);
+  assert.match(html, /asset\.type==='HAT_DECOR'\|\|asset\.type==='HAIR'\|\|asset\.type==='EYE'/);
+  assert.match(html, /跟随当前眼睛方案（推荐）/);
+  assert.match(html, /assetSelections:\{A:\{\},B:\{\}\}/);
+  assert.match(html, /function enabledEyeStateForSlot\(slot\)/);
+  assert.match(html, /function rootEyeLayerSlot\(layer,id\)/);
+  assert.match(html, /replacementSlot&&enabledEyeStateForSlot\(replacementSlot\)\)return/);
 });
 
 test('Eye Scheme v2 uses two anchors, complete field modes, and protects fixed highlights', () => {

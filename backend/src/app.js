@@ -9,7 +9,7 @@ const DEFAULT_MAX_BODY_BYTES = 512 * 1024;
 const DEFAULT_MAX_DEEPSEEK_BODY_BYTES = 64 * 1024;
 const DEFAULT_MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const DEFAULT_ASSET_TICKET_SECONDS = 15 * 60;
-const ASSET_CATEGORIES = new Set(['CLEAN_TEMPLATE', 'HAIR', 'EAR', 'MOUTH', 'TAIL', 'FRAME', 'ACCESSORY', 'PROP']);
+const ASSET_CATEGORIES = new Set(['CLEAN_TEMPLATE', 'HAIR', 'EAR', 'MOUTH', 'EYE', 'TAIL', 'FRAME', 'ACCESSORY', 'PROP']);
 const SLOT_OPTIONS = new Set(['NONE', 'A', 'B', 'SHARED']);
 const PART_OPTIONS = new Set(['UNKNOWN', 'HAIR', 'EYE', 'OUTFIT', 'HAT', 'HAT_DECOR', 'BODY_TRAIT', 'TAIL', 'FACE', 'WATERMARK', 'BACKGROUND', 'RENDER_SLOT', 'REFERENCE', 'OTHER']);
 const ROLE_OPTIONS = new Set([
@@ -187,7 +187,7 @@ function requiredText(value, code, max = 255) {
 
 function validateUploadTicketInput(body, maxAssetBytes) {
   const fileName = requiredText(body.fileName, 'INVALID_ASSET_FILE_NAME');
-  if (!/\.psd$/i.test(fileName) || /[\\/\0]/.test(fileName)) throw new HttpError(400, 'INVALID_ASSET_FILE_NAME');
+  if (!/\.(?:psd|png)$/i.test(fileName) || /[\\/\0]/.test(fileName)) throw new HttpError(400, 'INVALID_ASSET_FILE_NAME');
   const size = Number(body.size);
   if (!Number.isInteger(size) || size < 1) throw new HttpError(400, 'INVALID_ASSET_SIZE');
   if (size > maxAssetBytes) throw new HttpError(413, 'ASSET_TOO_LARGE');
@@ -202,10 +202,10 @@ function validateAssetMetadataInput(input, claim) {
     throw new HttpError(400, 'INVALID_ASSET_CATEGORY');
   }
   const characterCompatibility = String(input.characterCompatibility || input.defaultSlot || 'BOTH').toUpperCase();
-  if (!['A', 'B', 'BOTH'].includes(characterCompatibility)) throw new HttpError(400, 'INVALID_ASSET_COMPATIBILITY');
-  const defaultSlot = String(input.defaultSlot || (characterCompatibility === 'B' ? 'B' : 'A')).toUpperCase();
-  if (!['A', 'B'].includes(defaultSlot)) throw new HttpError(400, 'INVALID_ASSET_SLOT');
-  const variant = requiredText(input.variant || input.name || claim.fileName.replace(/\.psd$/i, ''), 'INVALID_ASSET_NAME', 255);
+  if (!['A', 'B', 'BOTH', 'GLOBAL'].includes(characterCompatibility)) throw new HttpError(400, 'INVALID_ASSET_COMPATIBILITY');
+  const defaultSlot = String(input.defaultSlot || (characterCompatibility === 'GLOBAL' ? 'GLOBAL' : (characterCompatibility === 'B' ? 'B' : 'A'))).toUpperCase();
+  if (!['A', 'B', 'GLOBAL'].includes(defaultSlot)) throw new HttpError(400, 'INVALID_ASSET_SLOT');
+  const variant = requiredText(input.variant || input.name || claim.fileName.replace(/\.(?:psd|png)$/i, ''), 'INVALID_ASSET_NAME', 255);
   const name = requiredText(input.name || variant, 'INVALID_ASSET_NAME', 255);
   const contentHash = input.contentHash == null ? null : String(input.contentHash).toLowerCase();
   if (contentHash !== null && !/^[a-f0-9]{64}$/.test(contentHash)) throw new HttpError(400, 'INVALID_ASSET_HASH');

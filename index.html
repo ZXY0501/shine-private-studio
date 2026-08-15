@@ -543,10 +543,10 @@ header .badge{display:none!important}
 <div class="app">
 <header>
   <div>
-    <h1>Shine 私人制图台 <span style="font-size:11px;color:#8c8590">v0.28-alpha</span><span class="phase2Badge">Phase 2 Preview</span></h1>
+    <h1>Shine 私人制图台 <span style="font-size:11px;color:#8c8590">v0.28-alpha</span><span class="phase2Badge">Phase 4 Preview</span></h1>
     <p class="sub">左预览固定 · 中间索引固定 · 右工作台滚动。</p>
   </div>
-  <div class="badge">私人后台 · PSD 本地解析</div>
+  <div class="badge">私人后台 · PSD / PNG 本地解析</div>
 </header>
 
 
@@ -745,24 +745,25 @@ header .badge{display:none!important}
             <summary style="font-size:11px;cursor:pointer;font-weight:700">素材库管理（上传 / 编辑 / 删除）</summary>
             <div style="margin-top:8px">
               <div id="libraryDrop" class="libraryDrop">
-                <b>把素材 PSD 直接拖到这里</b>
-                <div class="meta">头发、耳朵、嘴巴表情、尾巴、配饰和小物都可以。分类只负责整理，不会自动改色。</div>
+                <b>把素材 PSD / 透明 PNG 直接拖到这里</b>
+                <div class="meta">表情、眼睛状态、配饰和小物都可以。PNG 保留原像素与透明度；眼睛状态 PSD 可沿用当前眼睛方案。</div>
                 <div class="libraryClassRow">
                   <select id="libraryType">
                     <option value="AUTO">自动识别分类</option>
                     <option value="HAIR">头发</option>
                     <option value="EAR">耳朵</option>
                     <option value="MOUTH">嘴巴表情</option>
+                    <option value="EYE">眼睛状态</option>
                     <option value="TAIL">尾巴</option>
                     <option value="ACCESSORY">配饰</option>
                     <option value="PROP">小物 / 手持物</option>
                   </select>
-                  <select id="librarySlot"><option value="AUTO">自动识别 A/B</option><option value="A">A 左位</option><option value="B">B 右位</option></select>
-                  <label class="btn">选择 PSD<input id="libraryFiles" type="file" multiple accept=".psd,image/vnd.adobe.photoshop"></label>
+                  <select id="librarySlot"><option value="AUTO">自动识别 A/B</option><option value="A">A 左位</option><option value="B">B 右位</option><option value="GLOBAL">画面公共装饰</option></select>
+                  <label class="btn">选择 PSD / PNG<input id="libraryFiles" type="file" multiple accept=".psd,.png,image/vnd.adobe.photoshop,image/png"></label>
                 </div>
               </div>
               <div class="assetCategoryCreator"><input id="newAssetCategoryName" type="text" maxlength="30" placeholder="新建自己的素材大类"><button id="createAssetCategory" class="btn" type="button">＋ 新建大类</button></div>
-              <div class="legendMini">所有新素材默认保留 PSD 原色。上传顺序不再决定使用哪一边；在素材卡上分别勾选 A 或 B，选错时直接取消勾选。重复下载形成的“狐狸(1).psd / 狐狸（2）.psd”仍会自动归一为同一素材名称。</div>
+              <div class="legendMini">PNG 默认保留原色与透明边缘，可给 A、B 或设为公共装饰。眼睛状态 PSD 默认跟随当前眼睛方案；其他素材仍默认保留原色。重复下载形成的“狐狸(1).psd / 狐狸（2）.png”会自动归一为同一素材名称。</div>
               <div id="cloudAssetPanel" class="cloudAssetPanel" hidden><button id="cloudAssetRefresh" class="btn" type="button">读取云端素材</button><button id="cloudTemplateUpload" class="btn" type="button">保存当前纯净模板到云端</button><div id="cloudAssetStatus" class="status">测试入口：使用模板 Profile 的同一后端地址和口令。</div></div>
               <div class="assetList2" id="assetLibraryList" style="margin-top:7px"></div>
               <div id="assetRuntimeStatus" class="status assetRuntimeStatus">帽饰运行状态：等待上传。</div>
@@ -994,6 +995,7 @@ const BUILTIN_ASSET_CATEGORIES=Object.freeze([
   {id:'HAIR',name:'头发',builtin:true},
   {id:'EAR',name:'耳朵',builtin:true},
   {id:'MOUTH',name:'嘴巴表情',builtin:true},
+  {id:'EYE',name:'眼睛状态',builtin:true},
   {id:'TAIL',name:'尾巴',builtin:true},
   {id:'FRAME',name:'边框',builtin:true},
   {id:'ACCESSORY',name:'配饰',builtin:true},
@@ -1030,14 +1032,14 @@ const localDelete=(store,key)=>withLocalStore(store,'readwrite',s=>idbRequest(s.
 
 function serializableAssetRecord(a){
   ensureAssetRecordV2(a);
-  return {slot:a.slot,type:a.type,variant:a.variant,name:a.name,groupPath:a.groupPath||null,categoryId:a.categoryId,characterCompatibility:a.characterCompatibility,defaultSlot:a.defaultSlot,colorMode:a.colorMode,layerVisibility:{...(a.layerVisibility||{})},defaultTransform:{...(a.defaultTransform||{})},templateTransforms:JSON.parse(JSON.stringify(a.templateTransforms||{})),bindings:{...(a.bindings||{})},renderMode:a.renderMode||'overlay'};
+  return {slot:a.slot,type:a.type,variant:a.variant,name:a.name,groupPath:a.groupPath||null,categoryId:a.categoryId,characterCompatibility:a.characterCompatibility,defaultSlot:a.defaultSlot,sourceFormat:a.sourceFormat||(/\.png$/i.test(assetSourceName(a))?'PNG':'PSD'),colorMode:a.colorMode,layerVisibility:{...(a.layerVisibility||{})},defaultTransform:{...(a.defaultTransform||{})},templateTransforms:JSON.parse(JSON.stringify(a.templateTransforms||{})),bindings:{...(a.bindings||{})},renderMode:a.renderMode||'overlay'};
 }
 function localAssetMetadata(records){
   const first=records[0];ensureAssetRecordV2(first);
   return {schemaVersion:'shine-local-asset-v1',assetId:first.assetId,fileName:assetSourceName(first),byteSize:Number(first.file?.size)||0,contentType:first.file?.type||'application/octet-stream',categoryId:first.categoryId,variant:first.variant,name:first.name,characterCompatibility:first.characterCompatibility,defaultSlot:first.defaultSlot,contentHash:first.contentHash||null,version:first.version||1,sourceObjectKey:first.sourceObjectKey||null,thumbnailObjectKey:first.thumbnailObjectKey||null,createdAt:first.createdAt,updatedAt:new Date().toISOString(),records:records.map(serializableAssetRecord)};
 }
 async function persistAssetFamilyLocal(familyKey){
-  const records=S.assets.filter(a=>assetFamilyKey(a)===familyKey&&a.psd),first=records.find(a=>a.file&&typeof a.file.arrayBuffer==='function');
+  const records=S.assets.filter(a=>assetFamilyKey(a)===familyKey&&(a.psd||a.composite)),first=records.find(a=>a.file&&typeof a.file.arrayBuffer==='function');
   if(!records.length||!first)return false;
   const metadata=localAssetMetadata(records);
   await localPut('assetSources',{assetId:metadata.assetId,file:first.file,version:metadata.version,contentHash:metadata.contentHash,updatedAt:metadata.updatedAt});
@@ -1066,9 +1068,9 @@ async function hydrateLocalAsset(record){
   record._loading=(async()=>{
     stat($('#assetRuntimeStatus'),`正在从本机素材库打开 ${record.name||record.variant}…`,'');
     const [source,meta]=await Promise.all([localGet('assetSources',record.assetId),localGet('assetCatalog',record.assetId)]);
-    if(!source?.file||!meta)throw new Error('本机缓存不完整，请重新上传这份 PSD。');
-    const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'}),psd=await parsePsd(file),order=detectLayerDrawOrder(psd),made=[];
-    (meta.records||[]).forEach(row=>{const a=makeAssetRecord(file,psd,order,row.slot,row.type,row.variant,row.groupPath,{assetId:meta.assetId,categoryId:row.categoryId||meta.categoryId,characterCompatibility:row.characterCompatibility||meta.characterCompatibility,createdAt:meta.createdAt,layerVisibility:row.layerVisibility||{}});Object.assign(a,{name:row.name||a.name,colorMode:row.colorMode||'PRESERVE_ORIGINAL',defaultSlot:row.defaultSlot||a.defaultSlot,defaultTransform:{...(row.defaultTransform||a.defaultTransform)},templateTransforms:JSON.parse(JSON.stringify(row.templateTransforms||{})),bindings:{...(row.bindings||a.bindings)},sourceObjectKey:meta.sourceObjectKey||null,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,updatedAt:meta.updatedAt,localOnly:false,localCached:true,cloudOnly:false});a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());made.push(a);});
+    if(!source?.file||!meta)throw new Error('本机缓存不完整，请重新上传这份素材。');
+    const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'}),png=/\.png$/i.test(meta.fileName)||meta.contentType==='image/png',psd=png?null:await parsePsd(file),order=psd?detectLayerDrawOrder(psd):null,pngCanvas=png?await loadPngCanvas(file):null,made=[];
+    (meta.records||[]).forEach(row=>{const base={assetId:meta.assetId,categoryId:row.categoryId||meta.categoryId,characterCompatibility:row.characterCompatibility||meta.characterCompatibility,createdAt:meta.createdAt,layerVisibility:row.layerVisibility||{}},a=png?makeRasterAssetRecord(file,pngCanvas,row.slot,row.type,row.variant,base):makeAssetRecord(file,psd,order,row.slot,row.type,row.variant,row.groupPath,base);Object.assign(a,{name:row.name||a.name,sourceFormat:row.sourceFormat||(png?'PNG':'PSD'),colorMode:row.colorMode||a.colorMode||'PRESERVE_ORIGINAL',defaultSlot:row.defaultSlot||a.defaultSlot,defaultTransform:{...(row.defaultTransform||a.defaultTransform)},templateTransforms:JSON.parse(JSON.stringify(row.templateTransforms||{})),bindings:{...(row.bindings||a.bindings)},sourceObjectKey:meta.sourceObjectKey||null,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,updatedAt:meta.updatedAt,localOnly:false,localCached:true,cloudOnly:false});if(!png){a.originalComposite=renderAssetOriginalComposite(a);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())}made.push(a);});
     S.assets=S.assets.filter(a=>a.assetId!==record.assetId);made.forEach(upsertAssetRecord);syncAssetEnabledFromOrder(getActiveOrder());renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();stat($('#assetRuntimeStatus'),`已从本机打开：${meta.name||meta.variant}`,'good');return made;
   })();
   try{return await record._loading}catch(e){record._loading=null;stat($('#assetRuntimeStatus'),e.message||String(e),'bad');throw e}
@@ -1102,7 +1104,7 @@ async function initLocalPersistence(){
   }catch(e){S.localPersistenceError=e;console.warn('init local library',e);renderAssetLibrary();}
 }
 async function warmCurrentOrderAssets(){
-  const order=getActiveOrder();if(!order)return;const selections=ensureOrderAssetSelections(order),wanted=new Set();['A','B'].forEach(slot=>{Object.values(selections[slot]||{}).filter(Boolean).forEach(key=>wanted.add(key));[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))].forEach(categoryId=>{const key=selectedAssetFamily(order,slot,categoryId);if(key)wanted.add(key)})});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));
+  const order=getActiveOrder();if(!order)return;const selections=ensureOrderAssetSelections(order),wanted=new Set();['A','B'].forEach(slot=>{Object.values(selections[slot]||{}).filter(Boolean).forEach(key=>wanted.add(key));[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))].forEach(categoryId=>{const key=selectedAssetFamily(order,slot,categoryId);if(key)wanted.add(key)})});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));
   for(const key of wanted){const record=S.assets.find(a=>a.localOnly&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateLocalAsset(record)}catch(e){console.warn('warm local asset',e)}}
 }
 
@@ -1256,6 +1258,7 @@ function assetDefaultZ(a){
   if(a.categoryId==='TAIL')return a.slot==='A'?18:19;
   if(a.categoryId==='PROP')return 30;
   if(a.categoryId==='MOUTH')return a.slot==='A'?70:72;
+  if(a.categoryId==='EYE')return a.slot==='A'?74:76;
   if(a.categoryId==='EAR')return a.slot==='A'?80:96;
   if(a.categoryId==='ACCESSORY')return 110;
   return 50;
@@ -1266,10 +1269,15 @@ function assetFromStackId(id){
   return S.assets.find(a=>assetStackId(a)===id)||null;
 }
 function anyAssetFromStackId(id){return assetFromStackId(id)||(id?.startsWith('hair:')?(S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===id.slice(5)&&a.enabled)||S.assets.find(a=>a.categoryId==='HAIR'&&a.slot===id.slice(5))):null)||null;}
-function stackAssetIds(){return [...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId!=='HAIR'&&a.categoryId!=='FRAME'}).sort((a,b)=>assetDefaultZ(b)-assetDefaultZ(a)).map(assetStackId))];}
+function stackAssetIds(){return [...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId!=='HAIR'&&a.categoryId!=='FRAME'&&a.slot!=='GLOBAL'}).sort((a,b)=>assetDefaultZ(b)-assetDefaultZ(a)).map(assetStackId))];}
 function frameStackIds(placement,order=getActiveOrder()){
   const selections=ensureOrderFrameSelections(order).filter(x=>x.placement===placement).sort((a,b)=>b.addedAt-a.addedAt),ids=[];
   selections.forEach(selection=>{const record=S.assets.find(a=>a.categoryId==='FRAME'&&assetFamilyKey(a)===selection.familyKey);if(record&&!ids.includes(assetStackId(record)))ids.push(assetStackId(record));});
+  return ids;
+}
+function globalAssetStackIds(placement,order=getActiveOrder()){
+  const selections=ensureOrderGlobalAssetSelections(order).filter(x=>x.placement===placement).sort((a,b)=>b.addedAt-a.addedAt),ids=[];
+  selections.forEach(selection=>{const record=S.assets.find(a=>a.slot==='GLOBAL'&&a.categoryId!=='FRAME'&&assetFamilyKey(a)===selection.familyKey);if(record&&!ids.includes(assetStackId(record)))ids.push(assetStackId(record));});
   return ids;
 }
 function rootLayerFromId(id){
@@ -1290,11 +1298,11 @@ function defaultRootStackOrder(){
   if(bEye>=0){ids.splice(bEye+1,0,...hairs);}
   else if(bFace>=0){ids.splice(bFace,0,...hairs);}
   else {ids.unshift(...hairs);}
-  return [...frameStackIds('FRONT'),...stackAssetIds(),...ids,...frameStackIds('BACK')];
+  return [...frameStackIds('FRONT'),...globalAssetStackIds('FRONT'),...stackAssetIds(),...ids,...globalAssetStackIds('BACK'),...frameStackIds('BACK')];
 }
 function normalizeRootStackOrder(order){
   const validLayers=new Set(baseRootPanelOrder());
-  const frames=[...frameStackIds('FRONT'),...frameStackIds('BACK')],validAssets=new Set([...stackAssetIds(),...frames]),rememberedAssets=(Array.isArray(order)?order:[]).filter(id=>typeof id==='string'&&id.startsWith('asset:')),wanted=[...validLayers,hairStackId('A'),hairStackId('B'),...validAssets,...rememberedAssets];
+  const frames=[...frameStackIds('FRONT'),...frameStackIds('BACK')],globals=[...globalAssetStackIds('FRONT'),...globalAssetStackIds('BACK')],validAssets=new Set([...stackAssetIds(),...frames,...globals]),rememberedAssets=(Array.isArray(order)?order:[]).filter(id=>typeof id==='string'&&id.startsWith('asset:')),wanted=[...validLayers,hairStackId('A'),hairStackId('B'),...validAssets,...rememberedAssets];
   const out=[];
   (Array.isArray(order)?order:[]).forEach(id=>{if(wanted.includes(id)&&!out.includes(id))out.push(id)});
   // 新模板根层或刚上传素材按默认相邻位置补回，同时保留用户已经拖好的层级。
@@ -1340,12 +1348,12 @@ function loadHairInsertion(){
 function saveHairInsertion(){try{localStorage.setItem(hairInsertionStorageKey(),JSON.stringify(S.hairInsertion))}catch{}}
 function hairAnchorOptions(slot){return S.flat.filter(n=>{const b=S.bindings[n.path];const ss=b?.slot==='A'||b?.slot==='B'?b.slot:guessSlot(n.path,n.name);return ss===slot;});}
 function makeHairInsertionPanel(){
-  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示：勾选的头发、耳朵、嘴巴、尾巴和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="libraryTransformTitle">整体调整素材</div><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><button id="assetTransformSmaller" class="btn" type="button">－ 缩小</button><button id="assetTransformLarger" class="btn" type="button">＋ 放大</button><button id="assetTransformRotateLeft" class="btn" type="button">↶ 左转 90°</button><button id="assetTransformRotateRight" class="btn" type="button">↷ 右转 90°</button><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">在左侧预览任意空白处拖动即可移动整份 PSD。</span></div></div>`;return box;
+  const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。无需在 PSD 里写插槽提示；勾选的头发、耳朵、表情、眼睛状态、PNG 小物和配饰都会成为可拖动的虚拟大夹子。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="libraryTransformTitle">整体调整素材</div><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><button id="assetTransformSmaller" class="btn" type="button">－ 缩小</button><button id="assetTransformLarger" class="btn" type="button">＋ 放大</button><button id="assetTransformRotateLeft" class="btn" type="button">↶ 左转 90°</button><button id="assetTransformRotateRight" class="btn" type="button">↷ 右转 90°</button><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">在左侧预览任意空白处拖动即可移动整份素材。</span></div></div>`;return box;
 }
 function rootStackLabel(id){
   if(id===hairStackId('A')){const a=rootStackHairAsset('A');return {name:'A头发',meta:a?`当前：${a.variant||a.name||'已上传'}`:'未选择 · 占位',kind:'hair'};}
   if(id===hairStackId('B')){const a=rootStackHairAsset('B');return {name:'B头发',meta:a?`当前：${a.variant||a.name||'已上传'}`:'未选择 · 占位',kind:'hair'};}
-  const a=assetFromStackId(id);if(a){const frame=a.categoryId==='FRAME',placement=frameSelection(getActiveOrder(),assetFamilyKey(a))?.placement;return {name:frame?`边框 · ${a.variant||a.name||'未命名'}`:`${a.slot} · ${a.variant||a.name||categoryLabel(a.categoryId)}`,meta:frame?`${placement==='BACK'?'置底':'置顶'} · 由素材卡控制`:`${categoryLabel(a.categoryId)} · ${a.enabled?'已勾选':'未勾选'}`,kind:frame?'frame':'asset'};}
+  const a=assetFromStackId(id);if(a){const frame=a.categoryId==='FRAME',global=a.slot==='GLOBAL'&&!frame,placement=frame?frameSelection(getActiveOrder(),assetFamilyKey(a))?.placement:(global?globalAssetSelection(getActiveOrder(),assetFamilyKey(a))?.placement:null);return {name:frame?`边框 · ${a.variant||a.name||'未命名'}`:(global?`公共 · ${a.variant||a.name||categoryLabel(a.categoryId)}`:`${a.slot} · ${a.variant||a.name||categoryLabel(a.categoryId)}`),meta:(frame||global)?`${placement==='BACK'?'置底':'置顶'} · 由素材卡控制`:`${categoryLabel(a.categoryId)} · ${a.enabled?'已勾选':'未勾选'}`,kind:frame?'frame':'asset'};}
   if(id?.startsWith('asset:'))return {name:'已保存的素材插槽',meta:'等待载入对应素材',kind:'asset'};
   const l=rootLayerFromId(id);if(!l)return {name:id,meta:'未知',kind:'pixel'};
   const group=!!(l.children&&l.children.length);return {name:l.name||id.slice(6),meta:group?'大夹子':'顶层图层',kind:group?'group':'pixel'};
@@ -1370,7 +1378,7 @@ function applyPendingAssetPlacement(a){
   const saved=S.pendingAssetPlacements?.[assetStackId(a)];if(!saved||typeof saved!=='object')return;
   const key=String(S.templateSignature||'default');a.templateTransforms=a.templateTransforms||{};a.templateTransforms[key]={x:Number(saved.x)||0,y:Number(saved.y)||0,scale:Math.max(.05,Number(saved.scale)||1),rotation:Number(saved.rotation)||0,flipX:!!saved.flipX,flipY:!!saved.flipY};
 }
-function selectedTransformAsset(){const exact=anyAssetFromStackId(S.selectedTransformStackId);if(exact?.enabled&&exact.psd)return exact;return S.assets.find(a=>a.enabled&&a.psd)||null;}
+function selectedTransformAsset(){const exact=anyAssetFromStackId(S.selectedTransformStackId);if(exact?.enabled&&(exact.psd||exact.composite))return exact;return S.assets.find(a=>a.enabled&&(a.psd||a.composite))||null;}
 function syncInlineAssetTransformControls(a){
   if(!a)return;const id=assetStackId(a),t=assetTransformForTemplate(a);
   document.querySelectorAll('.assetInlineTransform').forEach(panel=>{
@@ -1385,7 +1393,7 @@ function syncInlineAssetTransformControls(a){
 function syncTransformControlValues(a=selectedTransformAsset()){
   const body=$('#previewBody');if(body)body.classList.toggle('transformReady',!!a?.enabled&&!!S.master);
   if(!a)return;
-  const t=assetTransformForTemplate(a),w=Math.max(100,S.master?.width||a.psd?.width||1500),h=Math.max(100,S.master?.height||a.psd?.height||1500);
+  const t=assetTransformForTemplate(a),w=Math.max(100,S.master?.width||a.psd?.width||a.composite?.width||1500),h=Math.max(100,S.master?.height||a.psd?.height||a.composite?.height||1500);
   const x=$('#assetTransformX'),y=$('#assetTransformY'),scale=$('#assetTransformScale'),rotation=$('#assetTransformRotation'),flip=$('#assetTransformFlip'),flipY=$('#assetTransformFlipY');
   syncInlineAssetTransformControls(a);if(!x||!y||!scale||!rotation||!flip||!flipY)return;
   x.min=-w;x.max=w;y.min=-h;y.max=h;x.value=Math.round(t.x||0);y.value=Math.round(t.y||0);scale.value=t.scale||1;rotation.value=t.rotation||0;flip.checked=!!t.flipX;flipY.checked=!!t.flipY;
@@ -1406,17 +1414,17 @@ function scheduleAssetTransformRender(){
   if(S.transformFrame)return;S.transformFrame=requestAnimationFrame(()=>{S.transformFrame=0;if(S.master&&!renderFastAssetTransformPreview())reconstruct();});
 }
 function renderTransformControls(){
-  const select=$('#transformAssetSelect');if(!select)return;const byStack=new Map();S.assets.filter(a=>a.enabled&&a.psd&&a.categoryId!=='CLEAN_TEMPLATE').forEach(a=>{ensureAssetRecordV2(a);const id=assetStackId(a),old=byStack.get(id);if(!old||(!old.enabled&&a.enabled))byStack.set(id,a)});const assets=[...byStack.values()];
+  const select=$('#transformAssetSelect');if(!select)return;const byStack=new Map();S.assets.filter(a=>a.enabled&&(a.psd||a.composite)&&a.categoryId!=='CLEAN_TEMPLATE').forEach(a=>{ensureAssetRecordV2(a);const id=assetStackId(a),old=byStack.get(id);if(!old||(!old.enabled&&a.enabled))byStack.set(id,a)});const assets=[...byStack.values()];
   if(S.selectedTransformStackId&&!assets.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;
   const preferred=selectedTransformAsset();if(preferred)S.selectedTransformStackId=assetStackId(preferred);
-  select.innerHTML=assets.length?assets.map(a=>`<option value="${safe(assetStackId(a))}" ${assetStackId(a)===S.selectedTransformStackId?'selected':''}>${safe(assetSourceName(a)+' · '+a.slot+' 位 · '+categoryLabel(a.categoryId))}</option>`).join(''):'<option value="">先在素材卡勾选 A / B</option>';
+  select.innerHTML=assets.length?assets.map(a=>`<option value="${safe(assetStackId(a))}" ${assetStackId(a)===S.selectedTransformStackId?'selected':''}>${safe(assetSourceName(a)+' · '+(a.slot==='GLOBAL'?'公共装饰':a.slot+' 位')+' · '+categoryLabel(a.categoryId))}</option>`).join(''):'<option value="">先在素材卡勾选 A / B / 公共</option>';
   select.disabled=!assets.length;['resetAssetTransform','assetTransformSmaller','assetTransformLarger','assetTransformRotateLeft','assetTransformRotateRight','assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation','assetTransformFlip','assetTransformFlipY'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!assets.length});
   select.onchange=()=>{S.selectedTransformStackId=select.value;renderHairInsertionControls();};
   const update=(persist=false)=>{const a=selectedTransformAsset();if(!a)return;if(!persist)beginAssetTransformPreview(a);const t=assetTransformForTemplate(a);t.x=Number($('#assetTransformX').value)||0;t.y=Number($('#assetTransformY').value)||0;t.scale=Math.max(.05,Number($('#assetTransformScale').value)||1);t.rotation=Number($('#assetTransformRotation').value)||0;t.flipX=$('#assetTransformFlip').checked;t.flipY=$('#assetTransformFlipY').checked;a.updatedAt=new Date().toISOString();if(persist)persistAssetTransform(a);syncTransformControlValues(a);if(persist)finishAssetTransformPreview();else scheduleAssetTransformRender();};
   ['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation'].forEach(id=>{$('#'+id).oninput=()=>update(false);$('#'+id).onchange=()=>update(true)});$('#assetTransformFlip').onchange=()=>update(true);$('#assetTransformFlipY').onchange=()=>update(true);
   const nudge=action=>{const a=selectedTransformAsset();if(!a)return;const t=assetTransformForTemplate(a);if(action==='smaller')t.scale=Math.max(.05,t.scale-.1);if(action==='larger')t.scale=Math.min(5,t.scale+.1);if(action==='left')t.rotation=normalizeRotation(t.rotation-90);if(action==='right')t.rotation=normalizeRotation(t.rotation+90);a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
   $('#assetTransformSmaller').onclick=()=>nudge('smaller');$('#assetTransformLarger').onclick=()=>nudge('larger');$('#assetTransformRotateLeft').onclick=()=>nudge('left');$('#assetTransformRotateRight').onclick=()=>nudge('right');
-  $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;S.transformPreview=null;Object.assign(assetTransformForTemplate(a),{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false});a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
+  $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;S.transformPreview=null;Object.assign(assetTransformForTemplate(a),{...(a.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false})});a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
   syncTransformControlValues(preferred);
 }
 function wirePreviewFreeTransform(){
@@ -1576,6 +1584,8 @@ function drawAssetTransformed(ctx,a){
   const t=assetTransformForTemplate(a),cx=src.width/2,cy=src.height/2,scale=Math.max(.05,Number(t.scale)||1);
   ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.translate((Number(t.x)||0)+cx,(Number(t.y)||0)+cy);ctx.rotate((Number(t.rotation)||0)*Math.PI/180);ctx.scale((t.flipX?-1:1)*scale,(t.flipY?-1:1)*scale);ctx.drawImage(src,-cx,-cy);ctx.restore();
 }
+function enabledEyeStateForSlot(slot){return S.assets.find(a=>a.enabled&&a.categoryId==='EYE'&&a.slot===slot&&(a.composite||a.originalComposite))||null;}
+function rootEyeLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');if(!/眼睛|虹膜|瞳孔|eye/i.test(name))return null;if(/^(?:A)(?:位)?/i.test(name)||/左位/.test(name))return 'A';if(/^(?:B)(?:位)?/i.test(name)||/右位/.test(name))return 'B';return null;}
 function renderMasterWithRootStack(skipStackId=null){
   const psd=S.master,c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
   const panel=normalizeRootStackOrder(S.rootStackOrder?.length?S.rootStackOrder:defaultRootStackOrder());
@@ -1587,7 +1597,7 @@ function renderMasterWithRootStack(skipStackId=null){
       const a=rootStackHairAsset(id.slice(5));if(a?.composite){drawAssetTransformed(ctx,a);clipBase=a.composite;}return;
     }
     const asset=assetFromStackId(id);if(asset){if(asset.enabled)drawAssetTransformed(ctx,asset);clipBase=null;return;}
-    const layer=rootLayerFromId(id);if(!layer)return;const path=layer.name||id.slice(6);if(!effectiveVisible(layer,path,true,true))return;
+    const layer=rootLayerFromId(id);if(!layer)return;const replacementSlot=rootEyeLayerSlot(layer,id);if(replacementSlot&&enabledEyeStateForSlot(replacementSlot))return;const path=layer.name||id.slice(6);if(!effectiveVisible(layer,path,true,true))return;
     const isGroup=!!(layer.children&&layer.children.length),bm=(layer.blendMode||'normal').toLowerCase(),opacity=typeof layer.opacity==='number'?layer.opacity:1;
     if(isGroup&&bm==='pass through'&&opacity>=.999&&!layer.clipping){renderSiblingStack(psd,ctx,layer.children,path,S.masterOrder?.mode||'reverse',false,true,true);clipBase=null;return;}
     let raw=renderElementRaw(psd,layer,path,S.masterOrder?.mode||'reverse',false,true,true);
@@ -1891,7 +1901,7 @@ function cloudProfileErrorMessage(code,status){
     PROFILE_NOT_FOUND:'云端还没有这个模板的 Profile。',PROFILE_CONFLICT:'云端版本已变化，请先重新读取再保存。',
     PRECONDITION_REQUIRED:'缺少版本校验，请先读取云端版本。',PROFILE_TOO_LARGE:'模板 Profile 超过后端允许的大小。',
     OSS_CREDENTIALS_MISSING:'后端暂未取得 OSS 临时凭证。',OSS_READ_FAILED:'OSS 读取失败。',OSS_WRITE_FAILED:'OSS 写入失败。',OSS_SIGN_FAILED:'OSS 临时地址签发失败。',OSS_DELETE_FAILED:'OSS 删除失败。',
-    ASSET_STORE_NOT_CONFIGURED:'后端还没有启用云素材接口。',ASSET_TOO_LARGE:'素材 PSD 超过后端允许大小。',ASSET_UPLOAD_MISSING:'OSS 里还没有收到这个 PSD。',ASSET_UPLOAD_MISMATCH:'OSS 文件大小与上传申请不一致。',ASSET_NOT_FOUND:'云端找不到这个素材。',INVALID_UPLOAD_RECEIPT:'上传凭证无效，请重新保存。',UPLOAD_RECEIPT_EXPIRED:'上传凭证已过期，请重新保存。'
+    ASSET_STORE_NOT_CONFIGURED:'后端还没有启用云素材接口。',ASSET_TOO_LARGE:'素材文件超过后端允许大小。',ASSET_UPLOAD_MISSING:'OSS 里还没有收到这个素材。',ASSET_UPLOAD_MISMATCH:'OSS 文件大小与上传申请不一致。',ASSET_NOT_FOUND:'云端找不到这个素材。',INVALID_UPLOAD_RECEIPT:'上传凭证无效，请重新保存。',UPLOAD_RECEIPT_EXPIRED:'上传凭证已过期，请重新保存。'
   };
   return messages[code]||`云端请求失败（${status||'网络错误'}${code?' / '+code:''}）。`;
 }
@@ -1935,15 +1945,15 @@ function updateCloudAssetControls(){
   if($('#cloudTemplateUpload'))$('#cloudTemplateUpload').disabled=!configured||!S.masterFile||S.cloudAssetBusy;
 }
 function cloudMetadataToPlaceholder(meta){
-  const slot=meta.defaultSlot==='B'?'B':'A',type=rendererTypeForCategory(meta.categoryId,'PROP');
-  return ensureAssetRecordV2({schemaVersion:'shine-asset-v2',assetId:meta.assetId,file:{name:meta.fileName,size:meta.byteSize,type:meta.contentType},psd:null,composite:null,originalComposite:null,order:null,slot,type,variant:meta.variant||meta.name,name:meta.name||meta.variant,enabled:false,renderMode:'overlay',categoryId:meta.categoryId,characterCompatibility:meta.characterCompatibility||slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',layerVisibility:meta.layerVisibility||{},compatibleTemplateIds:meta.compatibleTemplateIds||[],defaultTransform:meta.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:meta.sourceObjectKey,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,createdAt:meta.createdAt,updatedAt:meta.updatedAt,bindings:{},cloudOnly:true});
+  const slot=meta.defaultSlot==='GLOBAL'?'GLOBAL':(meta.defaultSlot==='B'?'B':'A'),type=rendererTypeForCategory(meta.categoryId,'PROP');
+  return ensureAssetRecordV2({schemaVersion:'shine-asset-v2',assetId:meta.assetId,file:{name:meta.fileName,size:meta.byteSize,type:meta.contentType},psd:null,composite:null,originalComposite:null,order:null,slot,type,variant:meta.variant||meta.name,name:meta.name||meta.variant,enabled:false,renderMode:'overlay',categoryId:meta.categoryId,characterCompatibility:meta.characterCompatibility||slot,defaultSlot:slot,sourceFormat:/\.png$/i.test(meta.fileName)||meta.contentType==='image/png'?'PNG':'PSD',colorMode:meta.categoryId==='EYE'?'FOLLOW_ORDER':'PRESERVE_ORIGINAL',layerVisibility:meta.layerVisibility||{},compatibleTemplateIds:meta.compatibleTemplateIds||[],defaultTransform:meta.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:meta.sourceObjectKey,thumbnailObjectKey:meta.thumbnailObjectKey||null,contentHash:meta.contentHash||null,version:meta.version||1,createdAt:meta.createdAt,updatedAt:meta.updatedAt,bindings:{},cloudOnly:true});
 }
 async function refreshCloudAssetCatalog(){
   if(S.cloudAssetBusy)return;S.cloudAssetBusy=true;updateCloudAssetControls();stat($('#cloudAssetStatus'),'正在读取云端素材目录…','');
   try{
     const result=await cloudAssetRequest('/api/assets'),seen=new Set();S.cloudTemplateCatalog=[];
     (result.assets||[]).forEach(meta=>{seen.add(meta.assetId);if(meta.categoryId==='CLEAN_TEMPLATE'){S.cloudTemplateCatalog.push(meta);return}const local=S.assets.filter(a=>a.assetId===meta.assetId);if(local.length)local.forEach(a=>{a.sourceObjectKey=meta.sourceObjectKey;a.updatedAt=meta.updatedAt||a.updatedAt;a.version=meta.version||a.version});else S.assets.push(cloudMetadataToPlaceholder(meta));});
-    stat($('#cloudAssetStatus'),`已读取 ${seen.size} 个云端素材。缩略目录先显示，勾选使用时再下载 PSD。`,'good');renderAssetRows();renderAssetLibrary();renderHairInsertionControls();
+    stat($('#cloudAssetStatus'),`已读取 ${seen.size} 个云端素材。缩略目录先显示，勾选使用时再下载源素材。`,'good');renderAssetRows();renderAssetLibrary();renderHairInsertionControls();
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
   finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
 }
@@ -1966,7 +1976,7 @@ async function deleteCloudTemplate(assetId){
 }
 async function uploadAssetFamilyToCloud(familyKey){
   if(S.cloudAssetBusy)return;const records=S.assets.filter(a=>assetFamilyKey(a)===familyKey),first=records.find(a=>a.file&&typeof a.file.arrayBuffer==='function');
-  if(!first){stat($('#cloudAssetStatus'),'这个素材当前只有云端目录信息，请先载入 PSD。','bad');return;}
+  if(!first){stat($('#cloudAssetStatus'),'这个素材当前只有云端目录信息，请先载入源素材。','bad');return;}
   if(records.some(a=>a.sourceObjectKey)){stat($('#cloudAssetStatus'),'这个素材已经在云端。','good');return;}
   S.cloudAssetBusy=true;updateCloudAssetControls();stat($('#cloudAssetStatus'),`正在保存 ${first.variant||first.file.name} 到云端…`,'');
   try{
@@ -1976,7 +1986,7 @@ async function uploadAssetFamilyToCloud(familyKey){
     const familyLayerVisibility=Object.assign({},...records.map(a=>a.layerVisibility||{}));
     const completed=await cloudAssetRequest(`/api/assets/${encodeURIComponent(ticket.assetId)}/complete`,{method:'POST',body:{receipt:ticket.receipt,asset:{categoryId:first.categoryId,characterCompatibility:compatibility,defaultSlot:first.slot,variant:first.variant||first.name,name:first.name||first.variant,layerVisibility:familyLayerVisibility}}});
     records.forEach(a=>{a.assetId=completed.asset.assetId;a.sourceObjectKey=completed.asset.sourceObjectKey;a.contentHash=completed.asset.contentHash;a.version=completed.asset.version;a.createdAt=completed.asset.createdAt;a.updatedAt=completed.asset.updatedAt;a.cloudOnly=false;a.localOnly=false});
-    const newFamilyKey=assetFamilyKey(records[0]);if(newFamilyKey!==oldFamilyKey)S.orders.forEach(order=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(order);if(selections[slot][first.categoryId]===oldFamilyKey)selections[slot][first.categoryId]=newFamilyKey}));persistOrders();
+    const newFamilyKey=assetFamilyKey(records[0]);if(newFamilyKey!==oldFamilyKey)S.orders.forEach(order=>{['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(order);if(selections[slot][first.categoryId]===oldFamilyKey)selections[slot][first.categoryId]=newFamilyKey});ensureOrderGlobalAssetSelections(order).forEach(x=>{if(x.familyKey===oldFamilyKey)x.familyKey=newFamilyKey})});persistOrders();
     await Promise.all(oldAssetIds.filter(id=>id!==completed.asset.assetId).flatMap(id=>[localDelete('assetCatalog',id),localDelete('assetSources',id)]));await persistAssetFamilyLocal(assetFamilyKey(records[0]));
     stat($('#cloudAssetStatus'),`已保存到云端：${completed.asset.name}`,'good');renderAssetLibrary();renderHairInsertionControls();debug();
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
@@ -1989,23 +1999,24 @@ async function hydrateCloudAsset(record){
     const [cachedSource,cachedMeta]=await Promise.all([localGet('assetSources',record.assetId),localGet('assetCatalog',record.assetId)]).catch(()=>[null,null]);
     const cacheMatches=cachedSource?.file&&cachedMeta&&Number(cachedMeta.version||1)===Number(record.version||1)&&(!record.contentHash||!cachedMeta.contentHash||record.contentHash===cachedMeta.contentHash);
     if(cacheMatches){const localRecord={...record,localOnly:true,cloudOnly:false,_loading:null},made=await hydrateLocalAsset(localRecord);const rows=Array.isArray(made)?made:[made];rows.filter(Boolean).forEach(a=>{a.sourceObjectKey=record.sourceObjectKey||cachedMeta.sourceObjectKey;a.cloudOnly=false;a.localOnly=false;a.localCached=true});stat($('#cloudAssetStatus'),`已从本机缓存载入：${record.name||record.variant}`,'good');return made;}
-    const source=await cloudAssetRequest(`/api/assets/${encodeURIComponent(record.assetId)}/source`),response=await fetch(source.downloadUrl);if(!response.ok)throw new Error(`云端 PSD 下载失败（${response.status}）。`);
-    const blob=await response.blob(),file=new File([blob],source.asset.fileName,{type:source.asset.contentType||'application/octet-stream'}),psd=await parsePsd(file),order=detectLayerDrawOrder(psd),pair=inferPairGroups(psd),categoryId=source.asset.categoryId,type=rendererTypeForCategory(categoryId,'PROP'),variant=source.asset.variant||source.asset.name,base={assetId:source.asset.assetId,categoryId,characterCompatibility:source.asset.characterCompatibility,createdAt:source.asset.createdAt,layerVisibility:source.asset.layerVisibility||{}};
+    const source=await cloudAssetRequest(`/api/assets/${encodeURIComponent(record.assetId)}/source`),response=await fetch(source.downloadUrl);if(!response.ok)throw new Error(`云端素材下载失败（${response.status}）。`);
+    const blob=await response.blob(),file=new File([blob],source.asset.fileName,{type:source.asset.contentType||'application/octet-stream'}),png=/\.png$/i.test(source.asset.fileName)||source.asset.contentType==='image/png',psd=png?null:await parsePsd(file),order=psd?detectLayerDrawOrder(psd):null,pair=psd?inferPairGroups(psd):{},pngCanvas=png?await loadPngCanvas(file):null,categoryId=source.asset.categoryId,type=rendererTypeForCategory(categoryId,'PROP'),variant=source.asset.variant||source.asset.name,base={assetId:source.asset.assetId,categoryId,characterCompatibility:source.asset.characterCompatibility,createdAt:source.asset.createdAt,layerVisibility:source.asset.layerVisibility||{}};
     const made=[];
-    if(source.asset.characterCompatibility==='BOTH'&&pair.a&&pair.b){made.push(makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,base),makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,base));}
-    else{const slot=source.asset.defaultSlot==='B'?'B':'A';made.push(makeAssetRecord(file,psd,order,slot,type,variant,null,{...base,characterCompatibility:source.asset.characterCompatibility||slot}));}
+    if(png&&source.asset.characterCompatibility==='BOTH'){made.push(makeRasterAssetRecord(file,pngCanvas,'A',type,variant,base),makeRasterAssetRecord(file,pngCanvas,'B',type,variant,base));}
+    else if(!png&&source.asset.characterCompatibility==='BOTH'&&pair.a&&pair.b){made.push(makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,base),makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,base));}
+    else{const slot=source.asset.defaultSlot==='GLOBAL'?'GLOBAL':(source.asset.defaultSlot==='B'?'B':'A'),metadata={...base,characterCompatibility:source.asset.characterCompatibility||slot};made.push(png?makeRasterAssetRecord(file,pngCanvas,slot,type,variant,metadata):makeAssetRecord(file,psd,order,slot,type,variant,null,metadata));}
     made.forEach(a=>{a.sourceObjectKey=source.asset.sourceObjectKey;a.thumbnailObjectKey=source.asset.thumbnailObjectKey||null;a.contentHash=source.asset.contentHash||null;a.version=source.asset.version||1;a.cloudOnly=false;a.localOnly=false});
     S.assets=S.assets.filter(a=>a.assetId!==record.assetId);made.forEach(upsertAssetRecord);await persistAssetFamilyLocal(assetFamilyKey(made[0]));renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#cloudAssetStatus'),`已载入并缓存到本机：${source.asset.name}`,'good');return made;
   })();
   try{return await record._loading}catch(e){record._loading=null;stat($('#cloudAssetStatus'),e.message||String(e),'bad');throw e}
 }
 async function deleteCloudAsset(assetId){
-  const records=S.assets.filter(a=>a.assetId===assetId),label=records[0]?.name||records[0]?.variant||'这个素材';if(!confirm(`确定从云端彻底删除“${label}”吗？源 PSD 和目录记录都会删除。`))return;
+  const records=S.assets.filter(a=>a.assetId===assetId),label=records[0]?.name||records[0]?.variant||'这个素材';if(!confirm(`确定从云端彻底删除“${label}”吗？源素材和目录记录都会删除。`))return;
   S.cloudAssetBusy=true;updateCloudAssetControls();
   try{
     await cloudAssetRequest(`/api/assets/${encodeURIComponent(assetId)}`,{method:'DELETE'});const stackIds=new Set(records.map(assetStackId)),categoryId=records[0]?.categoryId,families=new Set(records.map(assetFamilyKey));
     S.assets=S.assets.filter(a=>a.assetId!==assetId);S.rootStackOrder=S.rootStackOrder.filter(id=>!stackIds.has(id));saveRootStackOrder();
-    S.orders.forEach(o=>['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(families.has(selections[slot][categoryId]))selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(a=>a.slot===slot&&sameVariant(a.variant,o?.[slot]?.decor)))o[slot].decor='NONE'}));persistOrders();updateDecorSelects();
+    S.orders.forEach(o=>{o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>!families.has(x.familyKey));['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(families.has(selections[slot][categoryId]))selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(a=>a.slot===slot&&sameVariant(a.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});persistOrders();updateDecorSelects();
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();renderOverlay();stat($('#cloudAssetStatus'),`已从云端删除：${label}`,'good');
   }catch(e){stat($('#cloudAssetStatus'),e.message||String(e),'bad')}
   finally{S.cloudAssetBusy=false;updateCloudAssetControls();}
@@ -2379,7 +2390,7 @@ function migrateLogicDefaultsV21(){
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
-  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderAutoTailSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
+  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6')});
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=loadStoredStyleSchemes()}catch{S.styleSchemes=officialStyleSchemes()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=officialStyleSchemes();
@@ -2441,6 +2452,7 @@ function newOrderData(){
     backgroundLaceVisible:true,
     assetSelections:{A:{},B:{}},
     autoTailSelections:{A:null,B:null},
+    globalAssetSelections:[],
     frameSelections:[],
     assetTransforms:{},
     layerOverrides:{},
@@ -2854,6 +2866,7 @@ function renderLogicEditor(){
 const ASSET_ROLE_OPTIONS={
   HAT_DECOR:['NONE','DECOR_BASE','DECOR_SHADOW','DECOR_INNER','DECOR_OUTLINE','DECOR_ACCENT','DECOR_FUR'],
   HAIR:['NONE','HAIR_BASE','HAIR_SHADE_MASK','HAIR_OUTLINE','BROW_BASE','HAIR_HIGHLIGHT_FIXED','HAIR_SKIN_AIR_FIXED'],
+  EYE:['NONE','EYE_IRIS_BASE','EYE_IRIS_DARK','EYE_IRIS_DEEP','EYE_IRIS_HIGHLIGHT','EYE_PUPIL','EYE_PUPIL_DARK','EYE_PUPIL_HIGHLIGHT','EYE_OUTLINE','EYE_LASH','EYE_LASH_HIGHLIGHT'],
   TAIL:['NONE','TAIL_BASE','TAIL_SHADE','TAIL_TIP','TAIL_OUTLINE'],
   FRAME:['NONE','FRAME_FLOWER_BASE','FRAME_FLOWER_SHADE','FRAME_RIBBON_A','FRAME_RIBBON_B'],
   PROP:['NONE'],STICKER:['NONE'],MOUTH:['NONE'],ACCESSORY:['NONE']
@@ -2896,6 +2909,18 @@ function inferAssetLayerRole(path,type){
     if(/重色|阴影|暗部|shadow|shade/.test(leaf))return 'HAIR_SHADE_MASK';
     if(/轮廓|线稿|描边|outline|line/.test(leaf))return 'HAIR_OUTLINE';
     if(/底色|base|发色/.test(leaf))return 'HAIR_BASE';
+  }
+  if(type==='EYE'){
+    if(/瞳孔高光|pupil.*highlight/.test(leaf))return 'EYE_PUPIL_HIGHLIGHT';
+    if(/睫毛高光|lash.*highlight/.test(leaf))return 'EYE_LASH_HIGHLIGHT';
+    if(/睫毛|lash/.test(leaf))return 'EYE_LASH';
+    if(/眼睛轮廓|眼轮廓|眼线|outline|lineart/.test(leaf))return 'EYE_OUTLINE';
+    if(/虹膜最深|虹膜深色|iris.*deep/.test(leaf))return 'EYE_IRIS_DEEP';
+    if(/瞳孔重色|瞳孔暗|pupil.*(?:dark|shade)/.test(leaf))return 'EYE_PUPIL_DARK';
+    if(/虹膜重色|虹膜暗|虹膜阴影|iris.*(?:dark|shade|shadow)/.test(leaf))return 'EYE_IRIS_DARK';
+    if(/虹膜高光|虹膜亮|iris.*highlight/.test(leaf))return 'EYE_IRIS_HIGHLIGHT';
+    if(/瞳孔|pupil/.test(leaf))return 'EYE_PUPIL';
+    if(/虹膜|瞳色|iris/.test(leaf))return 'EYE_IRIS_BASE';
   }
   if(type==='TAIL'){
     if(/尾尖|tip/.test(leaf))return 'TAIL_TIP';
@@ -2968,7 +2993,7 @@ function assetOverrideMap(asset,order){
     for(const [path,role] of Object.entries(asset.bindings||{})){
       if(!role||role==='NONE'||role==='DECOR_FUR'||role==='HAIR_HIGHLIGHT_FIXED'||role==='HAIR_SKIN_AIR_FIXED')continue;
       let c=null;
-      if(asset.type==='HAT_DECOR'||asset.type==='HAIR')c=deriveRoleColor(role,asset.slot,order);
+      if(asset.type==='HAT_DECOR'||asset.type==='HAIR'||asset.type==='EYE')c=deriveRoleColor(role,asset.slot,order);
       if(c)map[path]=c;
     }
   }
@@ -3054,6 +3079,9 @@ function renderAssetComposite(asset,order){
   if(asset.groupPath){const node=flatten(psd.children||[]).find(n=>n.path===asset.groupPath);if(node){const c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');const raw=renderAssetElementRaw(asset,psd,node.layer,node.path,mode,true,map);drawComposited(ctx,raw,node.layer);return enforceDecorOutlineAboveFur(asset,c,map);}}
   const c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');renderAssetSiblingStack(asset,psd,ctx,psd.children||[],'',mode,true,map);return enforceDecorOutlineAboveFur(asset,c,map);
 }
+function renderAssetOriginalComposite(asset){
+  const mode=asset.colorMode;asset.colorMode='PRESERVE_ORIGINAL';try{return renderAssetComposite(asset,{A:{},B:{}})}finally{asset.colorMode=mode}
+}
 function sampledAlphaMass(canvas){if(!canvas||!canvas.width)return 0;const w=48,h=48,c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(canvas,0,0,w,h);let d;try{d=x.getImageData(0,0,w,h).data}catch{return 0}let n=0;for(let i=3;i<d.length;i+=4)n+=d[i];return n}
 function refreshOneAssetComposite(asset,order=getActiveOrder()||newOrderData()){
   if(!asset?.psd)return;
@@ -3073,9 +3101,9 @@ function prepareAssetCompositeForOrder(a,order=getActiveOrder()||newOrderData())
   refreshOneAssetComposite(a,order);
 }
 function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
-  S.assets.forEach(a=>{if(a.enabled&&(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='TAIL'||a.type==='FRAME'))prepareAssetCompositeForOrder(a,order)});
+  S.assets.forEach(a=>{if(a.enabled&&(a.type==='HAT_DECOR'||a.type==='HAIR'||a.type==='EYE'||a.type==='TAIL'||a.type==='FRAME'))prepareAssetCompositeForOrder(a,order)});
 }
-function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
+function assetRoleLabel(role){return ({NONE:'固定/不改',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',EYE_IRIS_BASE:'虹膜主色',EYE_IRIS_DARK:'虹膜暗色',EYE_IRIS_DEEP:'虹膜深色',EYE_IRIS_HIGHLIGHT:'虹膜高光',EYE_PUPIL:'瞳孔',EYE_PUPIL_DARK:'瞳孔暗部',EYE_PUPIL_HIGHLIGHT:'瞳孔高光固定',EYE_OUTLINE:'眼睛轮廓',EYE_LASH:'睫毛',EYE_LASH_HIGHLIGHT:'睫毛高光',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',FRAME_FLOWER_BASE:'边框花卉/底框底色',FRAME_FLOWER_SHADE:'边框花卉/底框重色',FRAME_RIBBON_A:'缎带 A 发色',FRAME_RIBBON_B:'缎带 B 发色'}[role]||role);}
 function loadAssetCategories(){
   let saved=[];try{saved=JSON.parse(localStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
   const builtinIds=new Set(BUILTIN_ASSET_CATEGORIES.map(x=>x.id));
@@ -3088,11 +3116,11 @@ function persistAssetCategoryCollapse(){try{localStorage.setItem(ASSET_CATEGORY_
 function renderLibraryCategoryOptions(){const el=$('#libraryType');if(!el)return;const old=el.value||'AUTO';el.innerHTML='<option value="AUTO">自动识别分类</option>'+S.assetCategories.filter(x=>x.id!=='CLEAN_TEMPLATE').map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('');el.value=[...el.options].some(x=>x.value===old)?old:'AUTO'}
 function categoryLabel(t){
   const aliases={HAT_DECOR:'EAR',STICKER:'ACCESSORY'};const id=aliases[t]||t;
-  return S.assetCategories.find(x=>x.id===id)?.name||({CLEAN_TEMPLATE:'纯净模板',HAIR:'头发',EAR:'耳朵',MOUTH:'嘴巴表情',TAIL:'尾巴',FRAME:'边框',ACCESSORY:'配饰',PROP:'小物'}[id]||id);
+  return S.assetCategories.find(x=>x.id===id)?.name||({CLEAN_TEMPLATE:'纯净模板',HAIR:'头发',EAR:'耳朵',MOUTH:'嘴巴表情',EYE:'眼睛状态',TAIL:'尾巴',FRAME:'边框',ACCESSORY:'配饰',PROP:'小物'}[id]||id);
 }
-function categoryIdForType(type){return ({HAT_DECOR:'EAR',STICKER:'ACCESSORY',HAIR:'HAIR',TAIL:'TAIL',FRAME:'FRAME',PROP:'PROP',MOUTH:'MOUTH',ACCESSORY:'ACCESSORY'}[type]||'ACCESSORY');}
+function categoryIdForType(type){return ({HAT_DECOR:'EAR',STICKER:'ACCESSORY',HAIR:'HAIR',EYE:'EYE',TAIL:'TAIL',FRAME:'FRAME',PROP:'PROP',MOUTH:'MOUTH',ACCESSORY:'ACCESSORY'}[type]||'ACCESSORY');}
 function rendererTypeForCategory(categoryId,fallback='PROP'){
-  return ({HAIR:'HAIR',EAR:'HAT_DECOR',MOUTH:'MOUTH',TAIL:'TAIL',FRAME:'FRAME',ACCESSORY:'ACCESSORY',PROP:'PROP'}[categoryId]||fallback);
+  return ({HAIR:'HAIR',EAR:'HAT_DECOR',MOUTH:'MOUTH',EYE:'EYE',TAIL:'TAIL',FRAME:'FRAME',ACCESSORY:'ACCESSORY',PROP:'PROP'}[categoryId]||fallback);
 }
 function assetCategoryOptions(selected){return S.assetCategories.filter(x=>x.id!=='CLEAN_TEMPLATE').map(x=>`<option value="${safe(x.id)}" ${x.id===selected?'selected':''}>${safe(x.name)}</option>`).join('')}
 function ensureAssetRecordV2(a){
@@ -3100,7 +3128,8 @@ function ensureAssetRecordV2(a){
   a.schemaVersion=a.schemaVersion||'shine-asset-v2';
   a.assetId=a.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8));
   a.categoryId=a.categoryId||categoryIdForType(a.type);
-  a.name=a.name||a.variant||assetSourceName(a).replace(/\.psd$/i,'');
+  a.name=a.name||a.variant||assetSourceName(a).replace(/\.(?:psd|png)$/i,'');
+  a.sourceFormat=a.sourceFormat||(/\.png$/i.test(assetSourceName(a))?'PNG':'PSD');
   a.characterCompatibility=a.characterCompatibility||a.slot||'BOTH';
   a.defaultSlot=a.defaultSlot||a.slot||'A';
   a.colorMode=a.colorMode||'PRESERVE_ORIGINAL';
@@ -3111,7 +3140,7 @@ function ensureAssetRecordV2(a){
   a.createdAt=a.createdAt||new Date().toISOString();a.updatedAt=a.updatedAt||a.createdAt;
   return a;
 }
-function assetFamilyKey(a){ensureAssetRecordV2(a);return a.categoryId==='HAIR'?`HAIR::${a.assetId}`:`${a.categoryId}::${normalizeVariantName(a.variant||a.name)}`}
+function assetFamilyKey(a){ensureAssetRecordV2(a);return a.categoryId==='HAIR'?`HAIR::${a.assetId}`:`${a.categoryId}::${normalizeVariantName(a.variant||a.name)}${a.slot==='GLOBAL'&&a.categoryId!=='FRAME'?'::GLOBAL':''}`}
 function ensureOrderAssetSelections(order){
   if(!order)return {A:{},B:{}};
   if(!order.assetSelections||typeof order.assetSelections!=='object')order.assetSelections={A:{},B:{}};
@@ -3150,6 +3179,28 @@ function clearAutoTailForSlot(order,slot){
   const selections=ensureOrderAssetSelections(order),auto=ensureOrderAutoTailSelections(order),current=selections[slot].TAIL||null;
   if(auto[slot]&&current===auto[slot])selections[slot].TAIL=null;
   auto[slot]=null;
+}
+function ensureOrderGlobalAssetSelections(order){
+  if(!order)return [];
+  if(!Array.isArray(order.globalAssetSelections))order.globalAssetSelections=[];
+  order.globalAssetSelections=order.globalAssetSelections.filter(x=>x&&typeof x.familyKey==='string').map((x,index)=>({familyKey:x.familyKey,placement:x.placement==='BACK'?'BACK':'FRONT',addedAt:Number(x.addedAt)||index+1}));
+  return order.globalAssetSelections;
+}
+function globalAssetSelection(order,familyKey){return ensureOrderGlobalAssetSelections(order).find(x=>x.familyKey===familyKey)||null;}
+async function setGlobalAssetFamilyEnabled(familyKey,on){
+  let order=getActiveOrder();if(!order){order=newOrderData();S.orders.unshift(order);S.activeOrderId=order.id;renderOrders()}
+  let record=S.assets.find(a=>a.slot==='GLOBAL'&&a.categoryId!=='FRAME'&&assetFamilyKey(a)===familyKey);if(!record)return;
+  if(on&&(record.cloudOnly||record.localOnly)){renderAssetLibrary();try{await hydrateAssetRecordIfNeeded(record)}catch{renderAssetLibrary();return}record=S.assets.find(a=>a.slot==='GLOBAL'&&a.categoryId!=='FRAME'&&assetFamilyKey(a)===familyKey);if(!record)return}
+  const list=ensureOrderGlobalAssetSelections(order),index=list.findIndex(x=>x.familyKey===familyKey);
+  if(on&&index<0)list.push({familyKey,placement:'FRONT',addedAt:Date.now()});
+  if(!on&&index>=0)list.splice(index,1);
+  syncAssetEnabledFromOrder(order);persistOrders();S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);saveRootStackOrder();
+  if(on){S.selectedTransformStackId=assetStackId(record);const id=assetStackId(record);S.rootStackOrder=[id,...S.rootStackOrder.filter(x=>x!==id)];saveRootStackOrder()}
+  renderHairInsertionControls();reconstruct();renderAssetRows();renderAssetLibrary();renderEditableLayerSelectors();
+}
+function setGlobalAssetPlacement(familyKey,placement){
+  const order=getActiveOrder();if(!order)return;const selection=globalAssetSelection(order,familyKey);if(!selection)return;
+  selection.placement=placement==='BACK'?'BACK':'FRONT';selection.addedAt=Date.now();persistOrders();const record=S.assets.find(a=>a.slot==='GLOBAL'&&assetFamilyKey(a)===familyKey);if(record){const id=assetStackId(record),rest=S.rootStackOrder.filter(x=>x!==id);S.rootStackOrder=selection.placement==='BACK'?[...rest,id]:[id,...rest]};S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);saveRootStackOrder();renderHairInsertionControls();reconstruct();renderAssetLibrary();
 }
 function ensureOrderFrameSelections(order){
   if(!order)return [];
@@ -3221,8 +3272,8 @@ function selectedAssetFamily(order,slot,categoryId){
 }
 function syncAssetEnabledFromOrder(order){
   if(!order)return;
-  const frames=new Set(ensureOrderFrameSelections(order).map(x=>x.familyKey));
-  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
+  const frames=new Set(ensureOrderFrameSelections(order).map(x=>x.familyKey)),globals=new Set(ensureOrderGlobalAssetSelections(order).map(x=>x.familyKey));
+  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(a.categoryId==='FRAME'){a.enabled=frames.has(assetFamilyKey(a));return}if(a.slot==='GLOBAL'){a.enabled=globals.has(assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
 async function setAssetFamilySelection(familyKey,slot,on){
   const started=performance.now();
@@ -3252,7 +3303,7 @@ function paintAssetThumbnail(canvas,source){
   if(!canvas||!source)return;const ctx=canvas.getContext('2d'),w=64,h=64;canvas.width=w;canvas.height=h;ctx.clearRect(0,0,w,h);
   const sw=source.width||1,sh=source.height||1,scale=Math.min(w/sw,h/sh),dw=Math.max(1,sw*scale),dh=Math.max(1,sh*scale);ctx.drawImage(source,(w-dw)/2,(h-dh)/2,dw,dh);
 }
-function assetSourceName(a){return a?.file?.name||((a?.variant||'未命名')+'.psd');}
+function assetSourceName(a){return a?.file?.name||((a?.variant||'未命名')+(a?.sourceFormat==='PNG'?'.png':'.psd'));}
 function assetLayerNodes(a){
   if(!a?.psd)return [];
   const all=flatten(a.psd.children||[]).filter(n=>!shouldExclude(n.name));
@@ -3277,7 +3328,7 @@ function renderAssetHealth(){
   if(!S.assets.length){host.innerHTML='<div class="meta" style="padding:9px">还没有外部素材。</div>';return;}
   host.innerHTML='<div class="assetHealthRow head"><div>素材 / 图层 path</div><div>剪辑</div><div>当前 Role</div></div>';
   S.assets.forEach((a,idx)=>{
-    if(!a.psd){const waiting=document.createElement('div');waiting.className='assetHealthRow';waiting.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))}</div><div>${a.localOnly?'本机待载入':'云端待载入'}</div>`;host.appendChild(waiting);return;}initAssetBindings(a,false);
+    if(!a.psd){const waiting=document.createElement('div');waiting.className='assetHealthRow';waiting.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))}</div><div>${a.composite?'PNG 原图 / 透明通道保留':(a.localOnly?'本机待载入':'云端待载入')}</div>`;host.appendChild(waiting);return;}initAssetBindings(a,false);
     const title=document.createElement('div');title.className='assetHealthRow';title.style.background='#fbf9fb';ensureAssetRecordV2(a);
     title.innerHTML=`<div><b>${safe(assetSourceName(a))}</b></div><div>${safe(categoryLabel(a.categoryId))} / ${safe(a.slot)}</div><div>${a.groupPath?'Group '+safe(a.groupPath):'整PSD'}</div>`;host.appendChild(title);
     assetRelevantLeaves(a).forEach(n=>{
@@ -3319,6 +3370,7 @@ function syncAssetLibrarySelectionUi(order=getActiveOrder()){
   const host=$('#assetLibraryList');if(!host||!order)return;
   host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>{const record=S.assets.find(a=>assetFamilyKey(a)===el.dataset.family&&(a.slot===el.dataset.slot||a.characterCompatibility==='BOTH'));el.checked=!!record&&selectedAssetFamily(order,el.dataset.slot,record.categoryId)===el.dataset.family});
   host.querySelectorAll('[data-ak="frame-check"]').forEach(el=>{el.checked=!!frameSelection(order,el.dataset.family)});
+  host.querySelectorAll('[data-ak="global-check"]').forEach(el=>{el.checked=!!globalAssetSelection(order,el.dataset.family)});
 }
 function renderAssetLibrary(){
   const host=$('#assetLibraryList'); if(!host) return;
@@ -3345,17 +3397,25 @@ function renderAssetLibrary(){
       const first=group.records[0].a,firstIndex=group.records[0].idx,roles=new Set(group.records.flatMap(x=>Object.values(x.a.bindings||{})));
       const audit=[roles.has('DECOR_BASE')?'底色✓':'',roles.has('DECOR_OUTLINE')?'线稿✓':'',roles.has('DECOR_INNER')?'内耳✓':'',roles.has('DECOR_FUR')?'绒毛✓':''].filter(Boolean).join(' · ');
       const hasSlot=slot=>group.records.some(x=>x.a.slot===slot||x.a.characterCompatibility==='BOTH'),selected=slot=>selectedAssetFamily(order,slot,category.id)===group.key;
-      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?'正在打开 PSD…':cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',storageHtml=`<span data-storage-family="${safe(group.key)}">${storageLabel}</span>`,layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入 PSD</button>`:'',card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
+      const follows=group.records.some(x=>x.a.colorMode==='FOLLOW_ORDER'),sourceFormat=first.sourceFormat||(/\.png$/i.test(assetSourceName(first))?'PNG':'PSD'),sourceSummary=sourceFormat==='PNG'?'透明 PNG 原图':'保留原 PSD 图层',cloudOnly=group.records.every(x=>x.a.cloudOnly),localOnly=group.records.every(x=>x.a.localOnly),loading=group.records.some(x=>x.a._loading),lazyOnly=cloudOnly||localOnly,localCached=group.records.some(x=>x.a.localCached),cloudSaved=group.records.some(x=>x.a.sourceObjectKey),storageLabel=loading?`正在打开 ${sourceFormat}…`:cloudOnly?'云端目录（按需载入）':localOnly?'本机素材库（按需载入）':cloudSaved?'云端已保存 · 本机有缓存':localCached?'已自动保存到本机':'正在保存到本机…',storageHtml=`<span data-storage-family="${safe(group.key)}">${storageLabel}</span>`,layerButtons=group.records.filter(x=>x.a.psd).map(x=>`<button class="btn" data-ak="layers" data-ai="${x.idx}">${group.records.length>1?safe(x.a.slot)+' ':' '}图层显示</button>`).join(''),lazyButton=loading?'<button class="btn primary" disabled>正在载入…</button>':localOnly?`<button class="btn primary" data-ak="load-local" data-ai="${firstIndex}">使用素材</button>`:cloudOnly?`<button class="btn primary" data-ak="load-cloud" data-ai="${firstIndex}">载入素材</button>`:'',colorToggle=sourceFormat==='PNG'?'':`<label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> ${category.id==='EYE'?'跟随当前眼睛方案（推荐）':'跟随订单配色（默认关闭）'}</label>`,card=document.createElement('div');card.className='assetFamilyCard'+(loading?' assetFamilyLoading':'');
       if(category.id==='FRAME'){
         const selection=frameSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
         card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-          <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名边框')}</b><div class="assetFamilyMeta">可叠加 · ${audit||'保留原 PSD 图层'}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
+          <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名边框')}</b><div class="assetFamilyMeta">可叠加 · ${audit||sourceSummary}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
           <div class="frameControls"><label class="assetSlotCheck"><input data-ak="frame-check" data-family="${safe(group.key)}" type="checkbox" ${on?'checked':''}> 加入画面</label><div class="framePlacementRow"><button class="btn ${on&&placement==='BACK'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="BACK" ${on?'':'disabled'}>置底</button><button class="btn ${on&&placement==='FRONT'?'active':''}" data-ak="frame-placement" data-family="${safe(group.key)}" data-placement="FRONT" ${on?'':'disabled'}>置顶</button></div></div>
           <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>${frameColorControlsHtml(group.key,selection)}`;
         details.appendChild(card);return;
       }
+      if(first.slot==='GLOBAL'){
+        const selection=globalAssetSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
+        card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
+          <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名公共装饰')}</b><div class="assetFamilyMeta">画面公共装饰 · ${audit||sourceSummary}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select>${colorToggle}</div>
+          <div class="frameControls"><label class="assetSlotCheck"><input data-ak="global-check" data-family="${safe(group.key)}" type="checkbox" ${on?'checked':''}> 加入画面</label><div class="framePlacementRow"><button class="btn ${on&&placement==='BACK'?'active':''}" data-ak="global-placement" data-family="${safe(group.key)}" data-placement="BACK" ${on?'':'disabled'}>置底</button><button class="btn ${on&&placement==='FRONT'?'active':''}" data-ak="global-placement" data-family="${safe(group.key)}" data-placement="FRONT" ${on?'':'disabled'}>置顶</button></div></div>
+          <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
+        details.appendChild(card);return;
+      }
       card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
-        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||'保留原 PSD 图层'}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select><label class="assetColorToggle"><input data-ak="colorMode" data-family="${safe(group.key)}" type="checkbox" ${follows?'checked':''} ${lazyOnly?'disabled':''}> 跟随订单配色（默认关闭）</label></div>
+        <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名')}</b><div class="assetFamilyMeta">${safe(first.characterCompatibility==='BOTH'?'A / B':group.records.map(x=>x.a.slot).join(' / '))} · ${audit||sourceSummary}<br>${follows?'主动跟随订单配色':'原色保留'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select>${colorToggle}</div>
         <div class="assetSlotChecks">${['A','B'].map(slot=>`<label class="assetSlotCheck ${hasSlot(slot)?'':'unavailable'}"><input data-ak="slot-check" data-family="${safe(group.key)}" data-slot="${slot}" type="checkbox" ${selected(slot)?'checked':''} ${hasSlot(slot)?'':'disabled'}> ${slot} 位</label>`).join('')}</div>
         <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
       details.appendChild(card);
@@ -3371,23 +3431,25 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-ak="slot-check"]').forEach(el=>el.onchange=()=>setAssetFamilySelection(el.dataset.family,el.dataset.slot,el.checked));
   host.querySelectorAll('[data-ak="frame-check"]').forEach(el=>el.onchange=()=>setFrameFamilyEnabled(el.dataset.family,el.checked));
   host.querySelectorAll('[data-ak="frame-placement"]').forEach(el=>el.onclick=()=>setFramePlacement(el.dataset.family,el.dataset.placement));
+  host.querySelectorAll('[data-ak="global-check"]').forEach(el=>el.onchange=()=>setGlobalAssetFamilyEnabled(el.dataset.family,el.checked));
+  host.querySelectorAll('[data-ak="global-placement"]').forEach(el=>el.onclick=()=>setGlobalAssetPlacement(el.dataset.family,el.dataset.placement));
   host.querySelectorAll('[data-frame-eyedrop]').forEach(el=>el.onclick=()=>armPreviewEyedrop(el.dataset.family,el.dataset.frameEyedrop));
   host.querySelectorAll('[data-frame-color]').forEach(el=>{el.oninput=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:false});el.onchange=()=>setFrameColor(el.dataset.family,el.dataset.frameColor,el.value,{persist:true})});
   host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
     const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;const oldStackIds=new Set(records.map(assetStackId));
-    S.orders.forEach(o=>{if(oldCategory==='FRAME')o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
-    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);if(el.value==='FRAME'){a.slot='GLOBAL';a.defaultSlot='GLOBAL';a.characterCompatibility='GLOBAL'}else if(a.slot==='GLOBAL'){a.slot='A';a.defaultSlot='A';a.characterCompatibility='A'}a.updatedAt=new Date().toISOString();initAssetBindings(a,true);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});
+    S.orders.forEach(o=>{if(oldCategory==='FRAME')o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][oldCategory]===oldKey)delete selections[slot][oldCategory];if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
+    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);if(el.value==='FRAME'){a.slot='GLOBAL';a.defaultSlot='GLOBAL';a.characterCompatibility='GLOBAL'}a.updatedAt=new Date().toISOString();initAssetBindings(a,true);if(a.psd){if(a.categoryId==='EYE'&&a.colorMode==='PRESERVE_ORIGINAL')a.colorMode='FOLLOW_ORDER';a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())}});
     if(el.value==='FRAME'&&records.length>1){const keep=records[0],discard=new Set(records.slice(1));keep.groupPath=null;initAssetBindings(keep,true);keep.originalComposite=renderAssetComposite(keep,{A:{},B:{}});keep.composite=renderAssetComposite(keep,getActiveOrder()||newOrderData());S.assets=S.assets.filter(a=>!discard.has(a))}
     S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder.filter(id=>!oldStackIds.has(id)));saveRootStackOrder();
     syncAssetEnabledFromOrder(getActiveOrder());persistOrders();[...new Set(records.filter(a=>S.assets.includes(a)).map(assetFamilyKey))].forEach(queuePersistAssetFamilyLocal);renderAssetRows();updateDecorSelects();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();
   });
-  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});queuePersistAssetFamilyLocal(el.dataset.family);reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
+  host.querySelectorAll('[data-ak="colorMode"]').forEach(el=>el.onchange=()=>{S.assets.filter(a=>assetFamilyKey(a)===el.dataset.family).forEach(a=>{a.colorMode=el.checked?'FOLLOW_ORDER':'PRESERVE_ORIGINAL';a.updatedAt=new Date().toISOString();if(a.psd)a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData())});queuePersistAssetFamilyLocal(el.dataset.family);reconstruct();renderAssetRows();renderAssetLibrary();renderOverlay();syncProductionPreview();});
   host.querySelectorAll('[data-ak="layers"]').forEach(el=>el.onclick=()=>{S.editingAssetIndex=+el.dataset.ai;renderAssetBindingEditor();});
   host.querySelectorAll('[data-ak="load-cloud"]').forEach(el=>el.onclick=()=>hydrateCloudAsset(S.assets[+el.dataset.ai]));
   host.querySelectorAll('[data-ak="load-local"]').forEach(el=>el.onclick=()=>hydrateLocalAsset(S.assets[+el.dataset.ai]));
   host.querySelectorAll('[data-ak="upload-cloud"]').forEach(el=>el.onclick=()=>uploadAssetFamilyToCloud(el.dataset.family));
   host.querySelectorAll('[data-ak="delete-cloud"]').forEach(el=>el.onclick=()=>deleteCloudAsset(el.dataset.assetId));
-  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=async()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key);try{if(!(await deleteLocalAssetFamily(key)))return}catch(e){stat($('#assetRuntimeStatus'),'删除本机素材失败：'+(e.message||e),'bad');return}const categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>{o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==key);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE';if(o.assetTransforms)records.forEach(a=>delete o.assetTransforms[assetStackId(a)])})});persistOrders();if(S.previewEyedropTarget?.familyKey===key){S.previewEyedropTarget=null;$('#previewBody')?.classList.remove('eyedropReady')}if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
+  host.querySelectorAll('[data-ak="delete-family"]').forEach(el=>el.onclick=async()=>{const key=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===key);try{if(!(await deleteLocalAssetFamily(key)))return}catch(e){stat($('#assetRuntimeStatus'),'删除本机素材失败：'+(e.message||e),'bad');return}const categoryId=records[0]?.categoryId,removedStackIds=new Set(records.map(assetStackId));S.assets=S.assets.filter(a=>assetFamilyKey(a)!==key);S.rootStackOrder=S.rootStackOrder.filter(id=>!removedStackIds.has(id));saveRootStackOrder();S.orders.forEach(o=>{o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==key);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==key);['A','B'].forEach(slot=>{const selections=ensureOrderAssetSelections(o);if(selections[slot][categoryId]===key)selections[slot][categoryId]=null;if(categoryId==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE';if(o.assetTransforms)records.forEach(a=>delete o.assetTransforms[assetStackId(a)])})});persistOrders();if(S.previewEyedropTarget?.familyKey===key){S.previewEyedropTarget=null;$('#previewBody')?.classList.remove('eyedropReady')}if(records.some(a=>assetStackId(a)===S.selectedTransformStackId))S.selectedTransformStackId=null;S.editingAssetIndex=null;renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderAssetRuntimeStatus();renderEditableLayerSelectors();});
   renderAssetBindingEditor();renderAssetRuntimeStatus();renderAssetHealth();renderEditableLayerSelectors();
 }
 function loadSwatchImage(file){
@@ -3874,7 +3936,7 @@ function inferPairGroups(psd){
   return {a,b};
 }
 function normalizeVariantName(name){
-  let n=String(name||'').trim().replace(/\.psd$/i,'').trim();
+  let n=String(name||'').trim().replace(/\.(?:psd|png)$/i,'').trim();
   // Windows / 浏览器重复下载常见 “狐狸(1).psd / 狐狸（2）.psd”。它们仍应视为同一个逻辑素材。
   n=n.replace(/[（(]\s*\d+\s*[）)]$/,'').trim();
   n=n.replace(/\s+(copy|副本)$/i,'').trim();
@@ -3883,11 +3945,19 @@ function normalizeVariantName(name){
   n=n.replace(/[_\-\s]*(?:[AB](?:位)?|左位|右位)$/i,'').trim();
   n=n.replace(/[AB](?=(?:耳|尾|头发|嘴|表情)$)/i,'').trim();
   // Phase 2 规范文件名：分类_名字.psd。素材卡只显示后半段名字，分类由前缀识别。
-  n=n.replace(/^(?:模板|耳朵|头发|帽饰|嘴巴|表情|尾巴|小物|配饰|边框|FRAME|HAIR|EAR|MOUTH|TAIL|PROP|ACCESSORY)[_\-\s]+/i,'').trim();
+  n=n.replace(/^(?:模板|耳朵|头发|帽饰|嘴巴|表情|眼睛|眼睛状态|尾巴|小物|配饰|边框|FRAME|HAIR|EAR|MOUTH|EYE|TAIL|PROP|ACCESSORY)[_\-\s]+/i,'').trim();
   return n||'帽饰';
 }
 function familyName(file){return normalizeVariantName(file?.name||file);}
 function sameVariant(a,b){return normalizeVariantName(a)===normalizeVariantName(b);}
+function isPngAssetFile(file){return /\.png$/i.test(file?.name||'')||file?.type==='image/png';}
+function hasExplicitAssetSlot(file){return /(?:^|[_\-\s])[AB](?:$|[_\-\s])|[AB]位|左位|右位|[AB](?:耳|尾|头发|嘴|表情|眼睛)/i.test(file?.name||'');}
+async function loadPngCanvas(file){
+  if(typeof createImageBitmap==='function'){
+    const bitmap=await createImageBitmap(file),canvas=makeCanvas(bitmap.width,bitmap.height);canvas.getContext('2d').drawImage(bitmap,0,0);bitmap.close?.();return canvas;
+  }
+  return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{const canvas=makeCanvas(img.naturalWidth||img.width,img.naturalHeight||img.height);canvas.getContext('2d').drawImage(img,0,0);URL.revokeObjectURL(url);resolve(canvas)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('PNG 图片无法解码'))};img.src=url});
+}
 async function loadHairAsset(file,slot){
   try{
     const psd=await parsePsd(file),order=detectLayerDrawOrder(psd);
@@ -4088,7 +4158,7 @@ function buildWorkspaceUI(){
 
   const assetPanel=$('#assetLibraryList')?.closest('.softPanel'); if(assetPanel)tabs.assets.appendChild(assetPanel);
   const transformBox=$('#transformAssetSelect')?.closest('.assetTransformBox'),assetList=$('#assetLibraryList');if(transformBox&&assetList){transformBox.classList.add('libraryTransformBox');assetList.before(transformBox)}
-  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 2 素材库：纯净模板、头发、耳朵、嘴巴表情、尾巴、边框、配饰和小物分开管理；A/B 直接在素材卡上勾选，边框可多件叠加。</div><div class="assetNamingGuide"><b>原色保护</b>：素材归类后仍保持上传 PSD 原色。只有主动打开“跟随订单配色”才会使用相应颜色逻辑；耳朵的底色/线稿/内耳命名规则继续兼容一期。</div>');
+  tabs.assets.insertAdjacentHTML('afterbegin','<div class="tabIntro">Phase 4 素材库：表情与眼睛状态可按 A/B 独立替换；透明 PNG 小物无需转 PSD，可给 A、B 或作为公共装饰。</div><div class="assetNamingGuide"><b>原色保护</b>：PNG 保留原像素和透明度。眼睛状态 PSD 默认沿用当前眼睛方案；其他 PSD 只有主动打开“跟随订单配色”才会改色。</div>');
 
   // v0.27 背景独立大类撤掉：日常只使用“表单清洗”里的背景衬底色盘。
   // 旧 bgPreset / orderStatus / watermark 控件继续留在 DOM 中供订单兼容，但不再展示成工作区页面。
@@ -4109,7 +4179,7 @@ function buildWorkspaceUI(){
   const oldSample=$('#exportSampleJpeg'), oldDelivery=$('#exportDeliveryJpeg'); if(oldSample)oldSample.style.display='none';if(oldDelivery)oldDelivery.style.display='none';
 
   const titleMap={
-    upload:['模板上传','纯净模板 + 本单新头发'], assets:['素材库','模板 / 头发 / 耳朵 / 嘴巴 / 边框 / 配饰'], form:['表单清洗','订单 + A/B 规范化 + 吸色'],
+    upload:['模板上传','纯净模板 + 本单新头发'], assets:['素材库','表情 / 眼睛状态 / PNG 小物 / 现有素材'], form:['表单清洗','订单 + A/B 规范化 + 吸色'],
     quick:['单层颜色微调','审稿时直接色盘修改'], logic:['衍生色逻辑','眼睛方案 + 通用配色公式']
   };
   $('#taskTabs').querySelectorAll('.taskTab').forEach(b=>b.onclick=()=>{
@@ -4124,7 +4194,7 @@ function buildWorkspaceUI(){
   if(libraryDrop){
     ['dragenter','dragover'].forEach(ev=>libraryDrop.addEventListener(ev,e=>{e.preventDefault();libraryDrop.classList.add('drag')}));
     ['dragleave','drop'].forEach(ev=>libraryDrop.addEventListener(ev,e=>{e.preventDefault();libraryDrop.classList.remove('drag')}));
-    libraryDrop.addEventListener('drop',e=>{const fs=[...e.dataTransfer.files].filter(f=>/\.psd$/i.test(f.name));if(fs.length)loadAssets(fs,$('#libraryType').value,$('#librarySlot').value);});
+    libraryDrop.addEventListener('drop',e=>{const fs=[...e.dataTransfer.files].filter(f=>/\.(?:psd|png)$/i.test(f.name));if(fs.length)loadAssets(fs,$('#libraryType').value,$('#librarySlot').value);});
   }
   if($('#libraryFiles'))$('#libraryFiles').onchange=e=>{const fs=[...e.target.files];if(fs.length)loadAssets(fs,$('#libraryType').value,$('#librarySlot').value);};
   renderLibraryCategoryOptions();
@@ -4171,7 +4241,7 @@ function debug(){
     templateSignature:S.templateSignature,
     bindingSummary:{mapped:Object.values(S.bindings).filter(b=>b.role&&b.role!=='UNKNOWN').length,editable:Object.values(S.bindings).filter(b=>!b.locked).length},
     styleSchemes:{hat:(S.styleSchemes.hat||[]).map(x=>x.name),outfit:(S.styleSchemes.outfit||[]).map(x=>x.name)},assetRenderWarnings:S.assetRenderWarnings.slice(-8),
-    assets:S.assets.map(a=>({assetId:a.assetId,file:a.file.name,slot:a.slot,type:a.type,categoryId:a.categoryId,variant:a.variant,enabled:a.enabled,colorMode:a.colorMode||'PRESERVE_ORIGINAL',storage:a.localOnly?'local-lazy':a.cloudOnly?'cloud-lazy':a.localCached?'local-ready':'memory',size:a.psd?[a.psd.width,a.psd.height]:null,
+    assets:S.assets.map(a=>({assetId:a.assetId,file:a.file.name,slot:a.slot,type:a.type,categoryId:a.categoryId,variant:a.variant,enabled:a.enabled,sourceFormat:a.sourceFormat,colorMode:a.colorMode||'PRESERVE_ORIGINAL',storage:a.localOnly?'local-lazy':a.cloudOnly?'cloud-lazy':a.localCached?'local-ready':'memory',size:a.psd?[a.psd.width,a.psd.height]:(a.composite?[a.composite.width,a.composite.height]:null),
       detectedLayerOrder:a.order}))
   };
   $('#debug').textContent=JSON.stringify(payload,null,2);
@@ -4235,15 +4305,20 @@ function inferAsset(file){
   if(n.includes('FRAME')||n.includes('边框')||n.includes('花边')||n.includes('围边')||n.includes('缎带')){categoryId='FRAME';slot='GLOBAL';}
   else if(n.includes('TAIL')||n.includes('尾'))categoryId='TAIL';
   else if(n.includes('HAIR')||n.includes('头发'))categoryId='HAIR';
+  else if(n.includes('EYE')||n.includes('眼睛')||n.includes('睁眼')||n.includes('闭眼')||n.includes('全睁'))categoryId='EYE';
   else if(n.includes('MOUTH')||n.includes('嘴')||n.includes('表情'))categoryId='MOUTH';
   else if(n.includes('ACCESSORY')||n.includes('配饰')||n.includes('发卡')||n.includes('耳钉')||n.includes('蝴蝶结')||n.includes('项链')||n.includes('胸针'))categoryId='ACCESSORY';
   else if(n.includes('PROP')||n.includes('小物')||n.includes('手持')||n.includes('贴纸'))categoryId='PROP';
   return {slot,categoryId,type:rendererTypeForCategory(categoryId,'PROP'),variant:familyName(file)};
 }
 function makeAssetRecord(file,psd,order,slot,type,variant,groupPath=null,metadata={}){
-  const now=new Date().toISOString(),a={schemaVersion:'shine-asset-v2',assetId:metadata.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd,composite:null,originalComposite:null,order,slot,type,variant,name:variant,enabled:false,groupPath,renderMode:'overlay',categoryId:metadata.categoryId||categoryIdForType(type),characterCompatibility:metadata.characterCompatibility||slot,defaultSlot:slot,colorMode:'PRESERVE_ORIGINAL',layerVisibility:{...(metadata.layerVisibility||{})},compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:metadata.createdAt||now,updatedAt:now,bindings:{}};
-  applyPendingAssetPlacement(a);initAssetBindings(a,true);a.originalComposite=renderAssetComposite(a,{A:{decorBase:'',decorShade:'',hair:'#7D718C'},B:{decorBase:'',decorShade:'',hair:'#8A6F72'}});a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
+  const now=new Date().toISOString(),categoryId=metadata.categoryId||categoryIdForType(type),a={schemaVersion:'shine-asset-v2',assetId:metadata.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd,composite:null,originalComposite:null,order,slot,type,variant,name:variant,enabled:false,groupPath,renderMode:'overlay',categoryId,characterCompatibility:metadata.characterCompatibility||slot,defaultSlot:slot,sourceFormat:'PSD',colorMode:categoryId==='EYE'?'FOLLOW_ORDER':'PRESERVE_ORIGINAL',layerVisibility:{...(metadata.layerVisibility||{})},compatibleTemplateIds:[],defaultTransform:{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:metadata.createdAt||now,updatedAt:now,bindings:{}};
+  applyPendingAssetPlacement(a);initAssetBindings(a,true);a.originalComposite=renderAssetOriginalComposite(a);a.composite=renderAssetComposite(a,getActiveOrder()||newOrderData());
   if(type==='HAT_DECOR'&&sampledAlphaMass(a.composite)<2000)a.composite=a.originalComposite;return a;
+}
+function makeRasterAssetRecord(file,canvas,slot,type,variant,metadata={}){
+  const now=new Date().toISOString(),centerX=S.master?Math.round((S.master.width-canvas.width)/2):0,centerY=S.master?Math.round((S.master.height-canvas.height)/2):0,a={schemaVersion:'shine-asset-v2',assetId:metadata.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),file,psd:null,composite:canvas,originalComposite:canvas,order:null,slot,type,variant,name:variant,enabled:false,groupPath:null,renderMode:'overlay',categoryId:metadata.categoryId||categoryIdForType(type),characterCompatibility:metadata.characterCompatibility||slot,defaultSlot:slot,sourceFormat:'PNG',colorMode:'PRESERVE_ORIGINAL',layerVisibility:{},compatibleTemplateIds:[],defaultTransform:{x:centerX,y:centerY,scale:1,rotation:0,flipX:false,flipY:false},templateTransforms:{},sourceObjectKey:null,thumbnailObjectKey:null,contentHash:null,version:1,createdAt:metadata.createdAt||now,updatedAt:now,bindings:{}};
+  applyPendingAssetPlacement(a);return a;
 }
 function upsertAssetRecord(rec){
   const idx=S.assets.findIndex(a=>a.assetId===rec.assetId&&a.slot===rec.slot);
@@ -4253,8 +4328,18 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
   const loaded=[];
   for(const file of files){
     try{
-      const psd=await parsePsd(file),inf=inferAsset(file),order=detectLayerDrawOrder(psd),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),pair=inferPairGroups(psd),previous=categoryId==='HAIR'?null:S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
-      if(categoryId==='FRAME'){
+      const png=isPngAssetFile(file),inf=inferAsset(file),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),globalScope=categoryId==='FRAME'||forcedSlot==='GLOBAL',previous=categoryId==='HAIR'?null:S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)&&(globalScope?a.slot==='GLOBAL':a.slot!=='GLOBAL')),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
+      if(png){
+        const canvas=await loadPngCanvas(file);
+        if(previous)S.assets=S.assets.filter(a=>a.assetId!==assetId);
+        if(categoryId==='FRAME'||forcedSlot==='GLOBAL'){const rec=makeRasterAssetRecord(file,canvas,'GLOBAL',type,variant,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec)}
+        else if(forcedSlot==='AUTO'&&!hasExplicitAssetSlot(file)){const metadata={assetId,categoryId,characterCompatibility:'BOTH',createdAt},a=makeRasterAssetRecord(file,canvas,'A',type,variant,metadata),b=makeRasterAssetRecord(file,canvas,'B',type,variant,metadata);upsertAssetRecord(a);upsertAssetRecord(b);loaded.push(a,b)}
+        else{const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot,rec=makeRasterAssetRecord(file,canvas,slot,type,variant,{assetId,categoryId,characterCompatibility:slot,createdAt});upsertAssetRecord(rec);loaded.push(rec)}
+        continue;
+      }
+      const psd=await parsePsd(file),order=detectLayerDrawOrder(psd),pair=inferPairGroups(psd);
+      if(previous)S.assets=S.assets.filter(a=>a.assetId!==assetId);
+      if(categoryId==='FRAME'||forcedSlot==='GLOBAL'){
         const rec=makeAssetRecord(file,psd,order,'GLOBAL',type,variant,null,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec);
       }else if(forcedSlot==='AUTO'&&pair.a&&pair.b){
         const metadata={assetId,categoryId,characterCompatibility:'BOTH',createdAt},a=makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,metadata),b=makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,metadata);
@@ -4304,11 +4389,11 @@ function exportTree(){
       (S.masterFile?.name||'master').replace(/\.psd$/i,'')+'_layer_tree.json');
 }
 function exportManifest(){
-  jdl({version:'phase2-preview',schemaVersion:'shine-asset-manifest-v2',canvas:{width:S.master?.width,height:S.master?.height},
+  jdl({version:'phase4-preview',schemaVersion:'shine-asset-manifest-v2',canvas:{width:S.master?.width,height:S.master?.height},
     assets:S.assets.map(a=>({assetId:a.assetId,file:a.file.name,slot:a.slot,type:a.type,categoryId:a.categoryId,variant:a.variant,enabled:a.enabled,
       colorMode:a.colorMode||'PRESERVE_ORIGINAL',
       characterCompatibility:a.characterCompatibility,defaultTransform:a.defaultTransform,compatibleTemplateIds:a.compatibleTemplateIds||[],
-      width:a.psd?.width||null,height:a.psd?.height||null,sameCanvas:!!S.master&&!!a.psd&&a.psd.width===S.master.width&&a.psd.height===S.master.height,
+      sourceFormat:a.sourceFormat||(/\.png$/i.test(a.file?.name||'')?'PNG':'PSD'),width:a.psd?.width||a.composite?.width||null,height:a.psd?.height||a.composite?.height||null,sameCanvas:!!S.master&&!!(a.psd||a.composite)&&(a.psd?.width||a.composite?.width)===S.master.width&&(a.psd?.height||a.composite?.height)===S.master.height,
       detectedLayerOrder:a.order}))},
     'variant_manifest.json');
 }

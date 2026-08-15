@@ -414,3 +414,37 @@ test('accepts frame assets for the phase two layered border workflow', async () 
     assert.equal(completed.status, 201);assert.equal((await completed.json()).asset.categoryId, 'FRAME');
   });
 });
+
+test('accepts eye assets and global PNG decorations for the phase four workflow', async () => {
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
+    const eyeTicketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '眼睛状态_两只全睁.psd', size: 768, contentType: 'image/vnd.adobe.photoshop' })
+    });
+    assert.equal(eyeTicketResponse.status, 201);
+    const eyeTicket = await eyeTicketResponse.json();assetStore.setUploadedSize(eyeTicket.assetId, 768);
+    const eyeCompleted = await fetch(`${baseUrl}/api/assets/${eyeTicket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: eyeTicket.receipt, asset: { categoryId: 'EYE', characterCompatibility: 'BOTH', defaultSlot: 'A', name: '两只全睁' } })
+    });
+    assert.equal(eyeCompleted.status, 201);
+    const eyeAsset = (await eyeCompleted.json()).asset;
+    assert.equal(eyeAsset.categoryId, 'EYE');
+    assert.equal(eyeAsset.contentType, 'image/vnd.adobe.photoshop');
+
+    const propTicketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '小物_爱心.png', size: 320, contentType: 'image/png' })
+    });
+    const propTicket = await propTicketResponse.json();assetStore.setUploadedSize(propTicket.assetId, 320);
+    const propCompleted = await fetch(`${baseUrl}/api/assets/${propTicket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: propTicket.receipt, asset: { categoryId: 'PROP', characterCompatibility: 'GLOBAL', defaultSlot: 'GLOBAL', name: '爱心' } })
+    });
+    assert.equal(propCompleted.status, 201);
+    const propAsset = (await propCompleted.json()).asset;
+    assert.equal(propAsset.characterCompatibility, 'GLOBAL');
+    assert.equal(propAsset.defaultSlot, 'GLOBAL');
+  });
+});
