@@ -32,7 +32,7 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
   assert.match(html, /bestUploadedEarVariant\(original,slot,o\[slot\]\.decor\)\|\|bestUploadedEarVariant\(d\.decor,slot,o\[slot\]\.decor\)/);
   assert.match(html, /paletteEye=formAnchorHex\(field\(sec,\['瞳色'\]\),'eye'\)/);
-  assert.match(html, /if\(paletteEye\)o\[slot\]\.eye=paletteEye;else if\(d\.eyeHex/);
+  assert.match(html, /if\(paletteEye\|\|d\.eyeHex&&\/\^#\[0-9a-f\]\{6\}\$\/i\.test\(d\.eyeHex\)\)\{o\[slot\]\.eye=paletteEye\|\|d\.eyeHex/);
   assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
   assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
   assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
@@ -692,6 +692,8 @@ test('Eye Scheme keeps AUTO intact and adds a serializable optional-anchor AUTO_
   assert.match(html, /if\(id==='AUTO_V3'\)return autoEyeSchemeV3\(slot\)/);
   assert.match(html, /value="AUTO_V3">可选锚点自适应方案/);
   assert.match(html, /schemeId==='AUTO_V3'\?'自定义瞳孔点缀色（可选）'/);
+  assert.match(html, /eyeSchemeId==='AUTO'\)o\.A\.eyeSchemeId='AUTO_V3'/);
+  assert.match(html, /eyeSchemeId==='AUTO'\)o\.B\.eyeSchemeId='AUTO_V3'/);
   assert.match(html, /derive\.space==='OKLCH'\?deriveEyeOklch\(source,derive\):deriveEyeHsl\(source,derive\)/);
   assert.match(html, /rawDerive\.mode==='adaptive'&&adaptiveKind/);
   assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);

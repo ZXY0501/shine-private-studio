@@ -2787,7 +2787,7 @@ function localParseForm({announce=true}={}){
   o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
   const aeRaw=field(a,['瞳色']),afRaw=field(a,['发色']),beRaw=field(b,['瞳色']),bfRaw=field(b,['发色']);
   const ae=formAnchorHex(aeRaw,'eye'),af=formAnchorHex(afRaw,'hair'),be=formAnchorHex(beRaw,'eye'),bf=formAnchorHex(bfRaw,'hair');
-  if(ae)o.A.eye=ae;else if(aeRaw)unresolved.push('A.eyeHex');if(af)o.A.hair=af;else if(afRaw)unresolved.push('A.hairHex');if(be)o.B.eye=be;else if(beRaw)unresolved.push('B.eyeHex');if(bf)o.B.hair=bf;else if(bfRaw)unresolved.push('B.hairHex');
+  if(ae){o.A.eye=ae;if(!o.A.eyeSchemeId||o.A.eyeSchemeId==='AUTO')o.A.eyeSchemeId='AUTO_V3';}else if(aeRaw)unresolved.push('A.eyeHex');if(af)o.A.hair=af;else if(afRaw)unresolved.push('A.hairHex');if(be){o.B.eye=be;if(!o.B.eyeSchemeId||o.B.eyeSchemeId==='AUTO')o.B.eyeSchemeId='AUTO_V3';}else if(beRaw)unresolved.push('B.eyeHex');if(bf)o.B.hair=bf;else if(bfRaw)unresolved.push('B.hairHex');
   const aDecorBase=formAnchorHex(field(a,['耳朵颜色'])||aEar.color,'decor'),bDecorBase=formAnchorHex(field(b,['耳朵颜色'])||bEar.color,'decor');
   if(aDecorBase)o.A.decorBase=aDecorBase;if(bDecorBase)o.B.decorBase=bDecorBase;
   const bg=field(text,['背景倾向']);if(/冷/.test(bg)){o.background=Object.keys(S.presets.background).find(k=>/^冷/.test(k))||o.background;o.backgroundSource='local';}
@@ -2855,7 +2855,7 @@ function applyApiOrder(data){
     const d=data[slot]||data[slot.toLowerCase()]||{};
     const sec=characterSection($('#orderForm').value,slot),paletteEye=formAnchorHex(field(sec,['瞳色']),'eye');
     if(d.name)o[slot].name=d.name;
-    if(paletteEye)o[slot].eye=paletteEye;else if(d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex))o[slot].eye=d.eyeHex;
+    if(paletteEye||d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex)){o[slot].eye=paletteEye||d.eyeHex;if(!o[slot].eyeSchemeId||o[slot].eyeSchemeId==='AUTO')o[slot].eyeSchemeId='AUTO_V3';}
     if(d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex))o[slot].hair=d.hairHex;
     if(d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
     if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
