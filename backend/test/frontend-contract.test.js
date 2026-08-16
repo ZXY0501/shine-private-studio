@@ -673,18 +673,67 @@ test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
   assert.match(html, /replacementSlot&&enabledEyeStateForSlot\(replacementSlot\)\)return/);
 });
 
-test('Eye Scheme v2 uses two anchors, complete field modes, and protects fixed highlights', () => {
+test('Eye Scheme v2 uses a serializable adaptive anchor and protects fixed pupil highlights', () => {
   assert.match(html, /schemaVersion:'shine-eye-scheme-v2'/);
   assert.match(html, /\['irisBase','虹膜主色'\]/);
   assert.match(html, /\['pupil','瞳孔点缀'\]/);
   assert.match(html, /\['pupilDark','瞳孔暗部'\]/);
   assert.match(html, /\['lashHighlight','睫毛高光'\]/);
   assert.match(html, /\['DERIVED','FIXED','INDEPENDENT'\]/);
-  assert.match(html, /pupilAccent:'#E6F9FF'/);
-  assert.match(html, /pupilAccent:'#FFD6A6'/);
-  assert.match(html, /space:'HSL'/);
-  assert.match(html, /saturationMultiplier:left\?0\.38:0\.52/);
+  assert.match(html, /name:'自适应单锚点方案'/);
+  assert.match(html, /adaptiveKind:'irisDark'/);
+  assert.match(html, /adaptiveKind:'irisHighlight'/);
+  assert.match(html, /adaptiveKind:'pupil'/);
+  assert.match(html, /derive\.space==='OKLCH'\?deriveEyeOklch\(source,derive\):deriveEyeHsl\(source,derive\)/);
+  assert.match(html, /rawDerive\.mode==='adaptive'&&adaptiveKind/);
   assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);
+  const start = html.indexOf('function normalizeEyeDerive(');
+  const end = html.indexOf('\nfunction ', start + 1);
+  const normalizeEyeDerive = new Function(`${html.slice(start, end)}\nreturn normalizeEyeDerive;`)();
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(normalizeEyeDerive({ source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'irisDark', fn() {} }))),
+    { source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'irisDark' }
+  );
+});
+
+test('OKLCH gamut fitting uses unclipped linear RGB and adaptive eyes match the seven reference colors', () => {
+  assert.match(html, /function oklchToLinearRgb\(\{L,C,h\}\)/);
+  assert.match(html, /function linearRgbInGamut\(rgb\)/);
+  assert.match(html, /for\(let i=0;i<200;i\+\+\)/);
+  assert.match(html, /chroma=Math\.max\(0,chroma-\.001\)/);
+  assert.match(html, /linearRgbToHex\(oklchToLinearRgb\(\{L:lightness,C:0,h:hue\}\)\)/);
+
+  const colorStart = html.indexOf('function hexToRgb(');
+  const colorEnd = html.indexOf('function isNearWhite', colorStart);
+  const colorApi = new Function(
+    'normalizeHex',
+    `${html.slice(colorStart, colorEnd)}\nreturn {rgbToOklch,gamutHex,clamp,wrapHue,shortestHueDelta,oklchToLinearRgb};`
+  )(value => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '#000000');
+
+  const adaptiveStart = html.indexOf('function derivePupil(');
+  const adaptiveEnd = html.indexOf('\nfunction eyeFieldSpec', adaptiveStart);
+  const adaptiveApi = new Function(
+    'rgbToOklch', 'gamutHex', 'clamp', 'wrapHue', 'shortestHueDelta',
+    `${html.slice(adaptiveStart, adaptiveEnd)}\nreturn {deriveEyeOklch};`
+  )(colorApi.rgbToOklch, colorApi.gamutHex, colorApi.clamp, colorApi.wrapHue, colorApi.shortestHueDelta);
+
+  const expected = {
+    '#7EC8F5': { pupil: '#C4E8FF', irisDark: '#319AD0', irisHighlight: '#CFE9FF' },
+    '#F29A55': { pupil: '#FFC8A1', irisDark: '#C46803', irisHighlight: '#FFCCB1' },
+    '#F29ABD': { pupil: '#FFCCDF', irisDark: '#CB628F', irisHighlight: '#FFD2DC' },
+    '#244A88': { pupil: '#708CBA', irisDark: '#002C70', irisHighlight: '#7A8FC7' },
+    '#F3D97A': { pupil: '#FFEFB4', irisDark: '#C1A105', irisHighlight: '#FFF4DD' },
+    '#9A9A9A': { pupil: '#D0D0D0', irisDark: '#6D6D6D', irisHighlight: '#DECFCA' },
+    '#1A1A2E': { pupil: '#525363', irisDark: '#13122D', irisHighlight: '#5A586A' }
+  };
+  const params = {
+    pupil: { mode: 'adaptive', adaptiveKind: 'pupil' },
+    irisDark: { mode: 'adaptive', adaptiveKind: 'irisDark' },
+    irisHighlight: { mode: 'adaptive', adaptiveKind: 'irisHighlight' }
+  };
+  for (const [hex, result] of Object.entries(expected)) {
+    assert.deepEqual(Object.fromEntries(Object.entries(params).map(([key, spec]) => [key, adaptiveApi.deriveEyeOklch(hex, spec)])), result);
+  }
 });
 
 test('Eye Scheme keeps the phase-one one-color pupil workflow as a built-in option', () => {
@@ -692,7 +741,7 @@ test('Eye Scheme keeps the phase-one one-color pupil workflow as a built-in opti
   assert.match(html, /function legacyEyeRoleColor\(role,slot,order\)/);
   assert.match(html, /shiftColor\(eye,g\.eyePupilL,g\.eyePupilC\)/);
   assert.match(html, /eyeSchemeId==='LEGACY_AUTO'/);
-  assert.match(html, /advanced\.hidden=legacy/);
+  assert.match(html, /advanced\.hidden=!usesPupilAnchor/);
   assert.match(html, /syncEyeSchemeModeUi\('A'\)/);
   assert.match(html, /syncEyeSchemeModeUi\('B'\)/);
 });
