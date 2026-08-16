@@ -673,27 +673,61 @@ test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
   assert.match(html, /replacementSlot&&enabledEyeStateForSlot\(replacementSlot\)\)return/);
 });
 
-test('Eye Scheme v2 uses a serializable adaptive anchor and protects fixed pupil highlights', () => {
+test('Eye Scheme keeps AUTO intact and adds a serializable optional-anchor AUTO_V3', () => {
   assert.match(html, /schemaVersion:'shine-eye-scheme-v2'/);
   assert.match(html, /\['irisBase','虹膜主色'\]/);
   assert.match(html, /\['pupil','瞳孔点缀'\]/);
   assert.match(html, /\['pupilDark','瞳孔暗部'\]/);
   assert.match(html, /\['lashHighlight','睫毛高光'\]/);
   assert.match(html, /\['DERIVED','FIXED','INDEPENDENT'\]/);
-  assert.match(html, /name:'自适应单锚点方案'/);
+  assert.match(html, /id:'AUTO',name:'双锚点自动方案'/);
+  assert.match(html, /irisDark:eyeFieldSpec\('DERIVED'.*space:'HSL',saturationMultiplier:left\?0\.38:0\.52/);
+  assert.match(html, /irisHighlight:eyeFieldSpec\('FIXED'/);
+  assert.match(html, /pupil:eyeFieldSpec\('INDEPENDENT'/);
+  assert.match(html, /id:'AUTO_V3',name:'可选锚点自适应方案'/);
   assert.match(html, /adaptiveKind:'irisDark'/);
   assert.match(html, /adaptiveKind:'irisHighlight'/);
   assert.match(html, /adaptiveKind:'pupil'/);
+  assert.match(html, /optionalAnchor:'pupilAccent',defaultAccent/);
+  assert.match(html, /if\(id==='AUTO_V3'\)return autoEyeSchemeV3\(slot\)/);
+  assert.match(html, /value="AUTO_V3">可选锚点自适应方案/);
+  assert.match(html, /schemeId==='AUTO_V3'\?'自定义瞳孔点缀色（可选）'/);
   assert.match(html, /derive\.space==='OKLCH'\?deriveEyeOklch\(source,derive\):deriveEyeHsl\(source,derive\)/);
   assert.match(html, /rawDerive\.mode==='adaptive'&&adaptiveKind/);
   assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);
   const start = html.indexOf('function normalizeEyeDerive(');
   const end = html.indexOf('\nfunction ', start + 1);
-  const normalizeEyeDerive = new Function(`${html.slice(start, end)}\nreturn normalizeEyeDerive;`)();
+  const normalizeEyeDerive = new Function('normalizeHex', `${html.slice(start, end)}\nreturn normalizeEyeDerive;`)(value => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '');
   assert.deepEqual(
     JSON.parse(JSON.stringify(normalizeEyeDerive({ source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'irisDark', fn() {} }))),
     { source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'irisDark' }
   );
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(normalizeEyeDerive({ source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'pupil', optionalAnchor: 'pupilAccent', defaultAccent: '#e6f9ff', fn() {} }))),
+    { source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'pupil', optionalAnchor: 'pupilAccent', defaultAccent: '#E6F9FF' }
+  );
+
+  const optionalStart = html.indexOf('function optionalPupilAccentColor(');
+  const optionalEnd = html.indexOf('\nfunction ', optionalStart + 1);
+  const optionalPupilAccentColor = new Function('normalizeHex', `${html.slice(optionalStart, optionalEnd)}\nreturn optionalPupilAccentColor;`)(value => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '');
+  assert.equal(optionalPupilAccentColor('A', { A: { pupilAccent: '#E6F9FF' } }, '#E6F9FF'), null);
+  assert.equal(optionalPupilAccentColor('B', { B: { pupilAccent: '#FFD6A6' } }, '#FFD6A6'), null);
+  assert.equal(optionalPupilAccentColor('A', { A: { pupilAccent: '#F4C542' } }, '#E6F9FF'), '#F4C542');
+  assert.equal(optionalPupilAccentColor('B', { B: { pupilAccent: '' } }, '#FFD6A6'), null);
+  const fieldStart = html.indexOf('function eyeSchemeFieldColor(');
+  const fieldEnd = html.indexOf('\nfunction ', fieldStart + 1);
+  const eyeSchemeFieldColor = new Function(
+    'safeHex', 'optionalPupilAccentColor', 'deriveEyeOklch', 'deriveEyeHsl',
+    `${html.slice(fieldStart, fieldEnd)}\nreturn eyeSchemeFieldColor;`
+  )((value, fallback) => /^#[0-9a-f]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : fallback, optionalPupilAccentColor, source => `derived:${source}`, source => source);
+  const optionalScheme = { fields: {
+    irisBase: { mode: 'INDEPENDENT', value: '#918DCB' },
+    pupil: { mode: 'DERIVED', value: '#E6F9FF', derive: { source: 'irisBase', space: 'OKLCH', mode: 'adaptive', adaptiveKind: 'pupil', optionalAnchor: 'pupilAccent', defaultAccent: '#E6F9FF' } }
+  } };
+  assert.equal(eyeSchemeFieldColor(optionalScheme, 'pupil', 'A', { A: { eye: '#244A88', pupilAccent: '#E6F9FF' } }), 'derived:#244A88');
+  assert.equal(eyeSchemeFieldColor(optionalScheme, 'pupil', 'A', { A: { eye: '#244A88', pupilAccent: '#F4C542' } }), '#F4C542');
+  assert.match(html, /EYE_IRIS_HIGHLIGHT:'irisHighlight'/);
+  assert.match(html, /虹膜高光\|虹膜亮\|iris\.\*highlight/);
 });
 
 test('OKLCH gamut fitting uses unclipped linear RGB and adaptive eyes match the seven reference colors', () => {

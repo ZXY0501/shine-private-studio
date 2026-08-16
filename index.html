@@ -3761,12 +3761,27 @@ function deriveEyeOklch(hex,params={}){
 function eyeFieldSpec(mode,value,derive){return {mode,value:safeHex(value,'#888888'),...(derive?{derive}: {})}}
 function autoEyeScheme(slot){
   const left=slot==='A';
-  return {schemaVersion:'shine-eye-scheme-v2',id:'AUTO',name:'自适应单锚点方案',fields:{
+  return {schemaVersion:'shine-eye-scheme-v2',id:'AUTO',name:'双锚点自动方案',fields:{
+    irisBase:eyeFieldSpec('INDEPENDENT',left?'#A8B8D2':'#AC9B9F'),
+    irisDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisBase',space:'HSL',saturationMultiplier:left?0.38:0.52,lightnessDelta:left?-0.20:-0.19}),
+    irisDeep:eyeFieldSpec('DERIVED',left?'#4F627F':'#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.73,lightnessDelta:-.34}),
+    irisHighlight:eyeFieldSpec('FIXED',left?'#C9D4E3':'#D9C9D3'),
+    pupil:eyeFieldSpec('INDEPENDENT',left?'#E6F9FF':'#FFD6A6'),
+    pupilDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisDark',space:'HSL',saturationMultiplier:1,lightnessDelta:0}),
+    pupilHighlight:eyeFieldSpec('FIXED',left?'#FEFDFF':'#FFFDFE'),
+    outline:left?eyeFieldSpec('FIXED','#363235'):eyeFieldSpec('DERIVED','#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.41,lightnessDelta:-.28}),
+    lash:eyeFieldSpec('FIXED',left?'#756A72':'#93888D'),
+    lashHighlight:eyeFieldSpec('FIXED',left?'#C9D4E3':'#D9C9D3')
+  }};
+}
+function autoEyeSchemeV3(slot){
+  const left=slot==='A',defaultAccent=left?'#E6F9FF':'#FFD6A6';
+  return {schemaVersion:'shine-eye-scheme-v2',id:'AUTO_V3',name:'可选锚点自适应方案',fields:{
     irisBase:eyeFieldSpec('INDEPENDENT',left?'#A8B8D2':'#AC9B9F'),
     irisDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisBase',space:'OKLCH',mode:'adaptive',adaptiveKind:'irisDark'}),
     irisDeep:eyeFieldSpec('DERIVED',left?'#4F627F':'#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.73,lightnessDelta:-.34}),
     irisHighlight:eyeFieldSpec('DERIVED',left?'#C9D4E3':'#D9C9D3',{source:'irisBase',space:'OKLCH',mode:'adaptive',adaptiveKind:'irisHighlight'}),
-    pupil:eyeFieldSpec('DERIVED',left?'#E6F9FF':'#FFD6A6',{source:'irisBase',space:'OKLCH',mode:'adaptive',adaptiveKind:'pupil'}),
+    pupil:eyeFieldSpec('DERIVED',defaultAccent,{source:'irisBase',space:'OKLCH',mode:'adaptive',adaptiveKind:'pupil',optionalAnchor:'pupilAccent',defaultAccent}),
     pupilDark:eyeFieldSpec('DERIVED',left?'#7C8798':'#796E75',{source:'irisDark',space:'HSL',saturationMultiplier:1,lightnessDelta:0}),
     pupilHighlight:eyeFieldSpec('FIXED',left?'#FEFDFF':'#FFFDFE'),
     outline:left?eyeFieldSpec('FIXED','#363235'):eyeFieldSpec('DERIVED','#60595D',{source:'irisBase',space:'HSL',saturationMultiplier:.41,lightnessDelta:-.28}),
@@ -3779,7 +3794,10 @@ function normalizeEyeDerive(rawDerive){
   const space=rawDerive.space==='OKLCH'?'OKLCH':'HSL',derive={source:String(rawDerive.source||'irisBase'),space};
   if(space==='OKLCH'){
     const adaptiveKind=['pupil','irisDark','irisHighlight'].includes(rawDerive.adaptiveKind)?rawDerive.adaptiveKind:null;
-    if(rawDerive.mode==='adaptive'&&adaptiveKind)return {...derive,mode:'adaptive',adaptiveKind};
+    if(rawDerive.mode==='adaptive'&&adaptiveKind){
+      const optionalAnchor=rawDerive.optionalAnchor==='pupilAccent'?'pupilAccent':null,defaultAccent=normalizeHex(rawDerive.defaultAccent||'');
+      return {...derive,mode:'adaptive',adaptiveKind,...(optionalAnchor&&defaultAccent?{optionalAnchor,defaultAccent}: {})};
+    }
     if(Number.isFinite(+rawDerive.cMul))derive.cMul=+rawDerive.cMul;
     if(Number.isFinite(+rawDerive.cAdd))derive.cAdd=+rawDerive.cAdd;
     if(rawDerive.cMax!==null&&Number.isFinite(+rawDerive.cMax))derive.cMax=+rawDerive.cMax;
@@ -3804,12 +3822,21 @@ function normalizeEyeSchemeV2(raw){
 function migrateEyeSchemesV2(){
   const changed=S.eyeSchemes.some(x=>x?.schemaVersion!=='shine-eye-scheme-v2'||!x.fields);S.eyeSchemes=S.eyeSchemes.map(normalizeEyeSchemeV2);if(changed)persistEyeSchemes();
 }
-function selectedEyeScheme(slot,order){const id=order?.[slot]?.eyeSchemeId,found=id&&id!=='AUTO'?S.eyeSchemes.find(x=>x.id===id):null;return found?normalizeEyeSchemeV2(found):autoEyeScheme(slot)}
+function selectedEyeScheme(slot,order){
+  const id=order?.[slot]?.eyeSchemeId;
+  if(id==='AUTO_V3')return autoEyeSchemeV3(slot);
+  const found=id&&id!=='AUTO'&&id!=='LEGACY_AUTO'?S.eyeSchemes.find(x=>x.id===id):null;
+  return found?normalizeEyeSchemeV2(found):autoEyeScheme(slot);
+}
+function optionalPupilAccentColor(slot,order,defaultAccent){
+  const accent=normalizeHex(order?.[slot]?.pupilAccent||''),fallback=normalizeHex(defaultAccent||'');
+  return accent&&accent!==fallback?accent:null;
+}
 function eyeSchemeFieldColor(scheme,key,slot,order,seen=new Set()){
   if(seen.has(key))return null;seen.add(key);const field=scheme?.fields?.[key];if(!field)return null;
   if(field.mode==='FIXED')return safeHex(field.value,'#888888');
   if(field.mode==='INDEPENDENT')return key==='pupil'?safeHex(order?.[slot]?.pupilAccent,field.value):key==='irisBase'?safeHex(order?.[slot]?.eye,field.value):safeHex(field.value,'#888888');
-  const derive=field.derive||{},source=eyeSchemeFieldColor(scheme,derive.source||'irisBase',slot,order,seen);return source?(derive.space==='OKLCH'?deriveEyeOklch(source,derive):deriveEyeHsl(source,derive)):safeHex(field.value,'#888888');
+  const derive=field.derive||{},optional=key==='pupil'&&derive.optionalAnchor==='pupilAccent'?optionalPupilAccentColor(slot,order,derive.defaultAccent||field.value):null;if(optional)return optional;const source=eyeSchemeFieldColor(scheme,derive.source||'irisBase',slot,order,seen);return source?(derive.space==='OKLCH'?deriveEyeOklch(source,derive):deriveEyeHsl(source,derive)):safeHex(field.value,'#888888');
 }
 function legacyEyeRoleColor(role,slot,order){
   const eye=safeHex(order?.[slot]?.eye,'#918DCB'),g=S.logic||DEFAULT_LOGIC;
@@ -4231,7 +4258,7 @@ async function loadHairAsset(file,slot){
 
 // ===== v0.29 adaptive eye derivation tester =====
 function eyeDerivedSet(base,slot='A'){
-  const order=newOrderData();order[slot].eye=safeHex(base,'#918DCB');const scheme=autoEyeScheme(slot);
+  const order=newOrderData();order[slot].eye=safeHex(base,'#918DCB');const scheme=autoEyeSchemeV3(slot);
   return Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,eyeSchemeFieldColor(scheme,key,slot,order)]));
 }
 function renderEyeLogicTester(){
@@ -4239,8 +4266,8 @@ function renderEyeLogicTester(){
   const set=eyeDerivedSet(base),host=$('#eyeLogicSwatches');if(host)host.innerHTML=EYE_SCHEME_FIELDS.map(([key,label])=>`<div class="eyeLogicSwatch"><i style="background:${set[key]}"></i><b>${label}</b><span>${set[key]}</span></div>`).join('');
 }
 function makeEyeLogicTester(){
-  const box=document.createElement('div');box.id='eyeLogicTester';box.className='eyeLogicTester';box.innerHTML=`<div class="eyeLogicTesterHead"><b>Eye Scheme v2 自适应单锚点测试台</b><span class="schemePreviewChip">输入一个虹膜色，自动派生完整眼睛</span></div><div class="eyeLogicAnchor"><label>虹膜主色</label><input id="eyeLogicAnchorHex" type="text" value="#918DCB"><input id="eyeLogicAnchorColor" type="color" value="#918DCB"></div><div id="eyeLogicSwatches" class="eyeLogicSwatches"></div><div class="schemeToolbar"><button class="btn" data-eye-test-apply="A">预览到 A 眼睛</button><button class="btn" data-eye-test-apply="B">预览到 B 眼睛</button></div><div class="schemeNote">瞳孔点缀、虹膜重色和下方暖反光由虹膜主色自适应派生；方案不改图层显隐、Multiply、剪贴或固定近白瞳孔高光。</div>`;
-  setTimeout(()=>{const h=$('#eyeLogicAnchorHex'),c=$('#eyeLogicAnchorColor');if(!h||!c)return;c.oninput=()=>{h.value=c.value.toUpperCase();renderEyeLogicTester()};h.onchange=()=>{h.value=safeHex(h.value,'#918DCB');c.value=h.value.toLowerCase();renderEyeLogicTester()};box.querySelectorAll('[data-eye-test-apply]').forEach(b=>b.onclick=()=>{let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders()}const slot=b.dataset.eyeTestApply,base=safeHex(h.value,'#918DCB');o[slot].eye=base;o[slot].eyeSchemeId='AUTO';persistOrders();selectOrder(o.id);applyOrderColors({live:true,persist:true});stat($('#apiStatus'),`已把虹膜 ${base} 的自适应眼睛预览到 ${slot}。`,'good')});renderEyeLogicTester();});return box;
+  const box=document.createElement('div');box.id='eyeLogicTester';box.className='eyeLogicTester';box.innerHTML=`<div class="eyeLogicTesterHead"><b>Eye Scheme v3 可选锚点测试台</b><span class="schemePreviewChip">虹膜必填；瞳孔不填则自动派生</span></div><div class="eyeLogicAnchor"><label>虹膜主色</label><input id="eyeLogicAnchorHex" type="text" value="#918DCB"><input id="eyeLogicAnchorColor" type="color" value="#918DCB"></div><div id="eyeLogicSwatches" class="eyeLogicSwatches"></div><div class="schemeToolbar"><button class="btn" data-eye-test-apply="A">预览到 A 眼睛</button><button class="btn" data-eye-test-apply="B">预览到 B 眼睛</button></div><div class="schemeNote">AUTO_V3 默认从虹膜色派生瞳孔点缀、虹膜重色和下方暖反光；订单里展开“自定义瞳孔点缀色（可选）”即可覆盖瞳孔。方案不改图层显隐、Multiply、剪贴或固定近白瞳孔高光。</div>`;
+  setTimeout(()=>{const h=$('#eyeLogicAnchorHex'),c=$('#eyeLogicAnchorColor');if(!h||!c)return;c.oninput=()=>{h.value=c.value.toUpperCase();renderEyeLogicTester()};h.onchange=()=>{h.value=safeHex(h.value,'#918DCB');c.value=h.value.toLowerCase();renderEyeLogicTester()};box.querySelectorAll('[data-eye-test-apply]').forEach(b=>b.onclick=()=>{let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders()}const slot=b.dataset.eyeTestApply,base=safeHex(h.value,'#918DCB');o[slot].eye=base;o[slot].pupilAccent=slot==='A'?'#E6F9FF':'#FFD6A6';o[slot].eyeSchemeId='AUTO_V3';persistOrders();selectOrder(o.id);applyOrderColors({live:true,persist:true});stat($('#apiStatus'),`已把虹膜 ${base} 的 AUTO_V3 自适应眼睛预览到 ${slot}。`,'good')});renderEyeLogicTester();});return box;
 }
 
 // ===== v0.8 workspace + eye scheme studio =====
@@ -4251,14 +4278,14 @@ function eyeRoleHex(slot,role){
 function renderEyeSchemeOptions(){
   ['aEyeScheme','bEyeScheme'].forEach(id=>{
     const el=$('#'+id); if(!el)return; const old=el.value||'AUTO';
-    el.innerHTML='<option value="AUTO">自适应单锚点方案</option><option value="LEGACY_AUTO">一期傻瓜模式（瞳孔跟随主色）</option>'+S.eyeSchemes.map(normalizeEyeSchemeV2).map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
+    el.innerHTML='<option value="AUTO">双锚点自动方案</option><option value="AUTO_V3">可选锚点自适应方案</option><option value="LEGACY_AUTO">一期傻瓜模式（瞳孔跟随主色）</option>'+S.eyeSchemes.map(normalizeEyeSchemeV2).map(s=>`<option value="${safe(s.id)}">${safe(s.name)}</option>`).join('');
     el.value=[...el.options].some(o=>o.value===old)?old:'AUTO';
     syncEyeSchemeModeUi(id[0].toUpperCase());
   });
 }
 function syncEyeSchemeModeUi(slot){
-  const low=slot.toLowerCase(),schemeId=$('#'+low+'EyeScheme')?.value||'AUTO',advanced=$('#'+low+'PupilAdvanced'),custom=schemeId!=='AUTO'&&schemeId!=='LEGACY_AUTO'?S.eyeSchemes.find(x=>x.id===schemeId):null,usesPupilAnchor=!!custom&&normalizeEyeSchemeV2(custom).fields.pupil?.mode==='INDEPENDENT';
-  if(advanced){advanced.hidden=!usesPupilAnchor;if(!usesPupilAnchor)advanced.open=false;}
+  const low=slot.toLowerCase(),schemeId=$('#'+low+'EyeScheme')?.value||'AUTO',advanced=$('#'+low+'PupilAdvanced'),custom=!['AUTO','AUTO_V3','LEGACY_AUTO'].includes(schemeId)?S.eyeSchemes.find(x=>x.id===schemeId):null,usesPupilAnchor=schemeId==='AUTO'||schemeId==='AUTO_V3'||(!!custom&&normalizeEyeSchemeV2(custom).fields.pupil?.mode==='INDEPENDENT');
+  if(advanced){advanced.hidden=!usesPupilAnchor;if(!usesPupilAnchor)advanced.open=false;const summary=advanced.querySelector('summary');if(summary)summary.textContent=schemeId==='AUTO_V3'?'自定义瞳孔点缀色（可选）':'高级：瞳孔点缀色';}
 }
 function setEyeSchemeEditor(s){
   const auto=autoEyeScheme('A'),d=s?normalizeEyeSchemeV2(s):{...auto,id:null,name:'新眼睛方案',fields:Object.fromEntries(EYE_SCHEME_FIELDS.map(([key])=>[key,{...auto.fields[key],mode:'FIXED'}]))};
