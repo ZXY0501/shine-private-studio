@@ -1,26 +1,40 @@
 const crypto = require('crypto');
 const { createDeepSeekOrderParser, validateDeepSeekRequest } = require('./deepseek-order-parser');
+const {
+  createAccountRecord,
+  publicAccount,
+  readSession,
+  signSession,
+  validateUsername,
+  verifyAccountPassword
+} = require('./account-auth');
 
 const PROFILE_PATH_PREFIX = '/api/template-profiles/';
 const ASSET_PATH_PREFIX = '/api/assets';
 const DEEPSEEK_PATH = '/api/deepseek/parse';
+const AUTH_LOGIN_PATH = '/api/auth/login';
+const AUTH_ME_PATH = '/api/auth/me';
+const ACCOUNTS_PATH = '/api/accounts';
 const PROFILE_SCHEMA_VERSION = 'shine-template-0.28-alpha';
 const DEFAULT_MAX_BODY_BYTES = 512 * 1024;
 const DEFAULT_MAX_DEEPSEEK_BODY_BYTES = 64 * 1024;
 const DEFAULT_MAX_ASSET_BYTES = 200 * 1024 * 1024;
 const DEFAULT_ASSET_TICKET_SECONDS = 15 * 60;
-const ASSET_CATEGORIES = new Set(['CLEAN_TEMPLATE', 'HAIR', 'EAR', 'MOUTH', 'EYE', 'TAIL', 'FRAME', 'ACCESSORY', 'PROP']);
+const ASSET_CATEGORIES = new Set(['CLEAN_TEMPLATE', 'CLOTHING', 'REUSABLE_HAIR', 'EAR', 'MOUTH', 'EYE', 'EYE_LASH', 'TAIL', 'BACKDROP', 'ORIGINAL_ASSET']);
 const SLOT_OPTIONS = new Set(['NONE', 'A', 'B', 'SHARED']);
 const PART_OPTIONS = new Set(['UNKNOWN', 'HAIR', 'EYE', 'OUTFIT', 'HAT', 'HAT_DECOR', 'BODY_TRAIT', 'TAIL', 'FACE', 'WATERMARK', 'BACKGROUND', 'RENDER_SLOT', 'REFERENCE', 'OTHER']);
 const ROLE_OPTIONS = new Set([
   'UNKNOWN', 'FIXED', 'REFERENCE', 'BACKGROUND_BASE', 'BACKGROUND_LACE_FIXED',
-  'HAIR_BASE', 'HAIR_SHADE_MASK', 'HAIR_OUTLINE', 'HAIR_HIGHLIGHT_FIXED', 'HAIR_SKIN_AIR_FIXED', 'BROW_BASE',
-  'EYE_IRIS_BASE', 'EYE_DARK', 'EYE_PUPIL', 'EYE_HIGHLIGHT', 'EYE_OUTLINE', 'LASH_FIXED', 'LASH_HIGHLIGHT', 'PUPIL_HIGHLIGHT_FIXED',
-  'OUTFIT_BASE', 'OUTFIT_LINE', 'HAT_BASE', 'HAT_OUTLINE', 'HAT_TRIM_EDGE', 'HAT_FUR_FIXED',
+  'HAIR_BASE', 'HAIR_SHADE_MASK', 'HAIR_OUTLINE', 'HAIR_HIGHLIGHT', 'HAIR_HIGHLIGHT_FIXED', 'HAIR_SKIN_AIR_FIXED', 'BROW_BASE',
+  'EYE_IRIS_BASE', 'EYE_IRIS_MID', 'EYE_IRIS_DARK', 'EYE_IRIS_DEEP', 'EYE_IRIS_HIGHLIGHT_MID', 'EYE_IRIS_HIGHLIGHT',
+  'EYE_DARK', 'EYE_PUPIL', 'EYE_PUPIL_DARK', 'EYE_PUPIL_HIGHLIGHT', 'EYE_HIGHLIGHT', 'EYE_OUTLINE', 'EYE_LASH', 'EYE_LASH_HIGHLIGHT', 'LASH_FIXED', 'LASH_HIGHLIGHT', 'PUPIL_HIGHLIGHT_FIXED',
+  'OUTFIT_BASE', 'OUTFIT_SHADOW', 'OUTFIT_LINE', 'OUTFIT_HIGHLIGHT', 'HAT_BASE', 'HAT_OUTLINE', 'HAT_TRIM_EDGE', 'HAT_FUR_FIXED',
   'DECOR_CONTAINER', 'DECOR_BASE', 'DECOR_OUTLINE', 'DECOR_INNER', 'DECOR_FUR', 'DECOR_SHADOW', 'DECOR_ACCENT',
   'BODY_TRAIT_BASE', 'BODY_TRAIT_OUTLINE', 'BODY_TRAIT_INNER', 'BODY_TRAIT_ACCENT',
   'WATERMARK_PREVIEW', 'RENDER_SLOT_HAIR', 'RENDER_SLOT_HAT_DECOR', 'RENDER_SLOT_TAIL', 'RENDER_SLOT_PROP_FRONT', 'RENDER_SLOT_PROP_BACK',
-  'TAIL_BASE', 'TAIL_OUTLINE', 'TAIL_TIP', 'FACE_FIXED', 'GROUP', 'OTHER'
+  'TAIL_BASE', 'TAIL_SHADE', 'TAIL_OUTLINE', 'TAIL_TIP', 'TAIL_FUR',
+  'COMPONENT_BASE', 'COMPONENT_SHADOW', 'COMPONENT_LINEART', 'COMPONENT_HIGHLIGHT',
+  'FACE_FIXED', 'GROUP', 'OTHER'
 ]);
 const SOURCE_OPTIONS = new Set(['AUTO', 'NONE', 'FIXED', 'PRESET', 'MANUAL_ANCHOR', 'DERIVED', 'OVERRIDE']);
 
@@ -61,15 +75,39 @@ function secureTokenMatches(received, expected) {
   return crypto.timingSafeEqual(left, right);
 }
 
-function authorizeProfileRequest(req, profileToken) {
-  if (!profileToken) {
+async function authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory) {
+  if (!profileToken && !sessionSecret) {
     throw new HttpError(503, 'PROFILE_AUTH_NOT_CONFIGURED');
   }
 
   const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
-  if (!match || !secureTokenMatches(match[1], profileToken)) {
-    throw new HttpError(401, 'UNAUTHORIZED');
+  if (!match) throw new HttpError(401, 'UNAUTHORIZED');
+  if (profileToken && secureTokenMatches(match[1], profileToken)) {
+    return { accountId: 'legacy-admin', username: 'admin', displayName: '管理员', role: 'admin', legacy: true };
   }
+  try {
+    const session = readSession(match[1], sessionSecret, { now });
+    if (typeof accountStoreFactory !== 'function') throw new HttpError(503, 'ACCOUNT_STORE_NOT_CONFIGURED');
+    const account = await (await accountStoreFactory(req)).get(session.username);
+    if (!account || account.disabled || account.accountId !== session.sub) throw new HttpError(401, 'SESSION_REVOKED');
+    return { ...session, displayName: account.displayName, role: account.role === 'admin' ? 'admin' : 'user', legacy: false };
+  }
+  catch (error) {
+    if (error?.status === 401) throw new HttpError(401, error.code || 'UNAUTHORIZED');
+    throw error;
+  }
+}
+
+function requireAdmin(auth) {
+  if (auth?.role !== 'admin') throw new HttpError(403, 'ADMIN_REQUIRED');
+}
+
+function parseAccountUsername(pathname) {
+  const match = /^\/api\/accounts\/([^/]+)$/.exec(pathname);
+  if (!match) return null;
+  let username;
+  try { username = decodeURIComponent(match[1]); } catch { throw new HttpError(400, 'INVALID_ACCOUNT_USERNAME'); }
+  return validateUsername(username);
 }
 
 function parseTemplateSignature(pathname) {
@@ -209,18 +247,67 @@ function validateAssetMetadataInput(input, claim) {
   const name = requiredText(input.name || variant, 'INVALID_ASSET_NAME', 255);
   const contentHash = input.contentHash == null ? null : String(input.contentHash).toLowerCase();
   if (contentHash !== null && !/^[a-f0-9]{64}$/.test(contentHash)) throw new HttpError(400, 'INVALID_ASSET_HASH');
-  const rawVisibility = input.layerVisibility == null ? {} : input.layerVisibility;
-  if (!isPlainObject(rawVisibility)) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
-  const visibilityEntries = Object.entries(rawVisibility);
-  if (visibilityEntries.length > 2000) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
-  const layerVisibility = {};
-  for (const [path, visible] of visibilityEntries) {
-    if (!path || path.length > 1024 || /\0/.test(path) || typeof visible !== 'boolean') {
-      throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+  const sanitizeLayerVisibility = raw => {
+    const rawVisibility = raw == null ? {} : raw;
+    if (!isPlainObject(rawVisibility)) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+    const visibilityEntries = Object.entries(rawVisibility);
+    if (visibilityEntries.length > 2000) throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+    const cleanVisibility = {};
+    for (const [path, visible] of visibilityEntries) {
+      if (!path || path.length > 1024 || /\0/.test(path) || typeof visible !== 'boolean') {
+        throw new HttpError(400, 'INVALID_ASSET_LAYER_VISIBILITY');
+      }
+      cleanVisibility[path] = visible;
     }
-    layerVisibility[path] = visible;
+    return cleanVisibility;
+  };
+  const rawVisibility = input.layerVisibility == null ? {} : input.layerVisibility;
+  const layerVisibility = sanitizeLayerVisibility(rawVisibility);
+  let records;
+  if (input.records != null) {
+    if (!Array.isArray(input.records) || input.records.length < 1 || input.records.length > 64) {
+      throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+    }
+    records = input.records.map(record => {
+      if (!isPlainObject(record)) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      const recordCategory = requiredText(record.categoryId || categoryId, 'INVALID_ASSET_CATEGORY', 96);
+      if (recordCategory !== categoryId) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      const slot = String(record.slot || defaultSlot).toUpperCase();
+      if (!['A', 'B', 'GLOBAL'].includes(slot)) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      const recordCompatibility = String(record.characterCompatibility || slot).toUpperCase();
+      if (!['A', 'B', 'BOTH', 'GLOBAL'].includes(recordCompatibility)) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      const type = requiredText(record.type || categoryId, 'INVALID_ASSET_RECORDS', 96);
+      const recordVariant = requiredText(record.variant || record.name || variant, 'INVALID_ASSET_RECORDS', 255);
+      const recordName = requiredText(record.name || recordVariant, 'INVALID_ASSET_RECORDS', 255);
+      const cleanOptional = (value, max = 1024) => {
+        if (value == null || value === '') return null;
+        const text = String(value);
+        if (text.length > max || /\0/.test(text)) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+        return text;
+      };
+      const componentOrder = record.componentOrder == null ? null : Number(record.componentOrder);
+      if (componentOrder !== null && (!Number.isInteger(componentOrder) || componentOrder < 0 || componentOrder > 255)) {
+        throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      }
+      const hairPlacement = record.hairPlacement == null ? null : String(record.hairPlacement).toUpperCase();
+      if (hairPlacement !== null && !['FRONT', 'BACK'].includes(hairPlacement)) throw new HttpError(400, 'INVALID_ASSET_RECORDS');
+      return {
+        slot, type, variant: recordVariant, name: recordName,
+        groupPath: cleanOptional(record.groupPath),
+        packageName: cleanOptional(record.packageName, 255),
+        componentName: cleanOptional(record.componentName, 255),
+        componentOrder,
+        hairPlacement,
+        categoryId: recordCategory,
+        characterCompatibility: recordCompatibility,
+        defaultSlot: ['A', 'B', 'GLOBAL'].includes(String(record.defaultSlot || slot).toUpperCase()) ? String(record.defaultSlot || slot).toUpperCase() : slot,
+        colorMode: record.colorMode === 'FOLLOW_ORDER' ? 'FOLLOW_ORDER' : 'PRESERVE_ORIGINAL',
+        colorModeExplicit: record.colorModeExplicit === true,
+        layerVisibility: sanitizeLayerVisibility(record.layerVisibility)
+      };
+    });
   }
-  return { categoryId, characterCompatibility, defaultSlot, variant, name, contentHash, layerVisibility };
+  return { categoryId, characterCompatibility, defaultSlot, variant, name, contentHash, layerVisibility, ...(records ? { records } : {}) };
 }
 
 function createAssetReceipt(claim, secret) {
@@ -262,12 +349,18 @@ function createProfileEnvelope(data, signature, current, now) {
 function createApp(options = {}) {
   const allowedOrigin = options.allowedOrigin ?? process.env.ALLOWED_ORIGIN ?? '*';
   const profileToken = options.profileToken ?? process.env.SHINE_PROFILE_TOKEN ?? '';
+  const sessionSecret = options.sessionSecret ?? process.env.SHINE_SESSION_SECRET ?? profileToken;
+  const configuredSessionSeconds = Number(options.sessionSeconds ?? process.env.SHINE_SESSION_SECONDS ?? 7 * 24 * 60 * 60);
+  const sessionSeconds = Number.isFinite(configuredSessionSeconds)
+    ? Math.max(60 * 60, Math.min(configuredSessionSeconds, 30 * 24 * 60 * 60))
+    : 7 * 24 * 60 * 60;
   const configuredMaxBodyBytes = Number(options.maxBodyBytes ?? process.env.PROFILE_MAX_BYTES ?? DEFAULT_MAX_BODY_BYTES);
   const maxBodyBytes = Number.isFinite(configuredMaxBodyBytes) && configuredMaxBodyBytes > 0
     ? configuredMaxBodyBytes
     : DEFAULT_MAX_BODY_BYTES;
   const storeFactory = options.storeFactory;
   const assetStoreFactory = options.assetStoreFactory;
+  const accountStoreFactory = options.accountStoreFactory;
   const configuredMaxAssetBytes = Number(options.maxAssetBytes ?? process.env.ASSET_MAX_BYTES ?? DEFAULT_MAX_ASSET_BYTES);
   const maxAssetBytes = Number.isFinite(configuredMaxAssetBytes) && configuredMaxAssetBytes > 0
     ? configuredMaxAssetBytes
@@ -317,11 +410,65 @@ function createApp(options = {}) {
         }, allowedOrigin);
       }
 
+      if (url.pathname === AUTH_LOGIN_PATH) {
+        if (req.method !== 'POST') return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
+        if (typeof accountStoreFactory !== 'function') throw new HttpError(503, 'ACCOUNT_STORE_NOT_CONFIGURED');
+        const body = await readJsonBody(req, 16 * 1024, 'ACCOUNT_REQUEST_TOO_LARGE');
+        const username = validateUsername(body.username);
+        const accountStore = await accountStoreFactory(req);
+        const account = await accountStore.get(username);
+        if (!account || !verifyAccountPassword(account, body.password)) throw new HttpError(401, 'INVALID_CREDENTIALS');
+        const token = signSession(account, sessionSecret, { now, sessionSeconds });
+        return sendJson(req, res, 200, {
+          ok: true,
+          token,
+          account: publicAccount(account),
+          expiresAt: new Date(now().getTime() + sessionSeconds * 1000).toISOString()
+        }, allowedOrigin, { 'Cache-Control': 'no-store' });
+      }
+
+      if (url.pathname === AUTH_ME_PATH) {
+        if (req.method !== 'GET') return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
+        const auth = await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
+        return sendJson(req, res, 200, {
+          ok: true,
+          account: auth.legacy
+            ? { accountId: auth.accountId, username: auth.username, displayName: auth.displayName, role: 'admin', legacy: true }
+            : { accountId: auth.sub, username: auth.username, displayName: auth.displayName, role: auth.role, legacy: false },
+          permissions: { sharedAssets: true, uploadAssets: true, deleteAssets: auth.role === 'admin', manageAccounts: auth.role === 'admin' }
+        }, allowedOrigin, { 'Cache-Control': 'no-store' });
+      }
+
+      const accountUsername = parseAccountUsername(url.pathname);
+      if (url.pathname === ACCOUNTS_PATH || accountUsername) {
+        const auth = await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
+        requireAdmin(auth);
+        if (typeof accountStoreFactory !== 'function') throw new HttpError(503, 'ACCOUNT_STORE_NOT_CONFIGURED');
+        const accountStore = await accountStoreFactory(req);
+        if (url.pathname === ACCOUNTS_PATH && req.method === 'GET') {
+          const accounts = (await accountStore.list()).map(publicAccount).sort((a, b) => a.username.localeCompare(b.username));
+          return sendJson(req, res, 200, { ok: true, accounts }, allowedOrigin, { 'Cache-Control': 'no-store' });
+        }
+        if (url.pathname === ACCOUNTS_PATH && req.method === 'POST') {
+          const body = await readJsonBody(req, 16 * 1024, 'ACCOUNT_REQUEST_TOO_LARGE');
+          const account = createAccountRecord(body, { role: 'user', now });
+          await accountStore.create(account);
+          return sendJson(req, res, 201, { ok: true, account: publicAccount(account) }, allowedOrigin, { 'Cache-Control': 'no-store' });
+        }
+        if (accountUsername && req.method === 'DELETE') {
+          const account = await accountStore.get(accountUsername);
+          if (!account) throw new HttpError(404, 'ACCOUNT_NOT_FOUND');
+          await accountStore.remove(accountUsername);
+          return sendJson(req, res, 200, { ok: true, deletedUsername: accountUsername }, allowedOrigin, { 'Cache-Control': 'no-store' });
+        }
+        return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
+      }
+
       if (url.pathname === DEEPSEEK_PATH) {
         if (req.method !== 'POST') {
           return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
         }
-        authorizeProfileRequest(req, profileToken);
+        await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
         const body = await readJsonBody(req, maxDeepSeekBodyBytes, 'DEEPSEEK_REQUEST_TOO_LARGE');
         const input = validateDeepSeekRequest(body);
         const parsed = await deepSeekParser(input);
@@ -337,7 +484,8 @@ function createApp(options = {}) {
           (assetRoute.action === 'item' && req.method === 'DELETE');
         if (!allowed) return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
 
-        authorizeProfileRequest(req, profileToken);
+        const auth = await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
+        if (assetRoute.action === 'item') requireAdmin(auth);
         if (typeof assetStoreFactory !== 'function') throw new HttpError(503, 'ASSET_STORE_NOT_CONFIGURED');
         const assetStore = await assetStoreFactory(req);
 
@@ -360,13 +508,13 @@ function createApp(options = {}) {
             objectKey: signed.objectKey,
             uploadUrl: signed.uploadUrl,
             expiresAt: new Date(expiresAt).toISOString(),
-            receipt: createAssetReceipt(claim, profileToken)
+            receipt: createAssetReceipt(claim, sessionSecret || profileToken)
           }, allowedOrigin, { 'Cache-Control': 'no-store' });
         }
 
         if (assetRoute.action === 'complete') {
           const body = await readJsonBody(req, maxBodyBytes, 'ASSET_METADATA_TOO_LARGE');
-          const claim = readAssetReceipt(body.receipt, profileToken, now);
+          const claim = readAssetReceipt(body.receipt, sessionSecret || profileToken, now);
           if (claim.assetId !== assetRoute.assetId) throw new HttpError(400, 'UPLOAD_RECEIPT_MISMATCH');
           const uploaded = await assetStore.headSource(assetRoute.assetId);
           if (!uploaded) throw new HttpError(409, 'ASSET_UPLOAD_MISSING');
@@ -417,7 +565,8 @@ function createApp(options = {}) {
         return sendJson(req, res, 404, { ok: false, error: 'NOT_FOUND' }, allowedOrigin);
       }
 
-      authorizeProfileRequest(req, profileToken);
+      const auth = await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
+      if (req.method === 'PUT') requireAdmin(auth);
       if (typeof storeFactory !== 'function') throw new HttpError(503, 'PROFILE_STORE_NOT_CONFIGURED');
       const store = await storeFactory(req);
 

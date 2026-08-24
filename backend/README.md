@@ -1,6 +1,6 @@
 # Shine Backend
 
-`backend/` 先归档了已部署的阿里云函数计算 v0.1 连通性基线；当前分支在它上面增量实现 v0.2 Template Profile 与 Phase 2 素材库测试版。这里记录的 Phase 2 新接口尚未部署到阿里云。
+`backend/` 从阿里云函数计算 v0.1 连通性基线增量演进，现包含 Template Profile、共享云素材、DeepSeek 表单复核和独立朋友账号。
 
 原始部署包：
 
@@ -31,7 +31,13 @@ Web 函数配置：
 - `ALLOWED_ORIGIN`
   - 本地默认 `*`；测试/正式环境应设置为实际 GitHub Pages origin。
 - `SHINE_PROFILE_TOKEN`
-  - Profile API 的临时 Bearer 口令；缺失时接口以 `503 PROFILE_AUTH_NOT_CONFIGURED` 关闭。
+  - 管理员兼容口令；可登录管理账号、模板规则和云素材。缺失且没有 Session Secret 时接口关闭。
+- `SHINE_SESSION_SECRET`
+  - 可选但推荐；签发朋友账号会话。未设置时兼容使用 `SHINE_PROFILE_TOKEN`，不得写入源码。
+- `SHINE_SESSION_SECONDS`
+  - 可选；朋友账号会话时长，默认 7 天，限制在 1 小时～30 天。
+- `SHINE_ACCOUNT_PREFIX`
+  - 可选；私有 OSS 账号记录前缀，默认 `accounts/v1`。对象名使用用户名 SHA-256，不暴露用户名。
 - `SHINE_OSS_BUCKET`
   - 默认 `shine-private-studio-nick`。
 - `SHINE_OSS_REGION`
@@ -74,7 +80,7 @@ GET /api/template-profiles/:templateSignature
 PUT /api/template-profiles/:templateSignature
 ```
 
-- 所有 Profile 请求都需要 `Authorization: Bearer <SHINE_PROFILE_TOKEN>`。
+- Profile 读取接受管理员口令或朋友账号 Session；写入仅允许管理员。
 - 首次创建需要 `If-None-Match: *`，成功返回 `201` 和 `ETag`。
 - 更新需要带上上次读取到的 `If-Match: <ETag>`；过期版本返回 `412 PROFILE_CONFLICT`。
 - OSS object key 使用模板签名的 SHA-256，不接受客户端指定对象路径。
@@ -89,7 +95,23 @@ npm.cmd test
 npm.cmd start
 ```
 
-前端云端面板默认关闭。只在测试地址后加 `?cloudProfiles=1` 才会显示，并且读取到 Profile 后仍需人工确认才应用。
+工作台默认显示账户入口。未登录时本机模板、订单和出图仍可使用；登录后才启用共享云素材和 API 读表。读取到 Profile 后仍需人工确认才应用。
+
+## 独立账户 API
+
+```text
+POST   /api/auth/login
+GET    /api/auth/me
+GET    /api/accounts
+POST   /api/accounts
+DELETE /api/accounts/:username
+```
+
+- 原 `SHINE_PROFILE_TOKEN` 继续作为管理员身份，不需要迁移旧数据。
+- 管理员可创建、列出和删除朋友账号；朋友账号不能管理账号、删除云素材或写入模板规则。
+- 朋友账号可读取与上传同一个私有 OSS 素材库；密码只保存为随机盐 `scrypt` 摘要。
+- 登录 Session 使用 HMAC 签名并放在当前标签页 `sessionStorage`；删除账号后，已有 Session 会在下一次请求时立即失效。
+- 本机订单、临时头发和辅助 PNG 仍保留在各自浏览器，不会上传到账户系统。
 
 ## Asset Library API（Phase 2 测试版）
 

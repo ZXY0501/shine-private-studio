@@ -8,14 +8,14 @@ const { profileEtag } = require('../src/oss-profile-store');
 const TOKEN = 'local-test-token';
 const SIGNATURE = '1500x1500:2:abc123';
 
-function templateData(signature = SIGNATURE) {
+function templateData(signature = SIGNATURE, bindings = {}) {
   return {
     schemaVersion: 'shine-template-0.28-alpha',
     template: { fileName: 'template.psd', width: 1500, height: 1500, signature },
     colorPolicy: { preset: [], manualAnchor: [], derived: [], fixed: [] },
     rootStackOrder: [],
     hairInsertion: { A: { path: '', position: 'below' }, B: { path: '', position: 'below' } },
-    bindings: {}
+    bindings
   };
 }
 
@@ -80,6 +80,22 @@ function memoryAssetStore() {
   };
 }
 
+function memoryAccountStore() {
+  const records = new Map();
+  return {
+    async get(username) { return records.get(username) || null; },
+    async create(account) {
+      if (records.has(account.username)) {
+        throw Object.assign(new Error('ACCOUNT_ALREADY_EXISTS'), { status: 409, code: 'ACCOUNT_ALREADY_EXISTS' });
+      }
+      records.set(account.username, account);
+      return account;
+    },
+    async list() { return [...records.values()]; },
+    async remove(username) { records.delete(username); }
+  };
+}
+
 async function withServer(app, callback) {
   const server = http.createServer(app);
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -93,10 +109,12 @@ async function withServer(app, callback) {
 
 function appOptions(overrides = {}) {
   const store = overrides.store || memoryStore();
+  const accountStore = overrides.accountStore || memoryAccountStore();
   return {
     profileToken: TOKEN,
     allowedOrigin: 'https://zxy0501.github.io',
     storeFactory: () => store,
+    accountStoreFactory: () => accountStore,
     now: () => new Date('2026-08-09T12:00:00.000Z'),
     logger: { error() {} },
     ...overrides
@@ -210,12 +228,99 @@ test('rejects missing and incorrect bearer tokens', async () => {
   });
 });
 
+test('supports independent friend accounts with shared assets and admin-only management', async () => {
+  const accountStore = memoryAccountStore();
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({
+    accountStore,
+    assetStoreFactory: () => assetStore,
+    sessionSecret: 'test-session-secret'
+  })), async baseUrl => {
+    const create = await fetch(`${baseUrl}/api/accounts`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ username: 'Friend_01', displayName: '画师朋友', password: 'safe-pass-123' })
+    });
+    assert.equal(create.status, 201);
+    assert.deepEqual((await create.json()).account, {
+      accountId: (await accountStore.get('friend_01')).accountId,
+      username: 'friend_01',
+      displayName: '画师朋友',
+      role: 'user',
+      disabled: false,
+      createdAt: '2026-08-09T12:00:00.000Z',
+      updatedAt: '2026-08-09T12:00:00.000Z'
+    });
+
+    const duplicate = await fetch(`${baseUrl}/api/accounts`, {
+      method: 'POST',
+      headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ username: 'friend_01', displayName: '重复', password: 'safe-pass-456' })
+    });
+    assert.equal(duplicate.status, 409);
+
+    const wrongLogin = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'friend_01', password: 'wrong-pass' })
+    });
+    assert.equal(wrongLogin.status, 401);
+
+    const login = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'friend_01', password: 'safe-pass-123' })
+    });
+    assert.equal(login.status, 200);
+    const loginBody = await login.json();
+    assert.equal(loginBody.account.role, 'user');
+    assert.match(loginBody.token, /^[^.]+\.[^.]+$/);
+    const userHeaders = { Authorization: `Bearer ${loginBody.token}` };
+
+    const me = await fetch(`${baseUrl}/api/auth/me`, { headers: userHeaders });
+    assert.equal(me.status, 200);
+    assert.deepEqual((await me.json()).permissions, {
+      sharedAssets: true, uploadAssets: true, deleteAssets: false, manageAccounts: false
+    });
+
+    const assets = await fetch(`${baseUrl}/api/assets`, { headers: userHeaders });
+    assert.equal(assets.status, 200);
+    const accountsDenied = await fetch(`${baseUrl}/api/accounts`, { headers: userHeaders });
+    assert.equal(accountsDenied.status, 403);
+    const profileWriteDenied = await fetch(`${baseUrl}/api/template-profiles/${SIGNATURE}`, {
+      method: 'PUT', headers: { ...userHeaders, 'Content-Type': 'application/json', 'If-None-Match': '*' },
+      body: JSON.stringify({ data: templateData() })
+    });
+    assert.equal(profileWriteDenied.status, 403);
+
+    const list = await fetch(`${baseUrl}/api/accounts`, { headers: authHeaders() });
+    assert.equal(list.status, 200);
+    assert.deepEqual((await list.json()).accounts.map(account => account.username), ['friend_01']);
+    const removed = await fetch(`${baseUrl}/api/accounts/friend_01`, { method: 'DELETE', headers: authHeaders() });
+    assert.equal(removed.status, 200);
+
+    const revokedSession = await fetch(`${baseUrl}/api/assets`, { headers: userHeaders });
+    assert.equal(revokedSession.status, 401);
+    assert.equal((await revokedSession.json()).error, 'SESSION_REVOKED');
+
+    const loginAfterDelete = await fetch(`${baseUrl}/api/auth/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'friend_01', password: 'safe-pass-123' })
+    });
+    assert.equal(loginAfterDelete.status, 401);
+  });
+});
+
 test('creates and reads a valid template profile with an ETag', async () => {
   await withServer(createApp(appOptions()), async baseUrl => {
+    const phase4Bindings = {
+      'A眼睛/虹膜藏色': { slot: 'A', part: 'EYE', role: 'EYE_IRIS_MID', source: 'DERIVED', locked: false },
+      'A眼睛/虹膜高光藏色': { slot: 'A', part: 'EYE', role: 'EYE_IRIS_HIGHLIGHT_MID', source: 'DERIVED', locked: false },
+      'A衣服/重色': { slot: 'A', part: 'OUTFIT', role: 'OUTFIT_SHADOW', source: 'DERIVED', locked: false },
+      'A衣服/高光': { slot: 'A', part: 'OUTFIT', role: 'OUTFIT_HIGHLIGHT', source: 'DERIVED', locked: false }
+    };
     const create = await fetch(`${baseUrl}/api/template-profiles/${SIGNATURE}`, {
       method: 'PUT',
       headers: authHeaders({ 'Content-Type': 'application/json', 'If-None-Match': '*' }),
-      body: JSON.stringify({ data: templateData() })
+      body: JSON.stringify({ data: templateData(SIGNATURE, phase4Bindings) })
     });
     assert.equal(create.status, 201);
     assert.match(create.headers.get('etag'), /^"[a-f0-9]{64}"$/);
@@ -399,23 +504,86 @@ test('cloud asset upload validates size, metadata, and signed completion receipt
   });
 });
 
-test('accepts frame assets for the phase two layered border workflow', async () => {
+test('accepts backdrop assets for the phase four background workflow', async () => {
   const assetStore = memoryAssetStore();
   await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
     const ticketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
       method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ fileName: '边框_缎带花朵.psd', size: 640 })
+      body: JSON.stringify({ fileName: '衬底_缎带花朵.psd', size: 640 })
     });
     const ticket = await ticketResponse.json();assetStore.setUploadedSize(ticket.assetId, 640);
     const completed = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
       method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'FRAME', characterCompatibility: 'BOTH', defaultSlot: 'A', name: '缎带花朵' } })
+      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'BACKDROP', characterCompatibility: 'GLOBAL', defaultSlot: 'GLOBAL', name: '缎带花朵' } })
     });
-    assert.equal(completed.status, 201);assert.equal((await completed.json()).asset.categoryId, 'FRAME');
+    assert.equal(completed.status, 201);assert.equal((await completed.json()).asset.categoryId, 'BACKDROP');
   });
 });
 
-test('accepts eye assets and global PNG decorations for the phase four workflow', async () => {
+test('accepts one clothing PSD as a cloud package with independent root-folder records', async () => {
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
+    const ticketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '衣服_西装.psd', size: 980 })
+    });
+    const ticket = await ticketResponse.json();assetStore.setUploadedSize(ticket.assetId, 980);
+    const records = ['衣服', '领带', '领带夹'].map((componentName, componentOrder) => ({
+      slot: 'B', type: 'CLOTHING', categoryId: 'CLOTHING', characterCompatibility: 'B', defaultSlot: 'B',
+      variant: `西装 · ${componentName}`, name: `西装 · ${componentName}`, groupPath: componentName,
+      packageName: '西装', componentName, componentOrder, colorMode: 'FOLLOW_ORDER', colorModeExplicit: true, layerVisibility: {}
+    }));
+    const completed = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'CLOTHING', characterCompatibility: 'B', defaultSlot: 'B', name: '西装', records } })
+    });
+    assert.equal(completed.status, 201);
+    const asset = (await completed.json()).asset;
+    assert.equal(asset.categoryId, 'CLOTHING');
+    assert.deepEqual(asset.records.map(row => row.groupPath), ['衣服', '领带', '领带夹']);
+    assert.deepEqual(asset.records.map(row => row.componentOrder), [0, 1, 2]);
+    assert.deepEqual(asset.records.map(row => row.colorModeExplicit), [true, true, true]);
+  });
+});
+
+test('accepts split hair placement metadata and the eyelash asset category', async () => {
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
+    const ticketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '头发_长卷发.psd', size: 960, contentType: 'image/vnd.adobe.photoshop' })
+    });
+    const ticket = await ticketResponse.json();assetStore.setUploadedSize(ticket.assetId, 960);
+    const completed = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: ticket.receipt, asset: {
+        categoryId: 'REUSABLE_HAIR', characterCompatibility: 'A', defaultSlot: 'A', name: '长卷发',
+        records: ['FRONT', 'BACK'].map((hairPlacement, componentOrder) => ({
+          slot: 'A', type: 'HAIR', variant: '长卷发', name: hairPlacement === 'FRONT' ? '前头发' : '后头发',
+          groupPath: hairPlacement === 'FRONT' ? 'A头发/前头发' : 'A头发/后头发', hairPlacement,
+          componentOrder, categoryId: 'REUSABLE_HAIR', characterCompatibility: 'A', defaultSlot: 'A', layerVisibility: {}
+        }))
+      } })
+    });
+    assert.equal(completed.status, 201);
+    const asset = (await completed.json()).asset;
+    assert.deepEqual(asset.records.map(row => row.hairPlacement), ['FRONT', 'BACK']);
+
+    const lashTicketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '睫毛_默认睁眼.psd', size: 480, contentType: 'image/vnd.adobe.photoshop' })
+    });
+    const lashTicket = await lashTicketResponse.json();assetStore.setUploadedSize(lashTicket.assetId, 480);
+    const lashCompleted = await fetch(`${baseUrl}/api/assets/${lashTicket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: lashTicket.receipt, asset: { categoryId: 'EYE_LASH', characterCompatibility: 'BOTH', defaultSlot: 'A', name: '默认睁眼' } })
+    });
+    assert.equal(lashCompleted.status, 201);
+    assert.equal((await lashCompleted.json()).asset.categoryId, 'EYE_LASH');
+  });
+});
+
+test('accepts eye assets and global original assets while auxiliary PNG stays local-only', async () => {
   const assetStore = memoryAssetStore();
   await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
     const eyeTicketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
@@ -435,16 +603,23 @@ test('accepts eye assets and global PNG decorations for the phase four workflow'
 
     const propTicketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
       method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ fileName: '小物_爱心.png', size: 320, contentType: 'image/png' })
+      body: JSON.stringify({ fileName: '原创素材_爱心.png', size: 320, contentType: 'image/png' })
     });
     const propTicket = await propTicketResponse.json();assetStore.setUploadedSize(propTicket.assetId, 320);
     const propCompleted = await fetch(`${baseUrl}/api/assets/${propTicket.assetId}/complete`, {
       method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ receipt: propTicket.receipt, asset: { categoryId: 'PROP', characterCompatibility: 'GLOBAL', defaultSlot: 'GLOBAL', name: '爱心' } })
+      body: JSON.stringify({ receipt: propTicket.receipt, asset: { categoryId: 'ORIGINAL_ASSET', characterCompatibility: 'GLOBAL', defaultSlot: 'GLOBAL', name: '爱心' } })
     });
     assert.equal(propCompleted.status, 201);
     const propAsset = (await propCompleted.json()).asset;
     assert.equal(propAsset.characterCompatibility, 'GLOBAL');
     assert.equal(propAsset.defaultSlot, 'GLOBAL');
+
+    const auxiliaryAttempt = await fetch(`${baseUrl}/api/assets/${propTicket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: propTicket.receipt, asset: { categoryId: 'AUXILIARY_ASSET', characterCompatibility: 'GLOBAL', defaultSlot: 'GLOBAL', name: '临时爱心' } })
+    });
+    assert.equal(auxiliaryAttempt.status, 400);
+    assert.equal((await auxiliaryAttempt.json()).error, 'INVALID_ASSET_CATEGORY');
   });
 });

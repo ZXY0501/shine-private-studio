@@ -9,11 +9,18 @@ test('keeps the v0.28 PSD parser entry unchanged', () => {
   assert.match(html, /async function parsePsd\(file\)\{\s+if\(!window\.agPsd\)throw new Error\('ag-psd 未加载，请联网刷新页面'\);\s+return window\.agPsd\.readPsd\(await file\.arrayBuffer\(\),\{skipThumbnail:true\}\);\s+\}/);
 });
 
-test('cloud profiles are opt-in and do not replace local save', () => {
-  assert.match(html, /get\('cloudProfiles'\)===\s*'1'/);
+test('independent accounts expose shared cloud work without replacing local save', () => {
+  assert.match(html, /const CLOUD_PROFILE_ENABLED=true/);
+  assert.match(html, /id="accountUsername"/);
+  assert.match(html, /id="accountPassword"/);
+  assert.match(html, /id="accountAdminToken"/);
+  assert.match(html, /accountRequest\('\/api\/auth\/login'/);
+  assert.match(html, /accountRequest\('\/api\/auth\/me'/);
+  assert.match(html, /accountRequest\('\/api\/accounts'/);
+  assert.match(html, /S\.authAccount\?\.role!==\s*'admin'/);
+  assert.match(html, /sessionStorage\.setItem\(CLOUD_PROFILE_TOKEN_KEY,token\)/);
   assert.match(html, /panel\.hidden=!CLOUD_PROFILE_ENABLED/);
   assert.match(html, /cloudAssetPanel'\)\)\$\('#cloudAssetPanel'\)\.hidden=!CLOUD_PROFILE_ENABLED/);
-  assert.match(html, /if\(!CLOUD_PROFILE_ENABLED\)return;/);
   assert.match(html, /\$\('#saveBindings'\)\.onclick=saveBindingsLocal;/);
   assert.match(html, /读取到云端版本后仍需人工确认才会应用/);
 });
@@ -33,6 +40,8 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /bestUploadedEarVariant\(original,slot,o\[slot\]\.decor\)\|\|bestUploadedEarVariant\(d\.decor,slot,o\[slot\]\.decor\)/);
   assert.match(html, /paletteEye=formAnchorHex\(field\(sec,\['瞳色'\]\),'eye'\)/);
   assert.match(html, /if\(paletteEye\|\|d\.eyeHex&&\/\^#\[0-9a-f\]\{6\}\$\/i\.test\(d\.eyeHex\)\)\{o\[slot\]\.eye=paletteEye\|\|d\.eyeHex/);
+  assert.match(html, /paletteHair=formAnchorHex\(field\(sec,\['发色'\]\),'hair'\)/);
+  assert.match(html, /o\[slot\]\.hair=paletteHair\|\|d\.hairHex/);
   assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
   assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
   assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
@@ -80,6 +89,7 @@ test('ear switching is atomic per slot and keeps the previous selection when una
   const helpers = new Function(
     'S','normalizeVariantName','assetRecordForFamilySlot','sameVariant','ensureOrderAssetSelections',
     'clearEarColorAnchors','clearAutoTailForSlot','assetFamilyKey','syncTailForEarSelection',
+    'placeSelectedEarStacksAboveTemplate',
     `${sources}\nreturn {${names.join(',')}};`
   )(
     S,
@@ -90,7 +100,8 @@ test('ear switching is atomic per slot and keeps the previous selection when una
     () => {},
     () => {},
     record => `EAR::${record.variant}`,
-    (order, slot, record) => tailSyncs.push([slot, record.variant])
+    (order, slot, record) => tailSyncs.push([slot, record.variant]),
+    () => {}
   );
   const order = {
     A: { decor: '趴狗耳' }, B: { decor: '细猫' },
@@ -120,7 +131,7 @@ test('customer form template residue is not parsed as a customer answer', () => 
   assert.match(html, /field\(a,\['帽子颜色','代表色','帽子'\]\)/);
   assert.match(html, /field\(a,\['耳朵类型','帽饰','耳朵'\]\)/);
 
-  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'splitEarAnswer', 'explicitFormHex', 'formPresetAnchor', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
+  const names = ['parseCustomerName', 'characterSection', 'isUnfilledTemplateValue', 'field', 'splitEarAnswer', 'explicitFormHex', 'formPresetAnchor', 'hairAnchorPreset', 'formAnchorHex', 'apiReviewFields', 'normalizeHex'];
   const sources = names.map(name => {
     const start = html.indexOf(`function ${name}(`);
     const end = html.indexOf('\nfunction ', start + 1);
@@ -182,7 +193,7 @@ B：穆祉丞
   assert.equal(helpers.field(inlineB, ['名字']), '穆祉丞');
   assert.equal(helpers.field(inlineA, ['衣服颜色']), '蓝色');
   assert.equal(helpers.field(inlineB, ['帽子颜色']), '浅蓝色');
-  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#8B6249');
+  assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['瞳色']), 'eye'), '#C3AC92');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineB, ['发色']), 'hair'), '#2B2830');
   assert.equal(helpers.formAnchorHex(helpers.field(inlineA, ['耳朵颜色']), 'decor'), '#FFFFFF');
   assert.equal(helpers.formAnchorHex('浅黄色', 'eye'), '#A47A2F');
@@ -211,12 +222,15 @@ B
   assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortA, ['耳朵类型','帽饰','耳朵'])), { type: '小狗耳', color: '黄色' });
   assert.deepEqual(helpers.splitEarAnswer(helpers.field(shortB, ['耳朵类型','帽饰','耳朵'])), { type: '小猫耳', color: '' });
   assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['瞳色']), 'eye'), '#86611F');
-  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['瞳色']), 'eye'), '#3E608D');
+  assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['瞳色']), 'eye'), '#8FA0C7');
   assert.equal(helpers.formAnchorHex(helpers.field(shortA, ['发色']), 'hair'), '#C9AA76');
   assert.equal(helpers.formAnchorHex(helpers.field(shortB, ['发色']), 'hair'), '#D8BC82');
+  assert.equal(helpers.formAnchorHex('金色', 'hair'), '#FAEFE7');
+  assert.equal(helpers.formAnchorHex('银白', 'hair'), '#FCF9FB');
+  assert.equal(helpers.formAnchorHex('银色', 'hair'), '#FCF9FB');
   assert.equal(helpers.formAnchorHex('黄色', 'decor'), '#FFF8EB');
   assert.equal(helpers.formAnchorHex('蓝色', 'decor'), '#E5F6FF');
-  assert.equal(helpers.formAnchorHex('粉红', 'eye'), '#AA7890');
+  assert.equal(helpers.formAnchorHex('粉红', 'eye'), '#FFE5F3');
   assert.equal(helpers.formAnchorHex('薄荷绿', 'decor'), '#EBFFFA');
   assert.ok(helpers.apiReviewFields(shortForm).includes('A.hatPreset'));
   assert.ok(helpers.apiReviewFields(shortForm).includes('B.decor'));
@@ -296,7 +310,7 @@ B：
 test('heavy PSD color previews are debounced and final changes are flushed', () => {
   assert.match(html, /const LIVE_COLOR_PREVIEW_DELAY=110;/);
   assert.match(html, /clearTimeout\(S\.liveColorTimer\);\s*S\.liveColorTimer=setTimeout\(paintPendingLiveProductionColors,LIVE_COLOR_PREVIEW_DELAY\)/);
-  assert.match(html, /color\.onchange=\(\)=>\{captureActiveOrder\(\);flushLiveProductionColors/);
+  assert.match(html, /color\.onchange=\(\)=>\{(?:activateHair\(text\.value\);)?captureActiveOrder\(\);flushLiveProductionColors/);
   assert.match(html, /const QUICK_COLOR_PREVIEW_DELAY=110;/);
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:false\}\)/);
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:true\}\)/);
@@ -312,37 +326,40 @@ test('advanced horizontal controls stay disabled until a template can scroll', (
 
 test('newly uploaded assets preserve their PSD colors by default', () => {
   assert.match(html, /schemaVersion:'shine-asset-v2'/);
-  assert.match(html, /renderMode:'overlay'[^;]+colorMode:'PRESERVE_ORIGINAL'/);
-  assert.match(html, /if\(asset\.colorMode==='FOLLOW_ORDER'\)\{/);
+  assert.match(html, /renderMode:'overlay'[^;]+colorMode:'PRESERVE_ORIGINAL',colorModeExplicit:false/);
+  assert.match(html, /const followsOrder=isHairCategory\(asset\.categoryId\)\?instanceState\.useGeneratedColor===true:\(asset\.colorModeExplicit===true&&asset\.colorMode==='FOLLOW_ORDER'\)/);
+  assert.match(html, /if\(followsOrder\)\{/);
   assert.match(html, /data-ak="colorMode"[^>]+type="checkbox"/);
   assert.match(html, /跟随订单配色（默认关闭）/);
-  assert.match(html, /asset\.originalComposite=renderAssetComposite[^;]+;asset\.composite=asset\.originalComposite/);
+  assert.match(html, /a\.originalComposite=renderAssetOriginalComposite\(a\);a\.composite=a\.originalComposite/);
+  assert.match(html, /a\.colorMode='PRESERVE_ORIGINAL';a\.colorModeExplicit=false/);
+  assert.match(html, /所有新上传 PSD 都只解析图层并保留原画颜色/);
 });
 
-test('phase two library exposes reusable categories and custom groups', () => {
+test('phase four library exposes reusable, session-only, and backdrop categories', () => {
   assert.match(html, /const ASSET_CATEGORY_KEY='shine:asset-categories:v2'/);
   assert.match(html, /id:'CLEAN_TEMPLATE',name:'纯净模板'/);
   assert.match(html, /id:'EAR',name:'耳朵'/);
   assert.match(html, /id:'MOUTH',name:'嘴巴表情'/);
-  assert.match(html, /id:'FRAME',name:'边框'/);
-  assert.match(html, /id:'ACCESSORY',name:'配饰'/);
+  assert.match(html, /id:'BACKDROP',name:'衬底'/);
+  assert.match(html, /id:'ORIGINAL_ASSET',name:'原创素材'/);
+  assert.match(html, /id:'AUXILIARY_ASSET',name:'辅助素材'/);
+  assert.match(html, /id:'REUSABLE_HAIR',name:'普适头发'/);
+  assert.match(html, /id:'TEMP_HAIR',name:'临时头发'/);
   assert.match(html, /function persistAssetCategories\(\)/);
   assert.match(html, /data-ak="category"/);
 });
 
-test('frame assets can stack, move front or back, and sample four colors from the preview', () => {
+test('backdrop assets are single-select, fixed below tails, and use component recoloring', () => {
   assert.match(html, /frameSelections:\[\]/);
   assert.match(html, /function frameStackIds\(placement,order=getActiveOrder\(\)\)/);
   assert.match(html, /data-ak="frame-check"/);
-  assert.match(html, /data-ak="frame-placement"/);
-  assert.match(html, /FRAME_RIBBON_A/);
-  assert.match(html, /FRAME_RIBBON_B/);
-  assert.match(html, /FRAME_FLOWER_BASE/);
-  assert.match(html, /FRAME_FLOWER_SHADE/);
-  assert.match(html, /function armPreviewEyedrop\(familyKey,field\)/);
-  assert.match(html, /function sampleCanvasMedianColor\(canvas,clientX,clientY,radius=3\)/);
+  assert.match(html, /list\.splice\(0,list\.length\);list\.push\(\{familyKey,placement:'BACK'/);
+  assert.match(html, /asset\.categoryId!=='ORIGINAL_ASSET'&&!isBackdropCategory\(asset\.categoryId\)/);
+  assert.match(html, /COMPONENT_BASE:colors\.base/);
+  assert.match(html, /data-component-color="base"/);
   assert.match(html, /addedAt:Number\(x\.addedAt\)/);
-  assert.match(html, /if\(el\.value==='FRAME'&&records\.length>1\)/);
+  assert.match(html, /if\(isBackdropCategory\(el\.value\)&&records\.length>1\)/);
   assert.match(html, /keep\.groupPath=null/);
 });
 
@@ -373,12 +390,13 @@ test('ear selections auto-pair matching tails by animal and A/B slot', () => {
 });
 
 test('ear colors anchor the paired tail while both outlines share the A/B hat outline', () => {
-  assert.match(html, /\(asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'\)\&\&\(explicitDecorBase\|\|explicitDecorShade\)/);
+  assert.match(html, /if\(isDecorAsset&&\(explicitDecorBase\|\|explicitDecorShade\|\|inMatchedTeam\)\)/);
+  assert.match(html, /function sharedDecorPalette\(slot,order\)/);
   assert.match(html, /function sharedDecorRoleColor\(role,slot,order\)/);
-  assert.match(html, /normalizeHex\(order\?\.\[slot\]\?\.decorShade\|\|''\)\|\|decorShadeFromBase\(base\)/);
+  assert.match(html, /const shade=explicitShade\|\|\(explicitBase\?decorShadeFromBase\(base\):\(originalShade\|\|decorShadeFromBase\(base\)\)\)/);
   assert.match(html, /role==='DECOR_BASE'\|\|role==='TAIL_BASE'\)return base/);
   assert.match(html, /role==='DECOR_SHADOW'\|\|role==='TAIL_SHADE'\)return shade/);
-  assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)return hatOutlineColor\(slot,order\)/);
+  assert.match(html, /if\(role==='DECOR_OUTLINE'\|\|role==='TAIL_OUTLINE'\)return outline/);
   assert.match(html, /asset\.categoryId==='TAIL'\&\&!\['TAIL_BASE','TAIL_SHADE','TAIL_OUTLINE'\]\.includes\(role\)/);
   assert.match(html, /TAIL_SHADE/);
   assert.match(html, /const explicitDecor=\(a\.categoryId==='EAR'\|\|a\.categoryId==='TAIL'\)/);
@@ -388,31 +406,20 @@ test('ear colors anchor the paired tail while both outlines share the A/B hat ou
   assert.match(html, /a\.categoryId==='TAIL'\&\&Object\.values\(a\.bindings\|\|\{\}\)\.includes\('TAIL_OUTLINE'\)/);
   const start = html.indexOf('function sharedDecorRoleColor(');
   const end = html.indexOf('\nfunction ', start + 1);
-  const sharedDecorRoleColor = new Function(
-    'normalizeHex', 'hatOutlineColor', 'decorShadeFromBase',
-    `${html.slice(start, end)}\nreturn sharedDecorRoleColor;`
-  )(value => value || '', slot => `${slot}-hat-outline`, base => base ? `${base}-shade` : null);
-  const order = { A: { decorBase: '#eeeeee', decorShade: '' }, B: { decorBase: '#dddddd', decorShade: '#bbbbbb' } };
-  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'A', order), '#eeeeee-shade');
-  assert.equal(sharedDecorRoleColor('TAIL_SHADE', 'A', order), '#eeeeee-shade');
-  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'B', order), '#bbbbbb');
-  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'A', order), 'A-hat-outline');
-  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'A', order), 'A-hat-outline');
-  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'B', order), 'B-hat-outline');
-  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'B', order), 'B-hat-outline');
+  const sharedDecorRoleColor = new Function('sharedDecorPalette', `${html.slice(start, end)}\nreturn sharedDecorRoleColor;`)(slot => slot === 'A' ? {base:'#eeeeee',shade:'#aaaaaa',outline:'A-hat-outline'} : {base:'#dddddd',shade:'#bbbbbb',outline:'B-hat-outline'});
+  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'A', {}), '#aaaaaa');
+  assert.equal(sharedDecorRoleColor('TAIL_SHADE', 'A', {}), '#aaaaaa');
+  assert.equal(sharedDecorRoleColor('DECOR_SHADOW', 'B', {}), '#bbbbbb');
+  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'A', {}), 'A-hat-outline');
+  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'A', {}), 'A-hat-outline');
+  assert.equal(sharedDecorRoleColor('DECOR_OUTLINE', 'B', {}), 'B-hat-outline');
+  assert.equal(sharedDecorRoleColor('TAIL_OUTLINE', 'B', {}), 'B-hat-outline');
 });
 
-test('tails are pinned directly above the lace and below every other root layer', () => {
-  assert.match(html, /function pinTailStackAboveLace\(panelIds,tailIds,lace,base,legacy\)/);
-  assert.match(html, /return pinTailStackAboveLace\(\[\.\.\.frameStackIds\('FRONT'\),\.\.\.rest,\.\.\.frameStackIds\('BACK'\)\],tailIds,lace,base,legacy\)/);
-  const start = html.indexOf('function pinTailStackAboveLace(');
-  const end = html.indexOf('\nfunction ', start + 1);
-  const pinTailStackAboveLace = new Function(`${html.slice(start, end)}\nreturn pinTailStackAboveLace;`)();
-  const panel = ['front-frame', 'tail:B', 'person', 'tail:A', 'back-frame', 'lace', 'base', 'legacy'];
-  assert.deepEqual(
-    pinTailStackAboveLace(panel, new Set(['tail:A', 'tail:B']), 'lace', 'base', 'legacy'),
-    ['front-frame', 'person', 'back-frame', 'tail:B', 'tail:A', 'lace', 'base', 'legacy']
-  );
+test('tails are pinned above backdrop and disabled legacy lace layers', () => {
+  assert.match(html, /const allFrameIds=new Set\(S\.assets\.filter\(a=>isBackdropCategory\(a\.categoryId\)\)\.map\(assetStackId\)\)/);
+  assert.match(html, /return \[\.\.\.watermarks,\.\.\.subjectBody,\.\.\.tails,\.\.\.frameStackIds\('BACK'\),\.\.\.\(lace\?\[lace\]:\[\]\),\.\.\.\(base\?\[base\]:\[\]\)/);
+  assert.match(html, /const showLace=false/);
 });
 
 test('ear and tail fur lines remain fixed while their main outlines share the hat outline', () => {
@@ -439,6 +446,40 @@ test('uploaded asset PSD layers can be shown or hidden without mutating the sour
   assert.doesNotMatch(html, /\.layer\.hidden\s*=/);
 });
 
+test('each uploaded PSD detects its own visual draw order during recoloring', () => {
+  assert.match(html, /function assetPsdDrawOrder\(psd,cached=null\)/);
+  assert.match(html, /cached\?\.source==='composite-match'/);
+  assert.match(html, /const detected=detectLayerDrawOrder\(psd\)/);
+  assert.match(html, /source:'composite-match'/);
+  assert.match(html, /resolvedOrder=assetPsdDrawOrder\(psd,asset\.order\)/);
+  assert.match(html, /asset\.order=resolvedOrder/);
+  assert.match(html, /order:assetPsdDrawOrder\(psd,order\)/);
+  assert.doesNotMatch(html, /asset\.order\?\.mode\|\|detectLayerDrawOrder/);
+  assert.doesNotMatch(html, /function enforceDecorOutlineAboveFur/);
+
+  const orderStart = html.indexOf('function orderChildren(');
+  const orderEnd = html.indexOf('\nfunction ', orderStart + 1);
+  const nativeStart = html.indexOf('function assetPsdDrawOrder(');
+  const nativeEnd = html.indexOf('\nfunction ', nativeStart + 1);
+  const helpers = new Function(
+    'detectLayerDrawOrder',
+    `${html.slice(orderStart, orderEnd)}\n${html.slice(nativeStart, nativeEnd)}\nreturn {orderChildren,assetPsdDrawOrder};`,
+  )(psd => ({ mode: psd.detectedMode, confidence: 'high' }));
+  const panelBottomToTop = ['底色', '重色', '高光', '线稿'];
+  const direct = helpers.assetPsdDrawOrder({ children: panelBottomToTop, detectedMode: 'direct' });
+  assert.equal(direct.source, 'composite-match');
+  assert.equal(helpers.assetPsdDrawOrder({ detectedMode: 'reverse' }, direct), direct);
+  assert.deepEqual(
+    helpers.orderChildren(panelBottomToTop, direct.mode),
+    ['底色', '重色', '高光', '线稿'],
+  );
+  const panelTopToBottom = ['线稿', '高光', '重色', '底色'];
+  assert.deepEqual(
+    helpers.orderChildren(panelTopToBottom, helpers.assetPsdDrawOrder({ children: panelTopToBottom, detectedMode: 'reverse' }).mode),
+    ['底色', '重色', '高光', '线稿'],
+  );
+});
+
 test('animal assets keep base and fur colors until an explicit form color while linked outlines follow the hat', () => {
   assert.match(html, /耳朵底色（空=原色）/);
   assert.match(html, /function fillDecorFallbackBindings\(asset\)/);
@@ -459,6 +500,38 @@ test('phase two uses manual virtual slots instead of PSD slot markers', () => {
   assert.doesNotMatch(html, /@SLOT/);
 });
 
+test('selected A and B ears are paired above template roots instead of inheriting stale bottom positions', () => {
+  assert.match(html, /function placeSelectedEarStacksAboveTemplate\(order=getActiveOrder\(\)\)/);
+  assert.match(html, /placeSelectedEarStacksAboveTemplate\(order\)/);
+  assert.match(html, /if\(changed\.length\)placeSelectedEarStacksAboveTemplate\(o\)/);
+  const start = html.indexOf('function alignSelectedEarStackOrder(');
+  const end = html.indexOf('\nfunction ', start + 1);
+  const records = {
+    A: { slot: 'A', id: 'asset:EAR:new:A' },
+    B: { slot: 'B', id: 'asset:EAR:new:B' },
+  };
+  const alignSelectedEarStackOrder = new Function(
+    'selectedEarStackIds',
+    `${html.slice(start, end)}\nreturn alignSelectedEarStackOrder;`,
+  )(() => [records.B.id, records.A.id]);
+  const stale = [
+    'asset:AUXILIARY_ASSET:top:GLOBAL',
+    records.B.id,
+    'layer:A宝宝',
+    'layer:B宝宝',
+    records.A.id,
+    'layer:背景底色',
+  ];
+  assert.deepEqual(alignSelectedEarStackOrder({}, stale), [
+    'asset:AUXILIARY_ASSET:top:GLOBAL',
+    records.B.id,
+    records.A.id,
+    'layer:A宝宝',
+    'layer:B宝宝',
+    'layer:背景底色',
+  ]);
+});
+
 test('asset free transform works from the whole preview area and stays independent per order', () => {
   assert.match(html, /function wirePreviewFreeTransform\(\)/);
   assert.match(html, /body\.addEventListener\('pointerdown'/);
@@ -466,7 +539,7 @@ test('asset free transform works from the whole preview area and stays independe
   assert.match(html, /shine:asset-transform:/);
   assert.match(html, /assetTransforms:\{\}/);
   assert.match(html, /order\.assetTransforms\[id\]/);
-  assert.match(html, /order\.assetTransforms\[assetStackId\(a\)\]=\{\.\.\.assetTransformForTemplate\(a\)\}/);
+  assert.match(html, /order\.assetTransforms\[assetTransformKey\(a\)\]=\{\.\.\.assetTransformForTemplate\(a\)\}/);
   assert.match(html, /assetPlacements:Object\.fromEntries/);
   assert.match(html, /function drawAssetTransformed\(ctx,a\)/);
   assert.match(html, /id="assetTransformScale"/);
@@ -481,6 +554,15 @@ test('asset free transform works from the whole preview area and stays independe
   assert.match(html, /renderMasterWithRootStack\(assetStackId\(a\)\)/);
   assert.match(html, /function renderFastAssetTransformPreview\(\)/);
   assert.match(html, /function finishAssetTransformPreview\(\)/);
+  assert.match(html, /function applyPendingTransformDrag\(\)/);
+  assert.match(html, /getCoalescedEvents\?\.\(\)\.at\?\.\(-1\)/);
+  assert.match(html, /scheduleAssetTransformRender\(\);e\.preventDefault\(\)/);
+  assert.match(html, /if\(dst\.width!==src\.width\|\|dst\.height!==src\.height\)\{dst\.width=src\.width;dst\.height=src\.height;\}/);
+  const dragStart = html.indexOf('function wirePreviewFreeTransform(');
+  const dragEnd = html.indexOf('\nfunction ', dragStart + 1);
+  const dragSource = html.slice(dragStart, dragEnd);
+  const pointerMove = dragSource.match(/body\.addEventListener\('pointermove',[\s\S]*?\);/)[0];
+  assert.doesNotMatch(pointerMove, /syncTransformControlValues|reconstruct|getBoundingClientRect/);
 });
 
 test('phase two automatically keeps templates and assets in IndexedDB with lazy restore', () => {
@@ -503,19 +585,53 @@ test('phase two automatically keeps templates and assets in IndexedDB with lazy 
 test('dedicated hair uploads stay reusable and isolated even when two orders use the same filename', () => {
   const hairLoader = html.match(/async function loadHairAsset\(file,slot\)[\s\S]+?\/\/ ===== v0\.16/)?.[0] || '';
   assert.match(html, /async function loadHairAsset\(file,slot\)/);
-  assert.match(html, /upsertAssetRecord\(asset\)/);
-  assert.match(html, /ensureOrderAssetSelections\(active\)\[slot\]\.HAIR=assetFamilyKey\(asset\)/);
+  assert.match(html, /records\.forEach\(asset=>\{asset\.enabled=true;upsertAssetRecord\(asset\)\}\)/);
+  assert.match(html, /const hairSelections=ensureOrderAssetSelections\(active\)\[slot\];delete hairSelections\.REUSABLE_HAIR;delete hairSelections\.TEMP_HAIR;hairSelections\[categoryId\]=assetFamilyKey\(asset\)/);
   assert.match(html, /queuePersistAssetFamilyLocal\(assetFamilyKey\(asset\),40\)/);
-  assert.match(html, /function assetFamilyKey\(a\)\{ensureAssetRecordV2\(a\);return a\.categoryId==='HAIR'\?`HAIR::\$\{a\.assetId\}`/);
-  assert.match(html, /const idx=S\.assets\.findIndex\(a=>a\.assetId===rec\.assetId&&a\.slot===rec\.slot\)/);
+  assert.match(html, /if\(isHairCategory\(a\.categoryId\)\)return `\$\{a\.categoryId\}::\$\{a\.assetId\}`/);
+  assert.match(html, /const idx=S\.assets\.findIndex\(a=>a\.assetId===rec\.assetId&&a\.slot===rec\.slot&&\(a\.groupPath\|\|null\)===\(rec\.groupPath\|\|null\)\)/);
   assert.doesNotMatch(hairLoader, /previous|sameVariant/);
   assert.doesNotMatch(html, /S\.assets=S\.assets\.filter\(a=>!\(a\.type==='HAIR'&&a\.slot===slot\)\)/);
+});
+
+test('front and back hair folders split into one shared-color package and sandwich clothing', () => {
+  assert.match(html, /function explicitHairPlacement\(value\)/);
+  assert.match(html, /后头发\|后发\|后置头发/);
+  assert.match(html, /前头发\|前发\|前置头发\|刘海/);
+  assert.match(html, /function hairPackageComponentGroups\(psd,order=assetPsdDrawOrder\(psd\)\)/);
+  assert.match(html, /n\.isGroup&&n\.depth<=1/);
+  assert.match(html, /function makeHairPackageRecords\(file,psd,order,slot,variant,metadata=\{\}\)/);
+  assert.match(html, /packageName:variant,componentName:placement==='BACK'\?'后头发':'前头发'/);
+  assert.match(html, /function hairStackId\(slot,placement='FRONT'\)/);
+  assert.match(html, /const frontHairs=availableHairStackIds\('FRONT'\)/);
+  assert.match(html, /ids\.splice\(hairBottom>=0\?hairBottom\+1:0,0,\.\.\.clothes\)/);
+  assert.match(html, /const backHairs=availableHairStackIds\('BACK'\)/);
+  assert.match(html, /function assetTransformKey\(a\).*legacyHairStackId\(a\.slot\)/);
+  assert.match(html, /hairPlacement:isHairCategory\(a\.categoryId\)\?hairPlacementForAsset\(a\):null/);
+});
+
+test('eyelashes are independent A/B components and never inherit the eye scheme', () => {
+  assert.match(html, /\{id:'EYE_LASH',name:'睫毛',builtin:true\}/);
+  assert.match(html, /EYE_LASH:\['NONE','COMPONENT_BASE','COMPONENT_SHADOW','COMPONENT_LINEART','COMPONENT_HIGHLIGHT'\]/);
+  assert.match(html, /if\(type==='EYE_LASH'\)\{/);
+  assert.match(html, /眼皮\|eyelid[\s\S]{0,120}\^\(\?:高光\|highlight\)\$[\s\S]{0,50}return 'NONE'/);
+  assert.match(html, /底色\|base[\s\S]{0,40}return 'COMPONENT_BASE'/);
+  assert.match(html, /safeLashLayers=asset\.type!=='EYE_LASH'\|\|Object\.values\(asset\.bindings\|\|\{\}\)\.includes\('COMPONENT_BASE'\)/);
+  assert.match(html, /asset\.type==='CLOTHING'\|\|asset\.type==='BACKDROP'\|\|asset\.type==='ORIGINAL_ASSET'\|\|asset\.type==='EYE_LASH'/);
+  assert.match(html, /未识别到明确的“睫毛底色”层/);
+  assert.match(html, /categoryId='EYE_LASH'/);
+  assert.match(html, /EYE_LASH:'EYE_LASH'/);
+  assert.match(html, /function enabledEyeLashForSlot\(slot\)/);
+  assert.match(html, /function templateLashReplacementSlot\(path,name\)/);
+  assert.match(html, /'EYE_PUPIL_HIGHLIGHT','PUPIL_HIGHLIGHT_FIXED'/);
+  assert.match(html, /\/睫毛\|lash\|眼皮\|eyelid\/i/);
+  assert.match(html, /useOverrides&&psd===S\.master&&templateLashReplacementSlot\(path,name\)\)return/);
 });
 
 test('asset selection yields before rendering and avoids full library and disabled-asset recomposition', () => {
   assert.match(html, /function syncAssetLibrarySelectionUi\(order=getActiveOrder\(\)\)/);
   assert.match(html, /await new Promise\(resolve=>setTimeout\(resolve,0\)\)/);
-  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='EYE'\|\|a\.type==='TAIL'\|\|a\.type==='FRAME'\)\)prepareAssetCompositeForOrder/);
+  assert.match(html, /if\(a\.enabled&&\(a\.type==='HAT_DECOR'\|\|a\.type==='HAIR'\|\|a\.type==='EYE'\|\|a\.type==='EYE_LASH'\|\|a\.type==='TAIL'\|\|a\.type==='CLOTHING'\|\|a\.type==='BACKDROP'\|\|a\.type==='ORIGINAL_ASSET'\)\)prepareAssetCompositeForOrder/);
   assert.match(html, /requestIdleCallback\(save,\{timeout:1800\}\)/);
   assert.match(html, /已加入素材/);
   assert.match(html, /已切换素材/);
@@ -557,7 +673,8 @@ test('hat outline never derives from eye color', () => {
   assert.ok(start >= 0 && end > start, 'hat outline helper should exist');
   const branch = html.slice(start, end);
   assert.doesNotMatch(branch, /shiftColor\(eye/);
-  assert.match(branch, /isNearWhite\(hat\)\)return shiftColor\(hat,-0\.17,0\.72\)/);
+  assert.match(branch, /return legacyHatOutlineFromBase\(hat\)/);
+  assert.match(html, /if\(isNearWhite\(hat\)\)return shiftColor\(hat,-0\.17,0\.72\)/);
 });
 
 test('single-layer adjustment only lists enabled A or B asset instances', () => {
@@ -566,7 +683,7 @@ test('single-layer adjustment only lists enabled A or B asset instances', () => 
 });
 
 test('selecting a tail or other asset refreshes single-layer adjustment immediately', () => {
-  assert.match(html, /S\.selectedTransformStackId=assetStackId\(record\);renderHairInsertionControls\(\);reconstruct\(\);renderAssetRuntimeStatus\(\);renderEditableLayerSelectors\(\)/);
+  assert.match(html, /S\.selectedTransformStackId=assetStackId\(record\);renderHairInsertionControls\(\);renderFlexibleComponentPanels\(\);reconstruct\(\);renderAssetRuntimeStatus\(\);renderEditableLayerSelectors\(\)/);
 });
 
 test('root layer stack order is isolated per order', () => {
@@ -600,7 +717,7 @@ test('template fingerprints separate same-structure PSD revisions', () => {
   assert.match(html, /templateSources',\{signature,file\}/);
   assert.match(html, /order\?\.templateSignature===signature/);
   assert.match(html, /order\.layerOverrides=\{\};order\.rootStackOrder=\[\];order\.assetTransforms=\{\}/);
-  assert.match(html, /restoreOrderTemplateState\(getActiveOrder\(\),S\.templateSignature\);persistOrders\(\)/);
+  assert.match(html, /restoreOrderTemplateState\(getActiveOrder\(\),S\.templateSignature\);mergeTemplateFlexibleSchema\(getActiveOrder\(\),S\.templateSignature\);persistOrders\(\)/);
   assert.match(html, /await loadMaster\(file\);try\{localStorage\.setItem\(LOCAL_LAST_TEMPLATE_KEY,S\.templateSignature\|\|signature\)/);
 });
 
@@ -619,10 +736,67 @@ test('session export history stays in tab memory and records every PNG or JPEG o
 });
 
 test('standardized Chinese asset names are inferred without changing the PSD parser', () => {
-  assert.match(html, /n\.includes\('FRAME'\)\|\|n\.includes\('边框'\)/);
+  assert.match(html, /\^\(\?:衬底\|BACKDROP\)\[_\\-\\s\]/);
+  assert.match(html, /\^\(\?:衣服\|服装\|CLOTHING\)\[_\\-\\s\]/);
   assert.match(html, /n\.includes\('HAIR'\)\|\|n\.includes\('头发'\)/);
   assert.match(html, /n\.includes\('MOUTH'\)\|\|n\.includes\('嘴'\)\|\|n\.includes\('表情'\)/);
-  assert.match(html, /\(\?:模板\|耳朵\|头发\|帽饰\|嘴巴\|表情\|眼睛\|眼睛状态\|尾巴\|小物\|配饰\|边框/);
+  assert.match(html, /\^\(\?:原创素材\|ORIGINAL_ASSET\)\[_\\-\\s\]/);
+  assert.match(html, /isPngAssetFile\(file\)\?'AUXILIARY_ASSET':'EAR'/);
+});
+
+test('clothing PSDs are packages whose root folders become independent flexible components', () => {
+  assert.match(html, /\{id:'CLOTHING',name:'衣服素材包',builtin:true\}/);
+  assert.match(html, /function assetPackageComponentGroups\(psd,categoryId,order=assetPsdDrawOrder\(psd\)\)/);
+  assert.match(html, /function assetGroupAlphaCenter\(psd,groupPath\)/);
+  assert.match(html, /const alphaCenter=assetGroupAlphaCenter\(psd,groupPath\)/);
+  assert.match(html, /const components=assetPackageComponentGroups\(psd,categoryId,order\)/);
+  assert.match(html, /displayName=components\.length===1\?variant:`\$\{variant\} · \$\{componentName/);
+  assert.match(html, /packageName:variant,componentName,componentOrder:component\.componentOrder/);
+  assert.match(html, /function assetPackageRecordsForFamily\(familyKey\)/);
+  assert.match(html, /records=assetPackageRecordsForFamily\(familyKey\)\.filter/);
+  assert.match(html, /function clothingStackIds\(\)/);
+  assert.match(html, /ids\.splice\(hairBottom>=0\?hairBottom\+1:0,0,\.\.\.clothes\)/);
+  assert.match(html, /const cleaned=out\.filter\(id=>validLayers\.has\(id\)\|\|validAssets\.has\(id\)\|\|hairIds\.includes\(id\)\)/);
+  assert.match(html, /isClothingCategory\(asset\.categoryId\)\|\|asset\.categoryId==='ORIGINAL_ASSET'/);
+
+  const sourceOf = name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  };
+  const groupSource = sourceOf('assetPackageComponentGroups');
+  const componentGroups = new Function(
+    'isClothingCategory','assetPsdDrawOrder','shouldExclude','flatten','inferAssetLayerRole','orderChildren',
+    `${groupSource}\nreturn assetPackageComponentGroups;`,
+  )(
+    id => id === 'CLOTHING', () => ({ mode: 'reverse' }), name => /背景/.test(name),
+    (children, _depth, parentPath) => children.map(layer => ({
+      isGroup: false, layer, name: layer.name, path: `${parentPath}/${layer.name}`,
+    })),
+    path => /底色|重色|线稿/.test(path) ? 'COMPONENT_BASE' : 'NONE',
+    (children, mode) => mode === 'reverse' ? [...children].reverse() : [...children],
+  );
+  const psd = { children: [
+    { name: '背景', children: [{ name: '背景图', canvas: {} }] },
+    { name: '衣服', children: [{ name: '衣服底色', canvas: {} }] },
+    { name: '领带', children: [{ name: '领带重色', canvas: {} }] },
+    { name: '领带夹', children: [{ name: '领带夹线稿', canvas: {} }] },
+  ] };
+  assert.deepEqual(componentGroups(psd, 'CLOTHING', { mode: 'reverse' }).map(x => x.name), ['衣服', '领带', '领带夹']);
+});
+
+test('clothing library shows one collapsible PSD package with compact component colors', () => {
+  assert.match(html, /function clothingPackageGroups\(\)/);
+  assert.match(html, /function renderClothingPackageCards\(details,order,packages\)/);
+  assert.match(html, /className='clothingPackageCard'/);
+  assert.match(html, /整个 PSD 预览/);
+  assert.match(html, /clothingComponentList/);
+  assert.match(html, /category\.id==='CLOTHING'\?clothingPackages\.length:groups\.length/);
+  assert.match(html, /compactComponentColors/);
+  assert.match(html, /底色 <input type="color" data-component-color="base"/);
+  assert.match(html, /重色 <input type="color" data-component-color="shadow"/);
+  assert.match(html, /S\.clothingPackageOpen\[pkg\.key\]=card\.open/);
 });
 
 test('phase four accepts transparent PNG assets without PSD parsing', () => {
@@ -633,7 +807,7 @@ test('phase four accepts transparent PNG assets without PSD parsing', () => {
   assert.match(html, /sourceFormat:'PNG'/);
   assert.match(html, /originalComposite:canvas/);
   assert.match(html, /a\.psd\|\|a\.composite/);
-  assert.match(html, /records=S\.assets\.filter\(a=>assetFamilyKey\(a\)===familyKey&&\(a\.psd\|\|a\.composite\)\)/);
+  assert.match(html, /records=assetPackageRecordsForFamily\(familyKey\)\.filter\(a=>a\.psd\|\|a\.composite\)/);
   assert.match(html, /forcedSlot==='AUTO'&&!hasExplicitAssetSlot\(file\)/);
   assert.match(html, /PNG 原图 \/ 透明通道保留/);
 });
@@ -652,7 +826,7 @@ test('phase four keeps public PNG decorations independent per order', () => {
 
 test('phase four allows multiple small items per A or B slot', () => {
   assert.match(html, /assetMultiSelections:\{A:\{\},B:\{\}\}/);
-  assert.match(html, /const STACKABLE_ASSET_CATEGORIES=new Set\(\['PROP'\]\)/);
+  assert.match(html, /const STACKABLE_ASSET_CATEGORIES=new Set\(\['CLOTHING','ORIGINAL_ASSET','AUXILIARY_ASSET'\]\)/);
   assert.match(html, /function ensureOrderMultiAssetSelections\(order\)/);
   assert.match(html, /function selectedAssetFamilies\(order,slot,categoryId\)/);
   assert.match(html, /if\(isStackableAssetCategory\(a\.categoryId\)\)\{a\.enabled=isAssetFamilySelected/);
@@ -662,11 +836,10 @@ test('phase four allows multiple small items per A or B slot', () => {
 
 test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
   assert.match(html, /id:'EYE',name:'眼睛状态'/);
-  assert.match(html, /EYE:\['NONE','EYE_IRIS_BASE'/);
+  assert.match(html, /EYE:\['NONE','EYE_PUPIL','EYE_IRIS_BASE'/);
   assert.match(html, /if\(type==='EYE'\)\{/);
-  assert.match(html, /categoryId==='EYE'\?'FOLLOW_ORDER':'PRESERVE_ORIGINAL'/);
   assert.match(html, /asset\.type==='HAT_DECOR'\|\|asset\.type==='HAIR'\|\|asset\.type==='EYE'/);
-  assert.match(html, /跟随当前眼睛方案（推荐）/);
+  assert.match(html, /category\.id==='EYE'\?'跟随当前眼睛方案'/);
   assert.match(html, /assetSelections:\{A:\{\},B:\{\}\}/);
   assert.match(html, /function enabledEyeStateForSlot\(slot\)/);
   assert.match(html, /function rootEyeLayerSlot\(layer,id\)/);
@@ -692,8 +865,8 @@ test('Eye Scheme keeps AUTO intact and adds a serializable optional-anchor AUTO_
   assert.match(html, /if\(id==='AUTO_V3'\)return autoEyeSchemeV3\(slot\)/);
   assert.match(html, /value="AUTO_V3">可选锚点自适应方案/);
   assert.match(html, /schemeId==='AUTO_V3'\?'自定义瞳孔点缀色（可选）'/);
-  assert.match(html, /eyeSchemeId==='AUTO'\)o\.A\.eyeSchemeId='AUTO_V3'/);
-  assert.match(html, /eyeSchemeId==='AUTO'\)o\.B\.eyeSchemeId='AUTO_V3'/);
+  assert.match(html, /if\(aProfile\)o\.A\.eyeSchemeId=aProfile\.id;else if\(ae\)\{o\.A\.eye=ae;o\.A\.eyeSchemeId='AUTO_V3'/);
+  assert.match(html, /if\(bProfile\)o\.B\.eyeSchemeId=bProfile\.id;else if\(be\)\{o\.B\.eye=be;o\.B\.eyeSchemeId='AUTO_V3'/);
   assert.match(html, /derive\.space==='OKLCH'\?deriveEyeOklch\(source,derive\):deriveEyeHsl\(source,derive\)/);
   assert.match(html, /rawDerive\.mode==='adaptive'&&adaptiveKind/);
   assert.match(html, /b\.role==='EYE_PUPIL_HIGHLIGHT'\|\|b\.role==='PUPIL_HIGHLIGHT_FIXED'\)\{b\.locked=true;b\.source='FIXED'/);
@@ -780,6 +953,226 @@ test('Eye Scheme keeps the phase-one one-color pupil workflow as a built-in opti
   assert.match(html, /advanced\.hidden=!usesPupilAnchor/);
   assert.match(html, /syncEyeSchemeModeUi\('A'\)/);
   assert.match(html, /syncEyeSchemeModeUi\('B'\)/);
+});
+
+test('phase four cleanup removes legacy templates, hair, borders, and small items while protecting ears and tails', () => {
+  assert.match(html, /const LEGACY_PURGE_CATEGORIES=new Set\(\['HAIR','FRAME','PROP','ACCESSORY'\]\)/);
+  assert.match(html, /async function purgePhase4LegacyLocalLibrary\(\)/);
+  assert.match(html, /for\(const meta of templates\)\{await Promise\.all\(\[localDelete\('templateCatalog'/);
+  assert.match(html, /if\(afterProtected!==beforeProtected\)throw new Error\('清理保护检查失败：耳朵或尾巴数量发生变化/);
+  assert.match(html, /isSessionOnlyAssetCategory\(sample\.categoryId\)\)return/);
+});
+
+test('flexible form binds template or asset components and derives four HSL channels from base color', () => {
+  assert.match(html, /function flexibleComponentCandidates\(slot\)/);
+  assert.match(html, /sourceType:'TEMPLATE'/);
+  assert.match(html, /\['EAR','TAIL','CLOTHING','REUSABLE_HAIR','TEMP_HAIR','ORIGINAL_ASSET'\]\.includes\(a\.categoryId\)/);
+  assert.match(html, /function applyFlexibleTemplateColors\(order\)/);
+  assert.match(html, /PHASE4_COLOR\.deriveBasicComponent\(base,\{overrides:shadow\?\{shadow\}:\{\}\}\)/);
+  assert.match(html, /<b>灵活组件<\/b>/);
+  assert.match(html, /data-flex-preset/);
+  assert.match(html, /phase4CompatHidden/);
+  assert.match(html, /syncParsedFlexibleComponents\(o,'A'\);syncParsedFlexibleComponents\(o,'B'\)/);
+});
+
+test('flexible base and shadow controls keep generated colors active and refresh automatic shadow', () => {
+  assert.match(html, /explicitShade\|\|\(explicitBase\?decorShadeFromBase\(base\):\(originalShade\|\|decorShadeFromBase\(base\)\)\)/);
+  assert.match(html, /setLinkedColor\(prefix\+'DecorBase',base,true\)/);
+  assert.match(html, /setLinkedColor\(prefix\+'DecorShade',shadow,true\)/);
+  assert.match(html, /setLinkedColor\(slot\.toLowerCase\(\)\+'Hair',base\)/);
+  assert.match(html, /if\(channel==='base'\)updateFlexibleAutoShadowControl\(row,entry,slot,order\)/);
+
+  const sourceOf = name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    return html.slice(start, end);
+  };
+  const normalizeHex = value => /^#[0-9A-F]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '';
+
+  const sharedDecorPalette = new Function(
+    'matchedDecorTeam','normalizeHex','assetOriginalRoleColor','activeDecorBaseColor','decorShadeFromBase','hatOutlineColor',
+    `${sourceOf('sharedDecorPalette')}\nreturn sharedDecorPalette;`,
+  )(
+    () => ({ ear: {}, tail: {} }), normalizeHex,
+    (_asset, role) => role === 'DECOR_BASE' ? '#AAAAAA' : role === 'DECOR_SHADOW' ? '#777777' : null,
+    () => '#AAAAAA', () => '#B4C1E0', () => '#554455',
+  );
+  assert.equal(sharedDecorPalette('A', { A: { decorBase: '#D6E2FF', decorShade: '' } }).shade, '#B4C1E0');
+  assert.equal(sharedDecorPalette('A', { A: { decorBase: '#D6E2FF', decorShade: '#123456' } }).shade, '#123456');
+  assert.equal(sharedDecorPalette('A', { A: { decorBase: '', decorShade: '' } }).shade, '#777777');
+
+  const ear = { categoryId: 'EAR', slot: 'A' };
+  const hair = { categoryId: 'REUSABLE_HAIR', slot: 'B' };
+  const linked = [];
+  const syncFlexibleAssetColor = new Function(
+    'flexibleAssetForEntry','normalizeHex','flexibleDefaultBase','isHairCategory','setLinkedColor',
+    `${sourceOf('syncFlexibleAssetColor')}\nreturn syncFlexibleAssetColor;`,
+  )(
+    entry => entry.sourceKey === 'ear' ? ear : hair, normalizeHex, () => '#FFE5F3',
+    category => category === 'REUSABLE_HAIR' || category === 'TEMP_HAIR',
+    (prefix, value, allowBlank) => linked.push({ prefix, value, allowBlank }),
+  );
+  const order = { A: {}, B: { hair: '#111111' }, componentColors: { A: {}, B: {} }, assetComponentColors: {} };
+  syncFlexibleAssetColor({ sourceKey: 'ear', base: '#D6E2FF', shadow: '' }, 'A', order);
+  assert.deepEqual({ base: order.A.decorBase, shadow: order.A.decorShade }, { base: '#D6E2FF', shadow: '' });
+  assert.deepEqual(linked.slice(0, 2), [
+    { prefix: 'aDecorBase', value: '#D6E2FF', allowBlank: true },
+    { prefix: 'aDecorShade', value: '', allowBlank: true },
+  ]);
+  syncFlexibleAssetColor({ sourceKey: 'hair', base: '#B597AE', shadow: '#76516D' }, 'B', order);
+  assert.equal(order.B.hair, '#B597AE');
+  assert.deepEqual(order.componentColors.B.HAIR.overrides, { shadow: '#76516D' });
+  assert.deepEqual(order.assetComponentColors['hair::B'], { base: '#B597AE', shadow: '#76516D', useGeneratedColor: true });
+  assert.deepEqual(linked[2], { prefix: 'bHair', value: '#B597AE', allowBlank: undefined });
+
+  const updateFlexibleAutoShadowControl = new Function(
+    'normalizeHex','flexibleDefaultBase','flexibleAssetForEntry','isHairCategory','PHASE4_COLOR',
+    `${sourceOf('updateFlexibleAutoShadowControl')}\nreturn updateFlexibleAutoShadowControl;`,
+  )(
+    normalizeHex, () => '#FFE5F3', () => null, () => false,
+    { deriveBasicComponent: () => ({ shadow: '#AABBCC' }), deriveHairComponent: () => ({ shadow: '#CCDDEE' }) },
+  );
+  const shadowHex = {}, shadowColor = {};
+  const row = { querySelector: selector => selector.includes('hex') ? shadowHex : shadowColor };
+  assert.equal(updateFlexibleAutoShadowControl(row, { base: '#D6E2FF', shadow: '' }, 'A', order), '#AABBCC');
+  assert.equal(shadowHex.placeholder, '自动 #AABBCC');
+  assert.equal(shadowColor.value, '#aabbcc');
+
+  const updateHairAutoShadow = new Function(
+    'normalizeHex','flexibleDefaultBase','flexibleAssetForEntry','isHairCategory','PHASE4_COLOR',
+    `${sourceOf('updateFlexibleAutoShadowControl')}\nreturn updateFlexibleAutoShadowControl;`,
+  )(
+    normalizeHex, () => '#FFE5F3', () => hair, category => category === 'REUSABLE_HAIR',
+    { deriveBasicComponent: () => ({ shadow: '#AABBCC' }), deriveHairComponent: () => ({ shadow: '#CCDDEE' }) },
+  );
+  assert.equal(updateHairAutoShadow(row, { sourceType: 'ASSET', base: '#FCF9FB', shadow: '' }, 'B', order), '#CCDDEE');
+  assert.equal(shadowHex.placeholder, '自动 #CCDDEE');
+  assert.equal(shadowColor.value, '#ccddee');
+});
+
+test('hair preserves PSD color until an order explicitly enables generated colors', () => {
+  assert.match(html, /rec\.hairPlacement=placement;rec\.colorMode='PRESERVE_ORIGINAL'/);
+  assert.match(html, /isHairCategory\(asset\.categoryId\)\?instanceState\.useGeneratedColor===true/);
+  assert.match(html, /useGeneratedColor:true/);
+  assert.match(html, /当前保持 PSD 原色；选择或手调颜色后才会生色/);
+  assert.match(html, /恢复原色/);
+  assert.match(html, /\^\(\?:肤色\|skin/);
+  assert.match(html, /hairSlot=prefix==='aHair'\?'A':prefix==='bHair'\?'B':null/);
+  assert.match(html, /enableSelectedHairGeneratedColor\('B',bf,o\)/);
+  assert.match(html, /enableSelectedHairGeneratedColor\(slot,o\[slot\]\.hair,o\)/);
+  assert.match(html, /if\(kind==='HAIR'\)return PHASE4_COLOR\.deriveHairComponent\(base,\{overrides\}\)/);
+  assert.match(html, /function hairColorPresets\(\)/);
+  assert.match(html, /\{name:'金色',hex:'#FAEFE7'\},\{name:'银白',hex:'#FCF9FB'\}/);
+  assert.match(html, /当前已启用头发专用生色/);
+  assert.match(html, /function syncSelectedHairFlexibleComponent\(order,slot,asset=selectedHairAssetForSlot\(slot,order\),on=!!asset\)/);
+  assert.match(html, /if\(isHairCategory\(categoryId\)\)syncSelectedHairFlexibleComponent\(order,slot,record,on\)/);
+  assert.match(html, /generatedHair=isHairCategory\(a\.categoryId\)&&order\?\.assetComponentColors\?\.\[instanceKey\]\?\.useGeneratedColor===true/);
+  assert.match(html, /const generatedComponent=a\.colorModeExplicit===true&&a\.colorMode==='FOLLOW_ORDER'/);
+  assert.match(html, /if\(!generatedComponent&&!generatedHair/);
+
+  const names = ['selectedHairAssetForSlot', 'enableSelectedHairGeneratedColor'];
+  const sources = names.map(name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    return html.slice(start, end);
+  }).join('\n');
+  const hair = { categoryId: 'REUSABLE_HAIR', slot: 'B', variant: '头发_测试' };
+  const order = {
+    A: { hair: '#AAAAAA' }, B: { hair: '#B597AE' },
+    assetSelections: { A: {}, B: { REUSABLE_HAIR: 'REUSABLE_HAIR::hair-b' } },
+    assetComponentColors: {},
+  };
+  const helpers = new Function(
+    'S','getActiveOrder','ensureOrderAssetSelections','assetRecordForFamilySlot','isHairCategory','assetFamilyKey','normalizeHex','hairPlacementForAsset',
+    `${sources}\nreturn {${names.join(',')}};`,
+  )(
+    { assets: [hair] },
+    () => order,
+    current => current.assetSelections,
+    (key, slot) => key === 'REUSABLE_HAIR::hair-b' && slot === 'B' ? hair : null,
+    categoryId => categoryId === 'REUSABLE_HAIR' || categoryId === 'TEMP_HAIR',
+    () => 'REUSABLE_HAIR::hair-b',
+    value => /^#[0-9A-F]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '',
+    () => 'FRONT',
+  );
+  assert.equal(helpers.enableSelectedHairGeneratedColor('B', '#8FA0C7', order), hair);
+  assert.deepEqual(order.assetComponentColors['REUSABLE_HAIR::hair-b::B'], {
+    base: '#8FA0C7', useGeneratedColor: true,
+  });
+  assert.equal(order.assetComponentColors['REUSABLE_HAIR::hair-b::A'], undefined);
+
+  const syncSource = (() => {
+    const start = html.indexOf('function syncSelectedHairFlexibleComponent(');
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, 'hair flexible-anchor helper should be extractable');
+    return html.slice(start, end);
+  })();
+  const hairA = { categoryId: 'REUSABLE_HAIR', slot: 'A', variant: '旧头发' };
+  const hairB = { categoryId: 'REUSABLE_HAIR', slot: 'B', variant: '女齐刘海长发' };
+  const syncOrder = {
+    flexibleComponents: { A: [], B: [{ id: 'old', sourceType: 'ASSET', sourceKey: 'REUSABLE_HAIR::old', name: '旧头发', base: '', shadow: '' }] },
+    assetComponentColors: { 'REUSABLE_HAIR::hair-b::B': { base: '#D6E2FF', shadow: '#AABBCC', useGeneratedColor: true } },
+  };
+  const syncSelectedHairFlexibleComponent = new Function(
+    'selectedHairAssetForSlot','ensureFlexibleComponents','isHairCategory','assetFamilyKey','flexibleAssetForEntry','assetSourceName','normalizeHex',
+    `${syncSource}\nreturn syncSelectedHairFlexibleComponent;`,
+  )(
+    () => hairB,
+    (current, slot) => current.flexibleComponents[slot],
+    categoryId => categoryId === 'REUSABLE_HAIR' || categoryId === 'TEMP_HAIR',
+    asset => asset === hairB ? 'REUSABLE_HAIR::hair-b' : 'REUSABLE_HAIR::old',
+    entry => entry.sourceKey === 'REUSABLE_HAIR::old' ? hairA : entry.sourceKey === 'REUSABLE_HAIR::hair-b' ? hairB : null,
+    asset => asset.variant,
+    value => /^#[0-9A-F]{6}$/i.test(String(value || '')) ? String(value).toUpperCase() : '',
+  );
+  const anchored = syncSelectedHairFlexibleComponent(syncOrder, 'B', hairB, true);
+  assert.equal(anchored.changed, true);
+  assert.deepEqual(syncOrder.flexibleComponents.B.map(x => ({ sourceKey: x.sourceKey, base: x.base, shadow: x.shadow })), [
+    { sourceKey: 'REUSABLE_HAIR::hair-b', base: '#D6E2FF', shadow: '#AABBCC' },
+  ]);
+});
+
+test('global backdrop rendering never enters A/B ear-tail matching', () => {
+  assert.match(html, /const isDecorAsset=asset\.categoryId==='EAR'\|\|asset\.categoryId==='TAIL'/);
+  assert.match(html, /team=isDecorAsset\?matchedDecorTeam\(asset\.slot,order\):null/);
+});
+
+test('template flexible fields persist by template while body groups stay fixed', () => {
+  assert.match(html, /TEMPLATE_FLEX_SCHEMA_PREFIX='shine:template-flex-schema:v1:'/);
+  assert.match(html, /function mergeTemplateFlexibleSchema\(order,signature=S\.templateSignature\)/);
+  assert.match(html, /function saveTemplateFlexibleSchema\(order,signature=S\.templateSignature\)/);
+  assert.match(html, /模板夹子随模板复用；素材选择随订单/);
+  assert.match(html, /function isFixedBodyComponentName\(value\)/);
+  for (const name of ['脸部','手部','腿部','颈部']) assert.match(html, new RegExp(name));
+});
+
+test('outfit and matched animal outlines use the legacy low-chroma recipes', () => {
+  assert.match(html, /function legacyHatOutlineFromBase\(hat\)/);
+  assert.match(html, /function legacyOutfitLineFromBase\(outfit,scheme=null\)/);
+  assert.match(html, /if\(kind==='OUTFIT'.*legacyOutfitLineFromBase/s);
+  assert.match(html, /function matchedDecorTeam\(slot,order\)/);
+  assert.match(html, /return \{team,base,shade,outline:hatOutlineColor\(slot,order\)\}/);
+  assert.match(html, /不再为一次灵活组件选择重绘整个素材库/);
+});
+
+test('background supports approved presets, three output modes, and a single recolorable backdrop', () => {
+  for (const hex of ['#FFF0DF','#FFEBF1','#F6EBFF','#EBF2FF','#E8E8E8','#FFEEE3']) assert.match(html, new RegExp(hex));
+  assert.match(html, /backgroundMode:'COLOR'/);
+  assert.match(html, /\['COLOR','WHITE','TRANSPARENT'\]/);
+  assert.match(html, /id="bgBackdropQuick"/);
+  assert.match(html, /id="envLightEnabledQuick"/);
+  assert.match(html, /if\(envToggle\)setOrderEnvironmentLightEnabled/);
+  assert.match(html, /const showBackdrop=\(order\.backgroundMode\|\|'COLOR'\)==='COLOR'/);
+  assert.match(html, /const showLace=false/);
+});
+
+test('eye profiles match character aliases before color anchors and single-layer editing uses four-level navigation', () => {
+  assert.match(html, /function eyeProfileForCharacter\(name,slot\)/);
+  assert.match(html, /characterAliases/);
+  assert.match(html, /if\(aProfile\)o\.A\.eyeSchemeId=aProfile\.id/);
+  assert.match(html, /id="eyeSchemeAliases"/);
+  assert.match(html, /component\.id='quickComponent'/);
+  assert.match(html, /大 PSD → 大夹子 → 小图层 → HEX/);
 });
 
 test('the main inline browser program parses as JavaScript', () => {
