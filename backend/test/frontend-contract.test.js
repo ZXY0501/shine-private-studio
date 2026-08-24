@@ -74,6 +74,50 @@ test('form ear descriptions select the closest uploaded animal and pose variant'
   assert.deepEqual(helpers.earDecorCatalog().slice(0, 5), ['NONE', '趴狗耳', '立狗耳', '立猫耳', '细猫']);
 });
 
+test('ear assets never auto-equip on upload and stale blank-order trial ears are removed once', () => {
+  const start = html.indexOf('function migrateBlankOrderAutoEarsV1(');
+  const end = html.indexOf('\nfunction loadProductionState(', start);
+  assert.ok(start >= 0 && end > start, 'blank-order ear migration should be extractable');
+  const migrate = new Function(
+    'S', 'localStorage', 'NO_AUTO_EAR_MIGRATION_KEY', 'ensureOrderAssetSelections', 'ensureOrderAutoTailSelections', 'persistOrders',
+    `${html.slice(start, end)}\nreturn migrateBlankOrderAutoEarsV1;`
+  );
+  const blank = {
+    customerName: '未命名顾客', formText: '',
+    A: { decor: '趴狗耳', decorBase: '#FFFFFF', decorShade: '#EEEEEE' }, B: { decor: 'NONE' },
+    assetSelections: { A: { EAR: 'EAR::趴狗耳', TAIL: 'TAIL::趴狗尾' }, B: {} },
+    autoTailSelections: { A: 'TAIL::趴狗尾', B: null },
+    rootStackOrder: ['asset:EAR:%E8%B6%B4%E7%8B%97%E8%80%B3:A', 'template:人物']
+  };
+  const filled = {
+    customerName: '顾客', formText: 'A：\n耳朵类型：猫耳',
+    A: { decor: '细猫' }, B: { decor: 'NONE' },
+    assetSelections: { A: { EAR: 'EAR::细猫' }, B: {} }, autoTailSelections: { A: null, B: null }
+  };
+  const S = { orders: [blank, filled] }, storage = new Map();let saves = 0;
+  migrate(
+    S,
+    { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value) },
+    'migration-key',
+    order => order.assetSelections,
+    order => order.autoTailSelections,
+    () => { saves += 1; }
+  )();
+  assert.equal(blank.A.decor, 'NONE');
+  assert.equal(blank.assetSelections.A.EAR, null);
+  assert.equal(blank.assetSelections.A.TAIL, null);
+  assert.deepEqual(blank.rootStackOrder, ['template:人物']);
+  assert.equal(filled.A.decor, '细猫', 'filled orders must keep read-form or manual ear choices');
+  assert.equal(saves, 1);
+  assert.equal(storage.get('migration-key'), 'done');
+
+  const loadStart = html.indexOf('async function loadAssets(');
+  const loadEnd = html.indexOf('\nfunction exportTree(', loadStart);
+  const loadSource = html.slice(loadStart, loadEnd);
+  assert.match(loadSource, /素材上传只加入素材库；耳朵必须由读表匹配或用户手动选择/);
+  assert.doesNotMatch(loadSource, /freshBySlot|o\[slot\]\.decor=fresh\.variant/);
+});
+
 test('ear switching is atomic per slot and keeps the previous selection when unavailable', () => {
   const names = ['earAssetRecordForSlot', 'setOrderEarVariant'];
   const sources = names.map(name => {
@@ -503,7 +547,6 @@ test('phase two uses manual virtual slots instead of PSD slot markers', () => {
 test('selected A and B ears are paired above template roots instead of inheriting stale bottom positions', () => {
   assert.match(html, /function placeSelectedEarStacksAboveTemplate\(order=getActiveOrder\(\)\)/);
   assert.match(html, /placeSelectedEarStacksAboveTemplate\(order\)/);
-  assert.match(html, /if\(changed\.length\)placeSelectedEarStacksAboveTemplate\(o\)/);
   const start = html.indexOf('function alignSelectedEarStackOrder(');
   const end = html.indexOf('\nfunction ', start + 1);
   const records = {

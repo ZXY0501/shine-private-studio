@@ -1025,6 +1025,7 @@ const LOCAL_LIBRARY_DB_VERSION=1;
 const LOCAL_LAST_TEMPLATE_KEY='shine:local-last-template:v1';
 const TEMPLATE_FLEX_SCHEMA_PREFIX='shine:template-flex-schema:v1:';
 const PHASE4_ASSET_MIGRATION_KEY='shine:migration:phase4-assets-v1';
+const NO_AUTO_EAR_MIGRATION_KEY='shine:migration:no-auto-ear-v1';
 const LEGACY_PURGE_CATEGORIES=new Set(['HAIR','FRAME','PROP','ACCESSORY']);
 const BUILTIN_ASSET_CATEGORIES=Object.freeze([
   {id:'CLEAN_TEMPLATE',name:'纯净模板',builtin:true},
@@ -2624,12 +2625,33 @@ function migrateLogicDefaultsV21(){
   if(Math.abs((S.logic.eyeOutlineC??oldDefaults.eyeOutlineC)-oldDefaults.eyeOutlineC)<1e-9){S.logic.eyeOutlineC=0.71;changed=true;}
   if(changed)persistLogic();
 }
+function migrateBlankOrderAutoEarsV1(){
+  let migrated='';try{migrated=localStorage.getItem(NO_AUTO_EAR_MIGRATION_KEY)||''}catch{}
+  if(migrated==='done')return;
+  let changed=false;
+  S.orders.forEach(order=>{
+    const blankForm=!String(order.formText||'').trim(),blankCustomer=!String(order.customerName||'').trim()||order.customerName==='未命名顾客';
+    if(!blankForm||!blankCustomer)return;
+    const selections=ensureOrderAssetSelections(order),autoTails=ensureOrderAutoTailSelections(order);let orderChanged=false;
+    ['A','B'].forEach(slot=>{
+      const hadAutoEar=(order?.[slot]?.decor||'NONE')!=='NONE'||!!selections[slot].EAR;
+      if(!hadAutoEar)return;
+      order[slot].decor='NONE';order[slot].decorBase='';order[slot].decorShade='';selections[slot].EAR=null;
+      if(autoTails[slot]&&selections[slot].TAIL===autoTails[slot])selections[slot].TAIL=null;
+      autoTails[slot]=null;changed=true;orderChanged=true;
+    });
+    if(orderChanged&&Array.isArray(order.rootStackOrder))order.rootStackOrder=order.rootStackOrder.filter(id=>!/^asset:EAR:/.test(id));
+  });
+  try{localStorage.setItem(NO_AUTO_EAR_MIGRATION_KEY,'done')}catch{}
+  if(changed)persistOrders();
+}
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
   S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderMultiAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6');o.environmentLight=normalizeHex(o.environmentLight||'')||'';o.componentColors=o.componentColors&&typeof o.componentColors==='object'?o.componentColors:{A:{},B:{}};o.componentColors.A=o.componentColors.A||{};o.componentColors.B=o.componentColors.B||{};o.assetComponentColors=o.assetComponentColors&&typeof o.assetComponentColors==='object'?o.assetComponentColors:{};o.flexibleComponents=o.flexibleComponents&&typeof o.flexibleComponents==='object'?o.flexibleComponents:{A:[],B:[]};o.flexibleComponents.A=Array.isArray(o.flexibleComponents.A)?o.flexibleComponents.A:[];o.flexibleComponents.B=Array.isArray(o.flexibleComponents.B)?o.flexibleComponents.B:[]});
   S.orders.forEach(o=>{o.backgroundMode=['COLOR','WHITE','TRANSPARENT'].includes(o.backgroundMode)?o.backgroundMode:(o.backgroundBaseVisible===false?'TRANSPARENT':String(o.backgroundManual||'').toUpperCase()==='#FFFFFF'?'WHITE':'COLOR');o.backgroundBaseVisible=o.backgroundMode!=='TRANSPARENT';o.backgroundLaceVisible=false});
   purgeLegacyOrderAssetState();persistOrders();
+  migrateBlankOrderAutoEarsV1();
   try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=loadStoredStyleSchemes()}catch{S.styleSchemes=officialStyleSchemes()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=officialStyleSchemes();
@@ -5395,31 +5417,8 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
     }catch(e){alert(file.name+' 解析失败：'+(e.message||e))}
   }
   const loadedFamilies=[...new Set(loaded.map(assetFamilyKey))];loadedFamilies.forEach(key=>queuePersistAssetFamilyLocal(key,40));
-  // 自用工作流：第一次上传某个帽饰时直接试戴；已有明确选择则绝不擅自覆盖。
-  let o=getActiveOrder();
-  if(!o&&loaded.some(a=>a.categoryId==='EAR')){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id;renderOrders();}
-  if(o){
-    const freshBySlot={A:loaded.find(a=>a.categoryId==='EAR'&&a.slot==='A'),B:loaded.find(a=>a.categoryId==='EAR'&&a.slot==='B')};
-    let changed=[];
-    ['A','B'].forEach(slot=>{
-      const fresh=freshBySlot[slot];if(!fresh)return;
-      const wanted=o[slot]?.decor||'NONE';
-      const stillExists=wanted!=='NONE'&&S.assets.some(a=>a.categoryId==='EAR'&&a.slot===slot&&sameVariant(a.variant,wanted));
-      if(wanted==='NONE'||!stillExists){if(wanted!=='NONE'&&!sameVariant(wanted,fresh.variant))clearEarColorAnchors(slot,o);o[slot].decor=fresh.variant;ensureOrderAssetSelections(o)[slot].EAR=assetFamilyKey(fresh);S.autoDecorSlots[slot]=normalizeVariantName(fresh.variant);changed.push(slot);}
-    });
-    if(!changed.length&&freshBySlot.B){
-      const current=o.B?.decor||'NONE',auto=S.autoDecorSlots.B;
-      if(auto&&sameVariant(current,auto)&&!sameVariant(current,freshBySlot.B.variant)){
-        clearEarColorAnchors('B',o);o.B.decor=freshBySlot.B.variant;ensureOrderAssetSelections(o).B.EAR=assetFamilyKey(freshBySlot.B);S.autoDecorSlots.B=normalizeVariantName(freshBySlot.B.variant);changed.push('B');
-      }
-    }
-    ['A','B'].forEach(slot=>{
-      const earFamily=selectedAssetFamily(o,slot,'EAR'),ear=earFamily&&S.assets.find(a=>a.categoryId==='EAR'&&(a.slot===slot||a.characterCompatibility==='BOTH')&&assetFamilyKey(a)===earFamily);
-      if(ear&&syncTailForEarSelection(o,slot,ear))changed.push(slot);
-    });
-    if(changed.length)placeSelectedEarStacksAboveTemplate(o);
-    persistOrders();
-  }
+  // 素材上传只加入素材库；耳朵必须由读表匹配或用户手动选择，绝不自动试戴第一款。
+  const o=getActiveOrder();if(o)syncAssetEnabledFromOrder(o);
   renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();debug();
 }
 function exportTree(){
