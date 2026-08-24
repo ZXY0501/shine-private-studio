@@ -4072,8 +4072,10 @@ function renderAssetLibrary(){
   host.querySelectorAll('[data-ak="rename"]').forEach(el=>el.onchange=()=>{const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),name=String(el.value||'').trim().slice(0,60)||'未命名辅助素材';if(!records.length)return;const oldStackIds=records.map(assetStackId);records.forEach(a=>{a.name=name;a.variant=name;a.updatedAt=new Date().toISOString()});const newKey=assetFamilyKey(records[0]),newStackIds=records.map(assetStackId);S.orders.forEach(order=>{['A','B'].forEach(slot=>replaceOrderAssetFamilyKey(order,slot,'AUXILIARY_ASSET',oldKey,newKey));order.globalAssetSelections=ensureOrderGlobalAssetSelections(order).map(item=>item.familyKey===oldKey?{...item,familyKey:newKey}:item);order.rootStackOrder=(order.rootStackOrder||[]).map(id=>{const index=oldStackIds.indexOf(id);return index>=0?newStackIds[index]:id})});persistOrders();S.rootStackOrder=S.rootStackOrder.map(id=>{const index=oldStackIds.indexOf(id);return index>=0?newStackIds[index]:id});saveRootStackOrder();renderAssetLibrary();renderHairInsertionControls();reconstruct()});
   host.querySelectorAll('[data-ak="category"]').forEach(el=>el.onchange=()=>{
     const oldKey=el.dataset.family,records=S.assets.filter(a=>assetFamilyKey(a)===oldKey),oldCategory=records[0]?.categoryId;if(!records.length)return;const oldStackIds=new Set(records.map(assetStackId));
+    const hairSlots=isHairCategory(el.value)?records.map(a=>inferHairAssetSlot(a.file,a.psd,a.groupPath)||(isHairCategory(oldCategory)&&(a.slot==='A'||a.slot==='B')?a.slot:null)):[];
+    if(isHairCategory(el.value)&&hairSlots.some(slot=>!slot)){el.value=oldCategory;alert('这份头发 PSD 没有识别到 A/B 位置。请在上传区把“自动识别 A/B”改成“A 左位”或“B 右位”后重新上传。');return}
     S.orders.forEach(o=>{if(isBackdropCategory(oldCategory))o.frameSelections=ensureOrderFrameSelections(o).filter(x=>x.familyKey!==oldKey);o.globalAssetSelections=ensureOrderGlobalAssetSelections(o).filter(x=>x.familyKey!==oldKey);['A','B'].forEach(slot=>{removeOrderAssetFamilyKey(o,slot,oldCategory,oldKey);if(oldCategory==='EAR'&&records.some(x=>x.slot===slot&&sameVariant(x.variant,o?.[slot]?.decor)))o[slot].decor='NONE'})});
-    records.forEach(a=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);if(isBackdropCategory(el.value)){a.slot='GLOBAL';a.defaultSlot='GLOBAL';a.characterCompatibility='GLOBAL'}if(isSessionOnlyAssetCategory(el.value)){a.sourceObjectKey=null;a.localCached=false}a.colorMode='PRESERVE_ORIGINAL';a.colorModeExplicit=false;a.updatedAt=new Date().toISOString();initAssetBindings(a,true);if(a.psd){a.originalComposite=renderAssetOriginalComposite(a);a.composite=a.originalComposite}});
+    records.forEach((a,index)=>{a.categoryId=el.value;a.type=rendererTypeForCategory(el.value,a.type);if(isHairCategory(el.value)){a.slot=hairSlots[index];a.defaultSlot=hairSlots[index];a.characterCompatibility=hairSlots[index]}if(isBackdropCategory(el.value)){a.slot='GLOBAL';a.defaultSlot='GLOBAL';a.characterCompatibility='GLOBAL'}if(isSessionOnlyAssetCategory(el.value)){a.sourceObjectKey=null;a.localCached=false}a.colorMode='PRESERVE_ORIGINAL';a.colorModeExplicit=false;a.updatedAt=new Date().toISOString();initAssetBindings(a,true);if(a.psd){a.originalComposite=renderAssetOriginalComposite(a);a.composite=a.originalComposite}});
     if(isBackdropCategory(el.value)&&records.length>1){const keep=records[0],discard=new Set(records.slice(1));keep.groupPath=null;initAssetBindings(keep,true);keep.originalComposite=renderAssetComposite(keep,{A:{},B:{}});keep.composite=renderAssetComposite(keep,getActiveOrder()||newOrderData());S.assets=S.assets.filter(a=>!discard.has(a))}
     S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder.filter(id=>!oldStackIds.has(id)));saveRootStackOrder();
     syncAssetEnabledFromOrder(getActiveOrder());persistOrders();[...new Set(records.filter(a=>S.assets.includes(a)).map(assetFamilyKey))].forEach(queuePersistAssetFamilyLocal);renderAssetRows();updateDecorSelects();renderHairInsertionControls();reconstruct();renderAssetLibrary();renderOverlay();renderEditableLayerSelectors();
@@ -4752,7 +4754,7 @@ function normalizeVariantName(name){
 function familyName(file){return normalizeVariantName(file?.name||file);}
 function sameVariant(a,b){return normalizeVariantName(a)===normalizeVariantName(b);}
 function isPngAssetFile(file){return /\.png$/i.test(file?.name||'')||file?.type==='image/png';}
-function hasExplicitAssetSlot(file){return /(?:^|[_\-\s])[AB](?:$|[_\-\s])|[AB]位|左位|右位|[AB](?:耳|尾|头发|嘴|表情|眼睛|睫毛)/i.test(file?.name||'');}
+function hasExplicitAssetSlot(file){return !!explicitAssetSlotFromText(file?.name||'')}
 async function loadPngCanvas(file){
   if(typeof createImageBitmap==='function'){
     const bitmap=await createImageBitmap(file),canvas=makeCanvas(bitmap.width,bitmap.height);canvas.getContext('2d').drawImage(bitmap,0,0);bitmap.close?.();return canvas;
@@ -5300,7 +5302,7 @@ function renderAssetRows(){
 }
 function inferAsset(file){
   const n=file.name.toUpperCase();
-  let slot=/(?:^|[_\-\s])B(?:$|[_\-\s])|B位|右位|B(?:耳|尾|头发|嘴|表情|眼睛|睫毛)/i.test(n)?'B':'A';
+  let slot=explicitAssetSlotFromText(file.name)||'A';
   const stem=file.name.replace(/\.(?:psd|png)$/i,'').trim();
   let categoryId=isPngAssetFile(file)?'AUXILIARY_ASSET':'EAR';
   if(/^(?:衬底|BACKDROP)[_\-\s]/i.test(stem)){categoryId='BACKDROP';slot='GLOBAL';}
@@ -5374,6 +5376,21 @@ function bodyPosePackageComponentGroups(psd,order=assetPsdDrawOrder(psd),fallbac
   const panel=orderChildren([...best.values()],order?.mode||'reverse').slice().reverse();
   return panel.map((component,componentOrder)=>({...component,componentOrder}));
 }
+function explicitAssetSlotFromText(value){
+  const text=String(value||'').replace(/\.(?:psd|png)$/i,'').trim(),prefixed=guessSlot(text,text);
+  if(prefixed==='A'||prefixed==='B')return prefixed;
+  if(/(?:^|[^A-Z0-9])B(?:位)?(?:$|[^A-Z0-9])|右位|B(?:耳|尾|头发|嘴|表情|眼睛|睫毛|底色|重色|高光|线稿|阴影|锚点|base|shadow|highlight|lineart|outline)/i.test(text))return 'B';
+  if(/(?:^|[^A-Z0-9])A(?:位)?(?:$|[^A-Z0-9])|左位|A(?:耳|尾|头发|嘴|表情|眼睛|睫毛|底色|重色|高光|线稿|阴影|锚点|base|shadow|highlight|lineart|outline)/i.test(text))return 'A';
+  return null;
+}
+function inferHairAssetSlot(file,psd,groupPath=null){
+  const groupSlot=explicitAssetSlotFromText(groupPath);if(groupSlot)return groupSlot;
+  const fileSlot=explicitAssetSlotFromText(file?.name||file);if(fileSlot)return fileSlot;
+  if(!psd)return null;
+  const onlySlot=nodes=>{const slots=new Set(nodes.map(node=>explicitAssetSlotFromText(node.path)||explicitAssetSlotFromText(node.name)||guessSlot(node.path||node.name,node.name)).filter(slot=>slot==='A'||slot==='B'));return slots.size===1?[...slots][0]:null};
+  const roots=(psd.children||[]).map((layer,index)=>({name:layer.name||('Layer '+index),path:layer.name||('Layer '+index)}));
+  return onlySlot(roots)||onlySlot(flatten(psd.children||[]))||null;
+}
 function explicitHairPlacement(value){
   const text=String(value||'');
   if(/后头发|后发|后置头发|back[\s_\-]*hair|hair[\s_\-]*back/i.test(text))return 'BACK';
@@ -5408,7 +5425,8 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
       const psd=await parsePsd(file),order=assetPsdDrawOrder(psd),pair=inferPairGroups(psd);
       if(previous)S.assets=S.assets.filter(a=>a.assetId!==assetId);
       if(isHairCategory(categoryId)){
-        const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot,records=makeHairPackageRecords(file,psd,order,slot,variant,{assetId,categoryId,createdAt});records.forEach(rec=>{upsertAssetRecord(rec);loaded.push(rec)});
+        const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inferHairAssetSlot(file,psd);if(!slot)throw new Error('头发 PSD 没有识别到 A/B 位置。请把上传位置从“自动识别 A/B”改成“A 左位”或“B 右位”后重传。');
+        const records=makeHairPackageRecords(file,psd,order,slot,variant,{assetId,categoryId,createdAt});records.forEach(rec=>{upsertAssetRecord(rec);loaded.push(rec)});
       }else if(isBodyPoseCategory(categoryId)){
         const components=bodyPosePackageComponentGroups(psd,order,forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot);
         if(!components.length)throw new Error('身体姿势 PSD 中没有找到 A男 / A女 / B男 / B女（也支持 A/男、B/女）的大夹子。');

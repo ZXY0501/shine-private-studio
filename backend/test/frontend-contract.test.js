@@ -659,6 +659,34 @@ test('dedicated hair uploads stay reusable and isolated even when two orders use
   assert.doesNotMatch(html, /S\.assets=S\.assets\.filter\(a=>!\(a\.type==='HAIR'&&a\.slot===slot\)\)/);
 });
 
+test('hair A/B position is inferred from filename or PSD layers and never silently defaults to A', () => {
+  const start = html.indexOf('function explicitAssetSlotFromText(');
+  const end = html.indexOf('\nfunction explicitHairPlacement(', start);
+  assert.ok(start >= 0 && end > start, 'hair slot helpers should be extractable');
+  const flatten = children => children.flatMap((layer, index) => {
+    const name = layer.name || `Layer ${index}`, own = { name, path: name };
+    return [own, ...((layer.children || []).map(child => ({ name: child.name, path: `${name}/${child.name}` })) )];
+  });
+  const guessSlot = (path, name) => {
+    for (const value of [path, name]) {
+      const first = String(value || '').split('/')[0];
+      if (/^A(?:位|头发|[_\-\s]|$)/i.test(first)) return 'A';
+      if (/^B(?:位|头发|[_\-\s]|$)/i.test(first)) return 'B';
+    }
+    return 'NONE';
+  };
+  const helpers = new Function('flatten', 'guessSlot', `${html.slice(start, end)}\nreturn {explicitAssetSlotFromText,inferHairAssetSlot};`)(flatten, guessSlot);
+  assert.equal(helpers.explicitAssetSlotFromText('头发_B_短发.psd'), 'B');
+  assert.equal(helpers.explicitAssetSlotFromText('B头发_短发.psd'), 'B');
+  assert.equal(helpers.explicitAssetSlotFromText('头发_A_长发.psd'), 'A');
+  assert.equal(helpers.inferHairAssetSlot({ name: '头发_短发.psd' }, { children: [{ name: 'B头发', children: [{ name: 'B底色' }] }] }), 'B');
+  assert.equal(helpers.inferHairAssetSlot({ name: '头发_女齐刘海长发(2).psd' }, { children: [{ name: '背景' }, { name: 'B底色' }, { name: 'B重色' }, { name: 'B高光' }, { name: 'B线稿' }] }), 'B');
+  assert.equal(helpers.inferHairAssetSlot({ name: '头发_长发.psd' }, { children: [{ name: 'A头发' }, { name: 'B头发' }] }), null);
+  assert.match(html, /if\(!slot\)throw new Error\('头发 PSD 没有识别到 A\/B 位置/);
+  assert.match(html, /const hairSlots=isHairCategory\(el\.value\)\?records\.map\(a=>inferHairAssetSlot\(a\.file,a\.psd,a\.groupPath\)/);
+  assert.match(html, /if\(isHairCategory\(el\.value\)\)\{a\.slot=hairSlots\[index\];a\.defaultSlot=hairSlots\[index\];a\.characterCompatibility=hairSlots\[index\]\}/);
+});
+
 test('front and back hair folders split into one shared-color package and sandwich clothing', () => {
   assert.match(html, /function explicitHairPlacement\(value\)/);
   assert.match(html, /后头发\|后发\|后置头发/);
