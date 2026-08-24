@@ -625,7 +625,7 @@ test('eyelashes are independent A/B components and never inherit the eye scheme'
   assert.match(html, /function templateLashReplacementSlot\(path,name\)/);
   assert.match(html, /'EYE_PUPIL_HIGHLIGHT','PUPIL_HIGHLIGHT_FIXED'/);
   assert.match(html, /\/睫毛\|lash\|眼皮\|eyelid\/i/);
-  assert.match(html, /useOverrides&&psd===S\.master&&templateLashReplacementSlot\(path,name\)\)return/);
+  assert.match(html, /useOverrides&&psd===S\.master&&\(templateLashReplacementSlot\(path,name\)\|\|templateBodyReplacementSlot\(path,name\)\)\)return/);
 });
 
 test('asset selection yields before rendering and avoids full library and disabled-asset recomposition', () => {
@@ -738,6 +738,7 @@ test('session export history stays in tab memory and records every PNG or JPEG o
 test('standardized Chinese asset names are inferred without changing the PSD parser', () => {
   assert.match(html, /\^\(\?:衬底\|BACKDROP\)\[_\\-\\s\]/);
   assert.match(html, /\^\(\?:衣服\|服装\|CLOTHING\)\[_\\-\\s\]/);
+  assert.match(html, /\^\(\?:姿势\|身体姿势\|BODY_POSE\|POSE\)\[_\\-\\s\]/);
   assert.match(html, /n\.includes\('HAIR'\)\|\|n\.includes\('头发'\)/);
   assert.match(html, /n\.includes\('MOUTH'\)\|\|n\.includes\('嘴'\)\|\|n\.includes\('表情'\)/);
   assert.match(html, /\^\(\?:原创素材\|ORIGINAL_ASSET\)\[_\\-\\s\]/);
@@ -792,11 +793,58 @@ test('clothing library shows one collapsible PSD package with compact component 
   assert.match(html, /className='clothingPackageCard'/);
   assert.match(html, /整个 PSD 预览/);
   assert.match(html, /clothingComponentList/);
-  assert.match(html, /category\.id==='CLOTHING'\?clothingPackages\.length:groups\.length/);
+  assert.match(html, /category\.id==='CLOTHING'\?clothingPackages\.length:category\.id==='BODY_POSE'\?bodyPosePackages\.length:groups\.length/);
   assert.match(html, /compactComponentColors/);
   assert.match(html, /底色 <input type="color" data-component-color="base"/);
   assert.match(html, /重色 <input type="color" data-component-color="shadow"/);
   assert.match(html, /S\.clothingPackageOpen\[pkg\.key\]=card\.open/);
+});
+
+test('body poses are packaged by pose with independent A/B male and female choices', () => {
+  assert.match(html, /\{id:'BODY_POSE',name:'身体姿势',builtin:true\}/);
+  assert.match(html, /function bodyPoseGender\(value\)/);
+  assert.match(html, /function bodyPosePackageComponentGroups\(psd,order=assetPsdDrawOrder\(psd\),fallbackSlot='A'\)/);
+  assert.match(html, /身体姿势 PSD 中没有找到 A男 \/ A女 \/ B男 \/ B女/);
+  assert.match(html, /packageName:variant,componentName:genderLabel/);
+  assert.match(html, /function bodyPosePackageGroups\(\)/);
+  assert.match(html, /function renderBodyPosePackageCards\(details,order,packages\)/);
+  assert.match(html, /data-ak=\"body-pose-choice\"/);
+  assert.match(html, /A\/B 各自选择男、女或关闭/);
+  assert.match(html, /function bodyPoseStackIds\(\)/);
+  assert.match(html, /function enabledBodyPoseForSlot\(slot\)/);
+  assert.match(html, /templateBodyReplacementSlot\(path,name\)/);
+  assert.match(html, /bodyReplacementSlot&&enabledBodyPoseForSlot\(bodyReplacementSlot\)\)return/);
+  assert.match(html, /保持 PSD 原色 · 衣服下方 \/ 后发上方/);
+
+  const sourceOf = name => {
+    const start = html.indexOf(`function ${name}(`);
+    const end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  };
+  const flattenTree = (children, depth = 0, parentPath = '') => (children || []).flatMap((layer, index) => {
+    const name = layer.name || `Layer ${index}`, path = parentPath ? `${parentPath}/${name}` : name;
+    const node = { layer, name, path, depth, isGroup: !!(layer.children && layer.children.length) };
+    return [node, ...(node.isGroup ? flattenTree(layer.children, depth + 1, path) : [])];
+  });
+  const bodyPoseGenderFn = new Function(`${sourceOf('bodyPoseGender')}\nreturn bodyPoseGender;`)();
+  const bodyGroups = new Function(
+    'assetPsdDrawOrder','flatten','shouldExclude','bodyPoseGender','guessSlot','inferAssetGroupSlot','orderChildren',
+    `${sourceOf('bodyPosePackageComponentGroups')}\nreturn bodyPosePackageComponentGroups;`,
+  )(
+    () => ({ mode: 'direct' }), flattenTree, () => false, bodyPoseGenderFn,
+    path => /^A(?:\/|男|女)/.test(path) ? 'A' : /^B(?:\/|男|女)/.test(path) ? 'B' : 'NONE',
+    (_psd, _path, _name, fallback) => fallback,
+    children => [...children],
+  );
+  const pixel = name => ({ name, canvas: {} });
+  const psd = { children: [
+    { name: 'A', children: [{ name: '男', children: [pixel('身体')] }, { name: '女', children: [pixel('身体')] }] },
+    { name: 'B男', children: [{ name: '男身体', children: [pixel('底色')] }, pixel('线稿')] },
+    { name: 'B女', children: [pixel('身体')] },
+  ] };
+  const detected = Object.fromEntries(bodyGroups(psd, { mode: 'direct' }).map(x => [x.path, `${x.slot}:${x.gender}`]));
+  assert.deepEqual(detected, { 'A/男': 'A:MALE', 'A/女': 'A:FEMALE', B男: 'B:MALE', B女: 'B:FEMALE' });
 });
 
 test('phase four accepts transparent PNG assets without PSD parsing', () => {
@@ -843,7 +891,7 @@ test('phase four eye-state PSDs follow the selected A or B eye scheme', () => {
   assert.match(html, /assetSelections:\{A:\{\},B:\{\}\}/);
   assert.match(html, /function enabledEyeStateForSlot\(slot\)/);
   assert.match(html, /function rootEyeLayerSlot\(layer,id\)/);
-  assert.match(html, /replacementSlot&&enabledEyeStateForSlot\(replacementSlot\)\)return/);
+  assert.match(html, /eyeReplacementSlot&&enabledEyeStateForSlot\(eyeReplacementSlot\)\)return/);
 });
 
 test('Eye Scheme keeps AUTO intact and adds a serializable optional-anchor AUTO_V3', () => {

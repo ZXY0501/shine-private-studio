@@ -546,6 +546,33 @@ test('accepts one clothing PSD as a cloud package with independent root-folder r
   });
 });
 
+test('accepts one body-pose PSD with independent A/B male and female records', async () => {
+  const assetStore = memoryAssetStore();
+  await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
+    const ticketResponse = await fetch(`${baseUrl}/api/assets/upload-ticket`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ fileName: '姿势_背手站立.psd', size: 920 })
+    });
+    const ticket = await ticketResponse.json();assetStore.setUploadedSize(ticket.assetId, 920);
+    const records = [['A', '男'], ['A', '女'], ['B', '男'], ['B', '女']].map(([slot, componentName], componentOrder) => ({
+      slot, type: 'BODY_POSE', categoryId: 'BODY_POSE', characterCompatibility: slot, defaultSlot: slot,
+      variant: `背手站立 · ${componentName}`, name: `背手站立 · ${componentName}`, groupPath: `${slot}${componentName}`,
+      packageName: '背手站立', componentName, componentOrder, colorMode: 'PRESERVE_ORIGINAL', colorModeExplicit: false,
+      layerVisibility: { [`${slot}${componentName}`]: true }
+    }));
+    const completed = await fetch(`${baseUrl}/api/assets/${ticket.assetId}/complete`, {
+      method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ receipt: ticket.receipt, asset: { categoryId: 'BODY_POSE', characterCompatibility: 'BOTH', defaultSlot: 'A', name: '背手站立', records } })
+    });
+    assert.equal(completed.status, 201);
+    const asset = (await completed.json()).asset;
+    assert.equal(asset.categoryId, 'BODY_POSE');
+    assert.deepEqual(asset.records.map(row => row.groupPath), ['A男', 'A女', 'B男', 'B女']);
+    assert.deepEqual(asset.records.map(row => row.componentName), ['男', '女', '男', '女']);
+    assert.ok(asset.records.every(row => row.colorMode === 'PRESERVE_ORIGINAL' && row.colorModeExplicit === false));
+  });
+});
+
 test('accepts split hair placement metadata and the eyelash asset category', async () => {
   const assetStore = memoryAssetStore();
   await withServer(createApp(appOptions({ assetStoreFactory: () => assetStore })), async baseUrl => {
