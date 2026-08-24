@@ -399,12 +399,34 @@ test('backdrop assets are single-select, fixed below tails, and use component re
   assert.match(html, /function frameStackIds\(placement,order=getActiveOrder\(\)\)/);
   assert.match(html, /data-ak="frame-check"/);
   assert.match(html, /list\.splice\(0,list\.length\);list\.push\(\{familyKey,placement:'BACK'/);
+  assert.match(html, /if\(on\)\{order\.backgroundMode='COLOR';order\.backgroundBaseVisible=true;order\.backgroundLaceVisible=false;\}/);
+  assert.match(html, /syncBackgroundQuickFromOrder\(order\);updateBackgroundRecommendationMeta\(order\);/);
   assert.match(html, /asset\.categoryId!=='ORIGINAL_ASSET'&&!isBackdropCategory\(asset\.categoryId\)/);
   assert.match(html, /COMPONENT_BASE:colors\.base/);
   assert.match(html, /data-component-color="base"/);
   assert.match(html, /addedAt:Number\(x\.addedAt\)/);
   assert.match(html, /if\(isBackdropCategory\(el\.value\)&&records\.length>1\)/);
   assert.match(html, /keep\.groupPath=null/);
+  assert.match(html, /Object\.assign\(assetTransformForTemplate\(a\),initialAssetTransform\(a\)\)/);
+
+  const start = html.indexOf('function initialAssetTransform(');
+  const end = html.indexOf('\nfunction templateDefaultAssetTransform(', start);
+  assert.ok(start >= 0 && end > start, 'backdrop fitting helpers should be extractable');
+  const helpers = new Function(
+    'S', 'isBackdropCategory',
+    `${html.slice(start, end)}\nreturn {initialAssetTransform,upgradeUntouchedBackdropTransform};`
+  )({ master: { width: 2000, height: 2000 } }, id => id === 'BACKDROP');
+  const backdrop = { categoryId: 'BACKDROP', psd: { width: 1500, height: 1500 }, defaultTransform: { x: 0, y: 0, scale: 1, rotation: 0, flipX: false, flipY: false } };
+  const fitted = helpers.initialAssetTransform(backdrop);
+  assert.equal(fitted.x, 250);
+  assert.equal(fitted.y, 250);
+  assert.ok(Math.abs(fitted.scale - 4 / 3) < 1e-9);
+  assert.deepEqual(helpers.upgradeUntouchedBackdropTransform(backdrop, { x: 0, y: 0, scale: 1, rotation: 0, flipX: false, flipY: false }), fitted);
+  assert.deepEqual(
+    helpers.upgradeUntouchedBackdropTransform(backdrop, { x: 20, y: 10, scale: 1.2, rotation: 0, flipX: false, flipY: false }),
+    { x: 20, y: 10, scale: 1.2, rotation: 0, flipX: false, flipY: false },
+    'manual transforms must not be overwritten'
+  );
 });
 
 test('asset families can be selected independently for A and B', () => {

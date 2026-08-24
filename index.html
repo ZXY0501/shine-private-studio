@@ -1519,20 +1519,35 @@ function rootStackLabel(id){
   const l=rootLayerFromId(id);if(!l)return {name:id,meta:'未知',kind:'pixel'};
   const group=!!(l.children&&l.children.length);return {name:l.name||id.slice(6),meta:group?'大夹子':'顶层图层',kind:group?'group':'pixel'};
 }
+function initialAssetTransform(a){
+  const base={...(a?.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false})};
+  if(!a||!isBackdropCategory(a.categoryId)||!S.master)return base;
+  const source=a.psd||a.composite||a.originalComposite,sw=Number(source?.width)||0,sh=Number(source?.height)||0,mw=Number(S.master.width)||0,mh=Number(S.master.height)||0;
+  if(!sw||!sh||!mw||!mh)return base;
+  const scale=Math.min(mw/sw,mh/sh);if(!Number.isFinite(scale)||scale<=0)return base;
+  return {...base,x:mw/2-sw/2,y:mh/2-sh/2,scale};
+}
+function upgradeUntouchedBackdropTransform(a,t){
+  if(!t||!isBackdropCategory(a?.categoryId)||!S.master)return t;
+  const untouched=Math.abs(Number(t.x)||0)<.001&&Math.abs(Number(t.y)||0)<.001&&Math.abs((Number(t.scale)||1)-1)<.001&&Math.abs(Number(t.rotation)||0)<.001&&!t.flipX&&!t.flipY;
+  if(!untouched)return t;
+  const fitted=initialAssetTransform(a),same=Math.abs(Number(fitted.x)||0)<.001&&Math.abs(Number(fitted.y)||0)<.001&&Math.abs((Number(fitted.scale)||1)-1)<.001;
+  return same?t:Object.assign(t,fitted);
+}
 function templateDefaultAssetTransform(a){
   ensureAssetRecordV2(a);const key=String(S.templateSignature||'default');
   if(!a.templateTransforms||typeof a.templateTransforms!=='object')a.templateTransforms={};
   if(!a.templateTransforms[key]){
     let saved=null;try{saved=JSON.parse(localStorage.getItem('shine:asset-transform:'+key+':'+assetTransformKey(a))||localStorage.getItem('shine:asset-transform:'+key+':'+assetStackId(a))||'null')}catch{}
-    a.templateTransforms[key]=saved&&typeof saved==='object'?saved:{...(a.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false})};
+    a.templateTransforms[key]=saved&&typeof saved==='object'?saved:initialAssetTransform(a);
   }
-  const t=a.templateTransforms[key];t.x=Number(t.x)||0;t.y=Number(t.y)||0;t.scale=Math.max(.05,Number(t.scale)||1);t.rotation=Number(t.rotation)||0;t.flipX=!!t.flipX;t.flipY=!!t.flipY;return t;
+  const t=upgradeUntouchedBackdropTransform(a,a.templateTransforms[key]);t.x=Number(t.x)||0;t.y=Number(t.y)||0;t.scale=Math.max(.05,Number(t.scale)||1);t.rotation=Number(t.rotation)||0;t.flipX=!!t.flipX;t.flipY=!!t.flipY;return t;
 }
 function assetTransformForTemplate(a){
   const fallback=templateDefaultAssetTransform(a),order=getActiveOrder();if(!order)return fallback;
   if(!order.assetTransforms||typeof order.assetTransforms!=='object')order.assetTransforms={};
   const id=assetTransformKey(a),legacy=order.assetTransforms[assetStackId(a)];if(!order.assetTransforms[id])order.assetTransforms[id]=legacy?{...legacy}:{...fallback};
-  const t=order.assetTransforms[id];t.x=Number(t.x)||0;t.y=Number(t.y)||0;t.scale=Math.max(.05,Number(t.scale)||1);t.rotation=Number(t.rotation)||0;t.flipX=!!t.flipX;t.flipY=!!t.flipY;return t;
+  const t=upgradeUntouchedBackdropTransform(a,order.assetTransforms[id]);t.x=Number(t.x)||0;t.y=Number(t.y)||0;t.scale=Math.max(.05,Number(t.scale)||1);t.rotation=Number(t.rotation)||0;t.flipX=!!t.flipX;t.flipY=!!t.flipY;return t;
 }
 function persistAssetTransform(a){if(!a)return;const order=getActiveOrder();if(order){order.assetTransforms=order.assetTransforms||{};order.assetTransforms[assetTransformKey(a)]={...assetTransformForTemplate(a)};persistOrders();}queuePersistAssetFamilyLocal(assetFamilyKey(a));}
 function applyPendingAssetPlacement(a){
@@ -1595,7 +1610,7 @@ function renderTransformControls(){
   ['assetTransformX','assetTransformY','assetTransformScale','assetTransformRotation'].forEach(id=>{$('#'+id).oninput=()=>update(false);$('#'+id).onchange=()=>update(true)});$('#assetTransformFlip').onchange=()=>update(true);$('#assetTransformFlipY').onchange=()=>update(true);
   const nudge=action=>{const a=selectedTransformAsset();if(!a)return;const t=assetTransformForTemplate(a);if(action==='smaller')t.scale=Math.max(.05,t.scale-.1);if(action==='larger')t.scale=Math.min(5,t.scale+.1);if(action==='left')t.rotation=normalizeRotation(t.rotation-90);if(action==='right')t.rotation=normalizeRotation(t.rotation+90);a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
   $('#assetTransformSmaller').onclick=()=>nudge('smaller');$('#assetTransformLarger').onclick=()=>nudge('larger');$('#assetTransformRotateLeft').onclick=()=>nudge('left');$('#assetTransformRotateRight').onclick=()=>nudge('right');
-  $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;S.transformPreview=null;Object.assign(assetTransformForTemplate(a),{...(a.defaultTransform||{x:0,y:0,scale:1,rotation:0,flipX:false,flipY:false})});a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
+  $('#resetAssetTransform').onclick=()=>{const a=selectedTransformAsset();if(!a)return;S.transformPreview=null;Object.assign(assetTransformForTemplate(a),initialAssetTransform(a));a.updatedAt=new Date().toISOString();persistAssetTransform(a);syncTransformControlValues(a);reconstruct();};
   syncTransformControlValues(preferred);
 }
 function wirePreviewFreeTransform(){
@@ -3769,9 +3784,12 @@ async function setFrameFamilyEnabled(familyKey,on){
   const list=ensureOrderFrameSelections(order),index=list.findIndex(x=>x.familyKey===familyKey);
   if(on&&index<0){list.splice(0,list.length);list.push({familyKey,placement:'BACK',addedAt:Date.now(),colors:{}})}
   if(!on&&index>=0)list.splice(index,1);
+  // 从素材库主动勾选衬底就应立即可见；不能继承上一单的纯白/透明模式继续把它隐藏。
+  if(on){order.backgroundMode='COLOR';order.backgroundBaseVisible=true;order.backgroundLaceVisible=false;}
   syncAssetEnabledFromOrder(order);persistOrders();refreshAllAssetComposites(order);S.rootStackOrder=normalizeRootStackOrder(S.rootStackOrder);saveRootStackOrder();
   record=S.assets.find(a=>assetFamilyKey(a)===familyKey);if(on&&record)S.selectedTransformStackId=assetStackId(record);
-  renderHairInsertionControls();reconstruct();renderAssetRows();renderAssetLibrary();renderEditableLayerSelectors();
+  syncBackgroundQuickFromOrder(order);updateBackgroundRecommendationMeta(order);
+  renderHairInsertionControls();reconstruct();renderAssetRows();renderAssetLibrary();renderEditableLayerSelectors();debug();
 }
 function setFramePlacement(familyKey,placement){
   const order=getActiveOrder();if(!order)return;const selection=frameSelection(order,familyKey);if(!selection)return;
