@@ -828,6 +828,38 @@ test('session export history stays in tab memory and records every PNG or JPEG o
   assert.match(html, /copyCanvasImageToClipboard\(c,clipboardPng\)/);
 });
 
+test('original PSD watermarks are global, topmost, and controlled by preview or delivery mode', () => {
+  assert.match(html, /function isWatermarkName\(value\)/);
+  assert.match(html, /function isWatermarkAsset\(asset\)/);
+  assert.match(html, /function activeWatermarkAsset\(\)/);
+  assert.match(html, /function watermarkAssetStackIds\(\)/);
+  assert.match(html, /return \[\.\.\.watermarkAssetStackIds\(\),\.\.\.frameStackIds\('FRONT'\)/);
+  assert.match(html, /isWatermarkAsset\(asset\)\?S\.watermarkPreviewVisible:asset\.enabled/);
+  assert.match(html, /S\.watermarkPreviewVisible=!!show/);
+  assert.match(html, /S\.watermarkPreviewVisible=currentWatermark;reconstruct\(\)/);
+  assert.match(html, /if\(isWatermarkName\(stem\)\)\{categoryId='ORIGINAL_ASSET';slot='GLOBAL';\}/);
+  assert.match(html, /watermarkUpload=categoryId==='ORIGINAL_ASSET'&&isWatermarkName/);
+  assert.match(html, /已接入水印开关/);
+  assert.match(html, /!isWatermarkAsset\(a\)&&\['EAR','TAIL','CLOTHING'/);
+
+  const sourceOf = name => {
+    const start = html.indexOf(`function ${name}(`), end = html.indexOf('\nfunction ', start + 1);
+    assert.ok(start >= 0 && end > start, `${name} should be extractable`);
+    return html.slice(start, end);
+  };
+  const isWatermarkName = new Function(`${sourceOf('isWatermarkName')}\nreturn isWatermarkName;`)();
+  const isWatermarkAsset = new Function('isWatermarkName', `${sourceOf('isWatermarkAsset')}\nreturn isWatermarkAsset;`)(isWatermarkName);
+  const S = { assets: [
+    { assetId: 'old', categoryId: 'ORIGINAL_ASSET', variant: '水印_旧版', updatedAt: '2026-08-25T00:00:00Z' },
+    { assetId: 'new', categoryId: 'ORIGINAL_ASSET', file: { name: 'watermark_shop.psd' }, updatedAt: '2026-08-26T00:00:00Z' },
+    { assetId: 'prop', categoryId: 'ORIGINAL_ASSET', variant: '礼物盒', updatedAt: '2026-08-27T00:00:00Z' },
+  ] };
+  const activeWatermarkAsset = new Function('S','isWatermarkAsset', `${sourceOf('activeWatermarkAsset')}\nreturn activeWatermarkAsset;`)(S, isWatermarkAsset);
+  assert.equal(isWatermarkName('水印_画师.psd'), true);
+  assert.equal(isWatermarkAsset(S.assets[2]), false);
+  assert.equal(activeWatermarkAsset().assetId, 'new', 'the most recently updated watermark becomes the default');
+});
+
 test('standardized Chinese asset names are inferred without changing the PSD parser', () => {
   assert.match(html, /\^\(\?:衬底\|BACKDROP\)\[_\\-\\s\]/);
   assert.match(html, /\^\(\?:衣服\|服装\|CLOTHING\)\[_\\-\\s\]/);

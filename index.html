@@ -770,7 +770,7 @@ header .badge{display:none!important}
             <div style="margin-top:8px">
               <div id="libraryDrop" class="libraryDrop">
                 <b>把素材 PSD / 透明 PNG 直接拖到这里</b>
-                <div class="meta">表情、眼睛状态、睫毛、身体姿势、衬底、原创 PSD 与辅助 PNG 都可以上传。身体姿势命名“姿势_名称.psd”，内部放 A男 / A女 / B男 / B女（也支持 A/男）四个大夹子；睫毛命名“睫毛_名称.psd”。未知名透明 PNG 自动进入“辅助素材”，只保留到当前页面关闭。</div>
+                <div class="meta">表情、眼睛状态、睫毛、身体姿势、衬底、原创 PSD 与辅助 PNG 都可以上传。身体姿势命名“姿势_名称.psd”，内部放 A男 / A女 / B男 / B女（也支持 A/男）四个大夹子；水印命名“水印_名称.psd”，会留在原创素材并自动接入样稿/交付开关。未知名透明 PNG 自动进入“辅助素材”，只保留到当前页面关闭。</div>
                 <div class="libraryClassRow">
                   <select id="libraryType">
                     <option value="AUTO">自动识别分类</option>
@@ -1003,7 +1003,7 @@ const S={
   collapsed:{}, visOverride:{}, masterOrder:null, bindings:{}, templateSignature:null, builderCollapsed:{},
   layerColorOverrides:{}, ruleColorOverrides:{}, manualLayerOverrides:{}, recolorCache:new Map(),
   orders:[], activeOrderId:null, presets:null, apiConfig:{endpoint:''}, logic:null, swatchImage:null, hairInsertion:{A:{path:'',position:'below'},B:{path:'',position:'below'}},
-  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), selectedTransformStackId:null, transformDrag:null, transformFrame:0, transformPreview:null,
+  rootStackOrder:[], rootStackDragId:null, assetRecolorCache:new WeakMap(), selectedTransformStackId:null, transformDrag:null, transformFrame:0, transformPreview:null, watermarkPreviewVisible:true,
   liveColorTimer:0, liveColorPending:null,
   editingAssetIndex:null, eyeSchemes:[], editingEyeSchemeId:null, exportHistory:[],
   styleSchemes:{hat:[],outfit:[]}, editingStyleScheme:{hat:null,outfit:null}, assetRenderWarnings:[], autoDecorSlots:{A:null,B:null},
@@ -1048,6 +1048,9 @@ function isBodyPoseCategory(categoryId){return categoryId==='BODY_POSE'}
 function isBackdropCategory(categoryId){return categoryId==='BACKDROP'}
 function isSessionOnlyAssetCategory(categoryId){return categoryId==='TEMP_HAIR'||categoryId==='AUXILIARY_ASSET'}
 function isTopDecorationCategory(categoryId){return categoryId==='ORIGINAL_ASSET'||categoryId==='AUXILIARY_ASSET'}
+function isWatermarkName(value){return /水印|watermark/i.test(String(value||''))}
+function isWatermarkAsset(asset){return !!asset&&asset.categoryId==='ORIGINAL_ASSET'&&[asset.name,asset.variant,asset.packageName,asset.componentName,asset.file?.name].some(isWatermarkName)}
+function activeWatermarkAsset(){return S.assets.filter(isWatermarkAsset).sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))[0]||null}
 
 function idbRequest(request){return new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('浏览器存储操作失败'));});}
 function openLocalLibraryDb(){
@@ -1183,7 +1186,8 @@ async function initLocalPersistence(){
   }catch(e){S.localPersistenceError=e;console.warn('init local library',e);renderAssetLibrary();}
 }
 async function warmCurrentOrderAssets(){
-  const order=getActiveOrder();if(!order)return;const wanted=new Set(),categories=[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))];['A','B'].forEach(slot=>{categories.forEach(categoryId=>selectedAssetFamilies(order,slot,categoryId).forEach(key=>wanted.add(key)))});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));
+  const order=getActiveOrder(),wanted=new Set(),categories=[...new Set(S.assets.map(a=>a.categoryId).filter(id=>id!=='FRAME'))];if(order){['A','B'].forEach(slot=>{categories.forEach(categoryId=>selectedAssetFamilies(order,slot,categoryId).forEach(key=>wanted.add(key)))});ensureOrderFrameSelections(order).forEach(x=>wanted.add(x.familyKey));ensureOrderGlobalAssetSelections(order).forEach(x=>wanted.add(x.familyKey));}
+  const watermark=activeWatermarkAsset();if(watermark)wanted.add(assetFamilyKey(watermark));
   for(const key of wanted){const record=S.assets.find(a=>(a.localOnly||a.cloudOnly)&&assetFamilyKey(a)===key);if(!record)continue;try{await hydrateAssetRecordIfNeeded(record)}catch(e){console.warn('warm selected asset',e)}}
 }
 
@@ -1382,6 +1386,7 @@ function clothingStackIds(){
 }
 function bodyPoseStackIds(){return [...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return isBodyPoseCategory(a.categoryId)&&a.slot!=='GLOBAL'}).sort((a,b)=>(a.slot==='B'?0:1)-(b.slot==='B'?0:1)||(Number(a.componentOrder)||0)-(Number(b.componentOrder)||0)).map(assetStackId))];}
 function stackAssetIds(){return [...new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return !isHairCategory(a.categoryId)&&!isClothingCategory(a.categoryId)&&!isBodyPoseCategory(a.categoryId)&&!isBackdropCategory(a.categoryId)&&a.slot!=='GLOBAL'}).sort((a,b)=>assetDefaultZ(b)-assetDefaultZ(a)).map(assetStackId))];}
+function watermarkAssetStackIds(){const active=activeWatermarkAsset();return active?[assetStackId(active)]:[]}
 function frameStackIds(placement,order=getActiveOrder()){
   const selections=ensureOrderFrameSelections(order).filter(x=>x.placement===placement).sort((a,b)=>b.addedAt-a.addedAt),ids=[];
   selections.forEach(selection=>{const record=S.assets.find(a=>isBackdropCategory(a.categoryId)&&assetFamilyKey(a)===selection.familyKey);if(record&&!ids.includes(assetStackId(record)))ids.push(assetStackId(record));});
@@ -1389,7 +1394,7 @@ function frameStackIds(placement,order=getActiveOrder()){
 }
 function globalAssetStackIds(placement,order=getActiveOrder()){
   const selections=ensureOrderGlobalAssetSelections(order).filter(x=>x.placement===placement).sort((a,b)=>b.addedAt-a.addedAt),ids=[];
-  selections.forEach(selection=>{const record=S.assets.find(a=>a.slot==='GLOBAL'&&!isBackdropCategory(a.categoryId)&&assetFamilyKey(a)===selection.familyKey);if(record&&!ids.includes(assetStackId(record)))ids.push(assetStackId(record));});
+  selections.forEach(selection=>{const record=S.assets.find(a=>a.slot==='GLOBAL'&&!isBackdropCategory(a.categoryId)&&!isWatermarkAsset(a)&&assetFamilyKey(a)===selection.familyKey);if(record&&!ids.includes(assetStackId(record)))ids.push(assetStackId(record));});
   return ids;
 }
 function rootLayerFromId(id){
@@ -1426,7 +1431,7 @@ function defaultRootStackOrder(){
     const backgroundAt=ids.findIndex(id=>/layer:.*(?:影子|背景|衬底)/i.test(id));
     ids.splice(backgroundAt>=0?backgroundAt:ids.length,0,...backHairs);
   }
-  return [...frameStackIds('FRONT'),...globalAssetStackIds('FRONT'),...stackAssetIds(),...ids,...globalAssetStackIds('BACK'),...frameStackIds('BACK')];
+  return [...watermarkAssetStackIds(),...frameStackIds('FRONT'),...globalAssetStackIds('FRONT'),...stackAssetIds(),...ids,...globalAssetStackIds('BACK'),...frameStackIds('BACK')];
 }
 function pinTailStackAboveLace(panelIds,tailIds,lace,base,legacy){
   const backgrounds=new Set([lace,base,legacy].filter(Boolean));
@@ -1437,7 +1442,7 @@ function pinTailStackAboveLace(panelIds,tailIds,lace,base,legacy){
 }
 function normalizeRootStackOrder(order){
   const validLayers=new Set(baseRootPanelOrder());
-  const hairIds=[...availableHairStackIds('FRONT'),...availableHairStackIds('BACK')],frames=[...frameStackIds('FRONT'),...frameStackIds('BACK')],globals=[...globalAssetStackIds('FRONT'),...globalAssetStackIds('BACK')],validAssets=new Set([...stackAssetIds(),...clothingStackIds(),...bodyPoseStackIds(),...frames,...globals]),wanted=[...validLayers,...hairIds,...validAssets];
+  const hairIds=[...availableHairStackIds('FRONT'),...availableHairStackIds('BACK')],frames=[...frameStackIds('FRONT'),...frameStackIds('BACK')],globals=[...globalAssetStackIds('FRONT'),...globalAssetStackIds('BACK')],watermarkIds=watermarkAssetStackIds(),validAssets=new Set([...stackAssetIds(),...clothingStackIds(),...bodyPoseStackIds(),...frames,...globals,...watermarkIds]),wanted=[...validLayers,...hairIds,...validAssets];
   const out=[];
   (Array.isArray(order)?order:[]).forEach(raw=>{const parsed=parseHairStackId(raw),id=parsed?hairStackId(parsed.slot,parsed.placement):raw;if(wanted.includes(id)&&!out.includes(id))out.push(id)});
   // 新模板根层或刚上传素材按默认相邻位置补回，同时保留用户已经拖好的层级。
@@ -1457,8 +1462,8 @@ function normalizeRootStackOrder(order){
   const lace=cleaned.find(id=>/layer:.*背景蕾丝|layer:.*蕾丝.*背景|layer:.*背景花纹|layer:.*白色蕾丝/i.test(id));
   const allFrameIds=new Set(S.assets.filter(a=>isBackdropCategory(a.categoryId)).map(assetStackId));
   const tailIds=new Set(S.assets.filter(a=>{ensureAssetRecordV2(a);return a.categoryId==='TAIL'}).map(assetStackId));
-  const rest=cleaned.filter(id=>id!==legacy&&id!==base&&id!==lace&&!allFrameIds.has(id));
-  const tails=rest.filter(id=>tailIds.has(id)),subjects=rest.filter(id=>!tailIds.has(id)),watermarks=subjects.filter(id=>/^layer:.*(?:水印|watermark)/i.test(id)),subjectBody=subjects.filter(id=>!watermarks.includes(id));
+  const rest=cleaned.filter(id=>id!==legacy&&id!==base&&id!==lace&&!allFrameIds.has(id)),watermarkIdSet=new Set(watermarkIds);
+  const tails=rest.filter(id=>tailIds.has(id)),subjects=rest.filter(id=>!tailIds.has(id)),watermarks=subjects.filter(id=>/^layer:.*(?:水印|watermark)/i.test(id)||watermarkIdSet.has(id)),subjectBody=subjects.filter(id=>!watermarks.includes(id));
   // 图层面板“上→下”：水印/原创与辅助素材/人物 → 尾巴 → 衬底 → 旧蕾丝兼容层 → 背景底色。
   return [...watermarks,...subjectBody,...tails,...frameStackIds('BACK'),...(lace?[lace]:[]),...(base?[base]:[]),...(legacy?[legacy]:[])];
 }
@@ -1809,7 +1814,7 @@ function renderMasterWithRootStack(skipStackId=null){
     const hair=parseHairStackId(id);if(hair){
       const a=rootStackHairAsset(hair.slot,hair.placement);if(a?.composite){drawAssetTransformed(ctx,a);clipBase=a.composite;}return;
     }
-    const asset=assetFromStackId(id);if(asset){if(asset.enabled)drawAssetTransformed(ctx,asset);clipBase=null;return;}
+    const asset=assetFromStackId(id);if(asset){const visible=isWatermarkAsset(asset)?S.watermarkPreviewVisible:asset.enabled;if(visible)drawAssetTransformed(ctx,asset);clipBase=null;return;}
     const layer=rootLayerFromId(id);if(!layer)return;const eyeReplacementSlot=rootEyeLayerSlot(layer,id);if(eyeReplacementSlot&&enabledEyeStateForSlot(eyeReplacementSlot))return;const bodyReplacementSlot=rootBodyLayerSlot(layer,id);if(bodyReplacementSlot&&enabledBodyPoseForSlot(bodyReplacementSlot))return;const path=layer.name||id.slice(6);if(!effectiveVisible(layer,path,true,true))return;
     const isGroup=!!(layer.children&&layer.children.length),bm=(layer.blendMode||'normal').toLowerCase(),opacity=typeof layer.opacity==='number'?layer.opacity:1;
     if(isGroup&&bm==='pass through'&&opacity>=.999&&!layer.clipping){renderSiblingStack(psd,ctx,layer.children,path,S.masterOrder?.mode||'reverse',false,true,true);clipBase=null;return;}
@@ -3854,10 +3859,11 @@ function removeOrderAssetFamilyKey(order,slot,categoryId,familyKey){
   const multi=ensureOrderMultiAssetSelections(order),list=multi[slot][categoryId];if(Array.isArray(list))multi[slot][categoryId]=list.filter(key=>key!==familyKey);
 }
 function syncAssetEnabledFromOrder(order){
-  if(!order)return;
+  const activeWatermark=activeWatermarkAsset();
+  if(!order){S.assets.forEach(a=>{if(isWatermarkAsset(a))a.enabled=!!activeWatermark&&a.assetId===activeWatermark.assetId});return}
   const frames=new Set(ensureOrderFrameSelections(order).map(x=>x.familyKey)),globals=new Set(ensureOrderGlobalAssetSelections(order).map(x=>x.familyKey));
   const showBackdrop=(order.backgroundMode||'COLOR')==='COLOR';
-  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(isBackdropCategory(a.categoryId)){a.enabled=showBackdrop&&frames.has(assetFamilyKey(a));return}if(a.slot==='GLOBAL'){a.enabled=globals.has(assetFamilyKey(a));return}if(isStackableAssetCategory(a.categoryId)){a.enabled=isAssetFamilySelected(order,a.slot,a.categoryId,assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
+  S.assets.forEach(a=>{ensureAssetRecordV2(a);if(isWatermarkAsset(a)){a.enabled=!!activeWatermark&&a.assetId===activeWatermark.assetId;return}if(isBackdropCategory(a.categoryId)){a.enabled=showBackdrop&&frames.has(assetFamilyKey(a));return}if(a.slot==='GLOBAL'){a.enabled=globals.has(assetFamilyKey(a));return}if(isStackableAssetCategory(a.categoryId)){a.enabled=isAssetFamilySelected(order,a.slot,a.categoryId,assetFamilyKey(a));return}const chosen=selectedAssetFamily(order,a.slot,a.categoryId);a.enabled=!!chosen&&chosen===assetFamilyKey(a);});
 }
 async function setAssetFamilySelection(familyKey,slot,on){
   const started=performance.now();
@@ -4047,6 +4053,14 @@ function renderAssetLibrary(){
         details.appendChild(card);return;
       }
       if(first.slot==='GLOBAL'){
+        if(isWatermarkAsset(first)){
+          const active=activeWatermarkAsset()?.assetId===first.assetId;card.className+=' frameFamilyCard watermarkFamilyCard';
+          card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
+            <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名水印')}</b><div class="assetFamilyMeta">水印素材 · 保持 PSD 原色<br>${active?'当前默认 · 样稿显示 / 交付隐藏':'备用水印 · 最近上传的一份自动生效'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select></div>
+            <div class="frameControls"><span class="cloudAssetBadge">已接入水印开关</span></div>
+            <div class="assetCardActions">${lazyButton||layerButtons}${CLOUD_PROFILE_ENABLED&&!cloudSaved&&!lazyOnly?`<button class="btn" data-ak="upload-cloud" data-family="${safe(group.key)}">存云端</button>`:''}${cloudSaved?`<span class="cloudAssetBadge">云端</span><button class="btn" data-ak="delete-cloud" data-asset-id="${safe(first.assetId)}">删云端</button>`:''}<button class="btn" data-ak="delete-family" data-family="${safe(group.key)}">${localCached?'删除本机':'移出页面'}</button></div>`;
+          details.appendChild(card);return;
+        }
         const selection=globalAssetSelection(order,group.key),on=!!selection,placement=selection?.placement||'FRONT';card.className+=' frameFamilyCard';
         card.innerHTML=`<canvas class="assetThumb" data-thumb-family="${safe(group.key)}"></canvas>
           <div class="assetFamilyInfo"><b title="${safe(assetSourceName(first))}">${safe(first.variant||first.name||'未命名公共装饰')}</b><div class="assetFamilyMeta">画面公共装饰 · ${audit||sourceSummary}<br>${on?(placement==='BACK'?'人物下方 / 背景上方':'人物最上方'):'尚未加入当前订单'} · ${storageHtml}</div><select class="assetCategorySelect" data-ak="category" data-family="${safe(group.key)}" ${lazyOnly?'disabled':''}>${assetCategoryOptions(category.id)}</select>${colorToggle}</div>
@@ -4657,6 +4671,7 @@ function clearQuickColor(){
   reconstruct();renderOverlay();syncProductionPreview();syncQuickColorFromSelection();
 }
 function applyWatermarkMode(show){
+  S.watermarkPreviewVisible=!!show;
   S.flat.forEach(n=>{
     const b=S.bindings[n.path],isWater=b?.role==='WATERMARK_PREVIEW'||/水印|watermark/i.test(n.name);
     if(isWater)S.visOverride[n.path]=!!show;
@@ -4899,7 +4914,7 @@ async function exportProduction(format,showWatermark,forceDownload=false){
     const copied=canCopy&&await copyCanvasImageToClipboard(c,clipboardPng);
     if(copied){feedback=`${c.width}×${c.height} · 已复制，并记入当前订单临时图`;}else{dl(requested,fileName);feedback=`${c.width}×${c.height} · 已下载，并记入当前订单临时图`;}
   }catch(e){console.error(e);alert('导出失败：'+(e.message||e));}
-  finally{if(temporaryWatermark){S.visOverride=before;reconstruct()}S.exportBusy=false;if(feedback)$('#prodPreviewInfo').textContent=feedback;}
+  finally{if(temporaryWatermark){S.visOverride=before;S.watermarkPreviewVisible=currentWatermark;reconstruct()}S.exportBusy=false;if(feedback)$('#prodPreviewInfo').textContent=feedback;}
 }
 function makeFormBackgroundQuick(){
   const box=document.createElement('div');box.className='softPanel';box.id='formBackgroundQuick';
@@ -5018,7 +5033,7 @@ function flexibleComponentCandidates(slot){
     });
   }
   const seen=new Set();
-  (S.assets||[]).filter(a=>['EAR','TAIL','CLOTHING','REUSABLE_HAIR','TEMP_HAIR','ORIGINAL_ASSET'].includes(a.categoryId)&&(a.slot===slot||a.characterCompatibility==='BOTH'||a.slot==='BOTH'||a.slot==='GLOBAL')).forEach(a=>{
+  (S.assets||[]).filter(a=>!isWatermarkAsset(a)&&['EAR','TAIL','CLOTHING','REUSABLE_HAIR','TEMP_HAIR','ORIGINAL_ASSET'].includes(a.categoryId)&&(a.slot===slot||a.characterCompatibility==='BOTH'||a.slot==='BOTH'||a.slot==='GLOBAL')).forEach(a=>{
     const familyKey=assetFamilyKey(a),key=`ASSET::${familyKey}`;if(seen.has(key))return;seen.add(key);
     candidates.push({key,sourceType:'ASSET',sourceKey:familyKey,name:a.variant||a.name||assetSourceName(a),label:`素材 · ${categoryLabel(a.categoryId)} · ${a.variant||a.name||assetSourceName(a)}`});
   });
@@ -5318,7 +5333,8 @@ function inferAsset(file){
   let slot=explicitAssetSlotFromText(file.name)||'A';
   const stem=file.name.replace(/\.(?:psd|png)$/i,'').trim();
   let categoryId=isPngAssetFile(file)?'AUXILIARY_ASSET':'EAR';
-  if(/^(?:衬底|BACKDROP)[_\-\s]/i.test(stem)){categoryId='BACKDROP';slot='GLOBAL';}
+  if(isWatermarkName(stem)){categoryId='ORIGINAL_ASSET';slot='GLOBAL';}
+  else if(/^(?:衬底|BACKDROP)[_\-\s]/i.test(stem)){categoryId='BACKDROP';slot='GLOBAL';}
   else if(/^(?:衣服|服装|CLOTHING)[_\-\s]/i.test(stem))categoryId='CLOTHING';
   else if(/^(?:姿势|身体姿势|BODY_POSE|POSE)[_\-\s]/i.test(stem))categoryId='BODY_POSE';
   else if(n.includes('TAIL')||n.includes('尾'))categoryId='TAIL';
@@ -5426,11 +5442,11 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
   const loaded=[];
   for(const file of files){
     try{
-      const png=isPngAssetFile(file),inf=inferAsset(file),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),globalScope=isBackdropCategory(categoryId)||forcedSlot==='GLOBAL',previous=isHairCategory(categoryId)?null:(isClothingCategory(categoryId)||isBodyPoseCategory(categoryId))?S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.packageName||a.variant,variant)):S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)&&(globalScope?a.slot==='GLOBAL':a.slot!=='GLOBAL')),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
+      const png=isPngAssetFile(file),inf=inferAsset(file),categoryId=(forcedType&&forcedType!=='AUTO')?forcedType:inf.categoryId,type=rendererTypeForCategory(categoryId,inf.type),variant=familyName(file),watermarkUpload=categoryId==='ORIGINAL_ASSET'&&isWatermarkName(`${file.name} ${variant}`),globalScope=isBackdropCategory(categoryId)||watermarkUpload||inf.slot==='GLOBAL'||forcedSlot==='GLOBAL',previous=isHairCategory(categoryId)?null:(isClothingCategory(categoryId)||isBodyPoseCategory(categoryId))?S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.packageName||a.variant,variant)):S.assets.find(a=>a.categoryId===categoryId&&sameVariant(a.variant,variant)&&(globalScope?a.slot==='GLOBAL':a.slot!=='GLOBAL')),assetId=previous?.assetId||('asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8)),createdAt=previous?.createdAt||new Date().toISOString();
       if(png){
         const canvas=await loadPngCanvas(file);
         if(previous)S.assets=S.assets.filter(a=>a.assetId!==assetId);
-        if(isBackdropCategory(categoryId)||forcedSlot==='GLOBAL'){const rec=makeRasterAssetRecord(file,canvas,'GLOBAL',type,variant,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec)}
+        if(globalScope){const rec=makeRasterAssetRecord(file,canvas,'GLOBAL',type,variant,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec)}
         else if(forcedSlot==='AUTO'&&!hasExplicitAssetSlot(file)){const metadata={assetId,categoryId,characterCompatibility:'BOTH',createdAt},a=makeRasterAssetRecord(file,canvas,'A',type,variant,metadata),b=makeRasterAssetRecord(file,canvas,'B',type,variant,metadata);upsertAssetRecord(a);upsertAssetRecord(b);loaded.push(a,b)}
         else{const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inf.slot,rec=makeRasterAssetRecord(file,canvas,slot,type,variant,{assetId,categoryId,characterCompatibility:slot,createdAt});upsertAssetRecord(rec);loaded.push(rec)}
         continue;
@@ -5454,7 +5470,7 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
           const slot=forcedSlot==='A'||forcedSlot==='B'?forcedSlot:inferAssetGroupSlot(psd,component.path,component.name,inf.slot),componentName=String(component.name||'衣服组件').trim(),displayName=components.length===1?variant:`${variant} · ${componentName.replace(/^[AB](?:位)?[_\-\s]*/i,'')}`;
           const rec=makeAssetRecord(file,psd,order,slot,type,displayName,component.path,{assetId,categoryId,characterCompatibility:slot,createdAt,packageName:variant,componentName,componentOrder:component.componentOrder});upsertAssetRecord(rec);loaded.push(rec);
         });
-      }else if(isBackdropCategory(categoryId)||forcedSlot==='GLOBAL'){
+      }else if(globalScope){
         const rec=makeAssetRecord(file,psd,order,'GLOBAL',type,variant,null,{assetId,categoryId,characterCompatibility:'GLOBAL',createdAt});upsertAssetRecord(rec);loaded.push(rec);
       }else if(forcedSlot==='AUTO'&&pair.a&&pair.b){
         const metadata={assetId,categoryId,characterCompatibility:'BOTH',createdAt},a=makeAssetRecord(file,psd,order,'A',type,variant,pair.a.path,metadata),b=makeAssetRecord(file,psd,order,'B',type,variant,pair.b.path,metadata);
@@ -5467,7 +5483,7 @@ async function loadAssets(files,forcedType=null,forcedSlot='AUTO'){
   }
   const loadedFamilies=[...new Set(loaded.map(assetFamilyKey))];loadedFamilies.forEach(key=>queuePersistAssetFamilyLocal(key,40));
   // 素材上传只加入素材库；耳朵必须由读表匹配或用户手动选择，绝不自动试戴第一款。
-  const o=getActiveOrder();if(o)syncAssetEnabledFromOrder(o);
+  const o=getActiveOrder();syncAssetEnabledFromOrder(o);
   renderAssetRows();updateDecorSelects();applyDecorSelection();renderHairInsertionControls();renderAssetLibrary();reconstruct();debug();
 }
 function exportTree(){
