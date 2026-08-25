@@ -1658,7 +1658,12 @@ function renderHairInsertionControls(){
   const reset=$('#resetRootStack');if(reset&&!reset._wired){reset._wired=true;reset.onclick=resetRootStackOrder;}
   renderTransformControls();
 }
-function rootStackHairAsset(slot,placement='FRONT',enabledOnly=true){return S.assets.find(a=>a.type==='HAIR'&&a.slot===slot&&hairPlacementForAsset(a)===normalizeHairPlacement(placement)&&(!enabledOnly||a.enabled))||null;}
+function rootStackHairAsset(slot,placement='FRONT',enabledOnly=true){
+  const matches=S.assets.filter(a=>a.type==='HAIR'&&a.slot===slot&&hairPlacementForAsset(a)===normalizeHairPlacement(placement));
+  // 同一位置可能保留多份历史头发。虚拟大夹子和整体调整都必须先解析到
+  // 当前已勾选的记录，否则会命中旧的未启用头发并回退到其他素材。
+  return matches.find(a=>a.enabled)||(enabledOnly?null:matches[0])||null;
+}
 function hairIsInternallyInserted(asset){return asset.type==='HAIR'&&S.rootStackOrder?.includes(hairStackId(asset.slot,hairPlacementForAsset(asset)));}
 function assetIsInternallyInserted(asset){return S.rootStackOrder?.includes(assetStackId(asset));}
 function insertedHairFor(path,phase){return S.assets.filter(a=>a.type==='HAIR'&&a.enabled&&!S.rootStackOrder?.length&&S.hairInsertion?.[a.slot]?.path===path&&S.hairInsertion[a.slot].position===phase);}

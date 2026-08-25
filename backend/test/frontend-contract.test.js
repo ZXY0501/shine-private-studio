@@ -659,6 +659,29 @@ test('dedicated hair uploads stay reusable and isolated even when two orders use
   assert.doesNotMatch(html, /S\.assets=S\.assets\.filter\(a=>!\(a\.type==='HAIR'&&a\.slot===slot\)\)/);
 });
 
+test('hair transform resolves the enabled asset before stale records in the same slot', () => {
+  const sourceStart = html.indexOf('function rootStackHairAsset(');
+  const sourceEnd = html.indexOf('\n}', sourceStart) + 2;
+  const rootStackHairAsset = new Function(
+    'S',
+    'hairPlacementForAsset',
+    'normalizeHairPlacement',
+    `${html.slice(sourceStart, sourceEnd)}\nreturn rootStackHairAsset;`,
+  )(
+    {
+      assets: [
+        { type: 'HAIR', slot: 'B', hairPlacement: 'FRONT', enabled: false, name: '旧头发' },
+        { type: 'HAIR', slot: 'B', hairPlacement: 'FRONT', enabled: true, name: '当前头发' },
+      ],
+    },
+    asset => asset.hairPlacement,
+    value => String(value || '').toUpperCase() === 'BACK' ? 'BACK' : 'FRONT',
+  );
+
+  assert.equal(rootStackHairAsset('B', 'FRONT', false)?.name, '当前头发');
+  assert.equal(rootStackHairAsset('B', 'FRONT', true)?.name, '当前头发');
+});
+
 test('hair A/B position is inferred from filename or PSD layers and never silently defaults to A', () => {
   const start = html.indexOf('function explicitAssetSlotFromText(');
   const end = html.indexOf('\nfunction explicitHairPlacement(', start);
