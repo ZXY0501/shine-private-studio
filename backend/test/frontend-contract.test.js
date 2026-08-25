@@ -918,10 +918,11 @@ test('body poses are packaged by pose with independent A/B male and female choic
   const bodyTemplatePart = new Function(`${sourceOf('bodyTemplatePart')}\nreturn bodyTemplatePart;`)();
   const primaryBodyTemplatePart = new Function(`${sourceOf('primaryBodyTemplatePart')}\nreturn primaryBodyTemplatePart;`)();
   const faceTemplatePart = new Function(`${sourceOf('faceTemplatePart')}\nreturn faceTemplatePart;`)();
+  const fixedFrontTemplatePart = new Function(`${sourceOf('fixedFrontTemplatePart')}\nreturn fixedFrontTemplatePart;`)();
   const bodyReplacementSlot = new Function(
-    'faceTemplatePart','bodyTemplatePart','guessSlot','enabledBodyPoseForSlot',
+    'faceTemplatePart','fixedFrontTemplatePart','bodyTemplatePart','guessSlot','enabledBodyPoseForSlot',
     `${sourceOf('templateBodyReplacementSlot')}\nreturn templateBodyReplacementSlot;`,
-  )(faceTemplatePart, bodyTemplatePart, path => /^A/.test(path) ? 'A' : /^B/.test(path) ? 'B' : 'NONE', () => ({}));
+  )(faceTemplatePart, fixedFrontTemplatePart, bodyTemplatePart, path => /^A/.test(path) ? 'A' : /^B/.test(path) ? 'B' : 'NONE', () => ({}));
   const namedRootSlot = new Function(
     'guessSlot', `${sourceOf('namedRootSlot')}\nreturn namedRootSlot;`,
   )(value => /^A/.test(value) ? 'A' : /^B/.test(value) ? 'B' : 'NONE');
@@ -931,7 +932,8 @@ test('body poses are packaged by pose with independent A/B male and female choic
   )(primaryBodyTemplatePart, faceTemplatePart, namedRootSlot);
   assert.equal(bodyReplacementSlot('A脸部手部/面部底色', '面部底色'), null, 'combined face/hand folders must remain visible');
   assert.equal(bodyReplacementSlot('A身体/A身体女', 'A身体女'), 'A');
-  assert.equal(bodyReplacementSlot('A手部前置/手部底色', '手部底色'), 'A');
+  assert.equal(bodyReplacementSlot('A手部前置/手部底色', '手部底色'), null, 'fixed foreground hands must remain visible with every pose');
+  assert.equal(bodyReplacementSlot('A前置项/装饰', '装饰'), null, 'the future foreground naming convention must remain visible');
   assert.equal(rootBodySlot({ name: 'A脸部手部' }, 'layer:A脸部手部'), null);
   assert.equal(rootBodySlot({ name: 'A手部前置' }, 'layer:A手部前置'), null);
   assert.equal(rootBodySlot({ name: 'A身体' }, 'layer:A身体'), 'A');
@@ -1333,6 +1335,7 @@ test('template flexible fields persist by template while body groups stay fixed'
   assert.match(html, /模板夹子随模板复用；素材选择随订单/);
   assert.match(html, /function isFixedBodyComponentName\(value\)/);
   for (const name of ['脸部','手部','腿部','颈部']) assert.match(html, new RegExp(name));
+  assert.match(html, /\(\?:固定\)\?前置/);
 });
 
 test('outfit and matched animal outlines use the legacy low-chroma recipes', () => {

@@ -1780,10 +1780,11 @@ function enabledBodyPoseForSlot(slot){return S.assets.find(a=>a.enabled&&isBodyP
 function bodyTemplatePart(value){return /身体|躯干|手部|手臂|胳膊|腿部|颈部|body|torso|hand|arm|leg|neck/i.test(String(value||''));}
 function primaryBodyTemplatePart(value){return /身体|躯干|body|torso/i.test(String(value||''));}
 function faceTemplatePart(value){return /脸部|面部|face/i.test(String(value||''));}
+function fixedFrontTemplatePart(value){return /(?:固定)?前置(?:项|层|组)?|foreground|front[\s_\-]*(?:overlay|item|layer|group)/i.test(String(value||''));}
 function templateBodyReplacementSlot(path,name){
   // “A脸部手部”这类纯净模板夹子同时含有“脸部”和“手部”。启用身体姿势时，
-  // 脸部优先保留，不能因为“手部”二字把整组面部底色、线稿和腮红一起替换掉。
-  if(faceTemplatePart(path)||faceTemplatePart(name))return null;
+  // 脸部优先保留；“A手部前置 / A前置项”也属于所有姿势共用的固定前景，不能被身体替换。
+  if(faceTemplatePart(path)||faceTemplatePart(name)||fixedFrontTemplatePart(path)||fixedFrontTemplatePart(name))return null;
   if(!bodyTemplatePart(path)&&!bodyTemplatePart(name))return null;
   const slot=guessSlot(path,name);return (slot==='A'||slot==='B')&&enabledBodyPoseForSlot(slot)?slot:null;
 }
@@ -5006,7 +5007,7 @@ function saveTemplateFlexibleSchema(order,signature=S.templateSignature){
   const schema=Object.fromEntries(['A','B','GLOBAL'].map(slot=>[slot,ensureFlexibleComponents(order,slot).filter(x=>x.sourceType==='TEMPLATE'&&!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop())).map(x=>({sourceType:'TEMPLATE',sourceKey:x.sourceKey,name:x.name}))]));
   try{localStorage.setItem(key,JSON.stringify(schema))}catch{}
 }
-function isFixedBodyComponentName(value){return /(?:脸部|面部|肤色|皮肤|身体|手部|手臂|手掌|腿部|颈部|脖子)/.test(String(value||'').replace(/[\s_\-—－]/g,''))}
+function isFixedBodyComponentName(value){return /(?:脸部|面部|肤色|皮肤|身体|手部|手臂|手掌|腿部|颈部|脖子|(?:固定)?前置(?:项|层|组)?)/.test(String(value||'').replace(/[\s_\-—－]/g,''))}
 function flexibleComponentCandidates(slot){
   const candidates=[];
   if(S.master){
