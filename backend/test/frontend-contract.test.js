@@ -1110,10 +1110,37 @@ test('flexible form binds template or asset components and derives four HSL chan
   assert.match(html, /\['EAR','TAIL','CLOTHING','REUSABLE_HAIR','TEMP_HAIR','ORIGINAL_ASSET'\]\.includes\(a\.categoryId\)/);
   assert.match(html, /function applyFlexibleTemplateColors\(order\)/);
   assert.match(html, /PHASE4_COLOR\.deriveBasicComponent\(base,\{overrides:shadow\?\{shadow\}:\{\}\}\)/);
-  assert.match(html, /<b>灵活组件<\/b>/);
+  assert.match(html, /公共灵活组件/);
   assert.match(html, /data-flex-preset/);
   assert.match(html, /phase4CompatHidden/);
   assert.match(html, /syncParsedFlexibleComponents\(o,'A'\);syncParsedFlexibleComponents\(o,'B'\)/);
+});
+
+test('slotless template decorations such as gift boxes and balloons appear in a shared flexible form', () => {
+  const start = html.indexOf('function flexibleComponentCandidates(');
+  const end = html.indexOf('\nfunction flexibleDefaultBase(', start);
+  assert.ok(start >= 0 && end > start);
+  const S = { master: {}, assets: [], flat: [
+    { isGroup: true, depth: 0, name: '礼物盒', path: '礼物盒' },
+    { isGroup: false, depth: 1, name: '礼物盒底色', path: '礼物盒/礼物盒底色' },
+    { isGroup: true, depth: 0, name: '气球', path: '气球' },
+    { isGroup: false, depth: 1, name: '圆形气球', path: '气球/圆形气球' },
+    { isGroup: true, depth: 0, name: '影子', path: '影子' },
+    { isGroup: false, depth: 1, name: '影子', path: '影子/影子' },
+    { isGroup: true, depth: 0, name: '眉毛组', path: '眉毛组' },
+    { isGroup: false, depth: 1, name: 'A眉毛', path: '眉毛组/A眉毛' },
+    { isGroup: true, depth: 0, name: 'A衣服', path: 'A衣服' },
+    { isGroup: false, depth: 1, name: 'A衣服底色', path: 'A衣服/A衣服底色' },
+  ] };
+  const guessSlot = path => /^A(?:位|衣服)/.test(String(path || '')) ? 'A' : /^B(?:位|衣服)/.test(String(path || '')) ? 'B' : 'NONE';
+  const candidates = new Function('S','guessSlot','isFixedBodyComponentName', `${html.slice(start, end)}\nreturn flexibleComponentCandidates;`)(S, guessSlot, () => false);
+  assert.deepEqual(candidates('GLOBAL').map(x => x.name), ['礼物盒', '气球']);
+  assert.deepEqual(candidates('A').map(x => x.name), ['A衣服']);
+  assert.match(html, /flexibleComponents:\{A:\[\],B:\[\],GLOBAL:\[\]\}/);
+  assert.match(html, /\['A','B','GLOBAL'\]\.forEach\(slot=>/);
+  assert.match(html, /makeFlexibleComponentPanel\('GLOBAL'\)/);
+  assert.match(html, /renderEditableLayerSelectors\(\);renderHairInsertionControls\(\);renderFlexibleComponentPanels\(\);syncProductionPreview\(\)/);
+  assert.match(html, /气球\(\?:底色\)\?\$\/\.test\(text\)\)return 'base'/);
 });
 
 test('flexible base and shadow controls keep generated colors active and refresh automatic shadow', () => {

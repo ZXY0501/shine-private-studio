@@ -544,7 +544,7 @@ header .badge{display:none!important}
 .assetHealthRow{display:grid;grid-template-columns:minmax(240px,1fr) 82px 155px;gap:6px;align-items:center;padding:6px 7px;border-bottom:1px dashed #e7e1e7;font-size:9px;min-width:600px}
 .assetHealthRow:last-child{border-bottom:0}.assetHealthRow.head{position:sticky;top:0;background:#f6f2f5;z-index:2;color:var(--muted);font-weight:700}
 .formBabyPair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;min-width:0}.formBabyPair .babyCard{padding:8px;min-width:0}.formBabyPair .fieldGrid{grid-template-columns:64px minmax(0,1fr);gap:5px 6px}.formBabyPair .fieldGrid>label{font-size:8px}.presetColorInline{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(82px,.8fr);gap:5px;min-width:0}.presetColorInline>.colorLine{grid-template-columns:minmax(48px,1fr) 31px;min-width:0}.presetColorInline input[type=color]{width:31px;height:31px}.presetColorInline input:disabled{opacity:.72;background:#f3f0f3}.libraryTransformBox{margin:7px 0;background:#f8f5f8;border-color:#cfc7d5}.libraryTransformTitle{font-size:10px;font-weight:800;margin-bottom:6px}.libraryTransformBox .assetTransformHead select{font-weight:700;height:31px!important}.assetFamilyLoading{opacity:.7}.assetFamilyLoading .assetSlotCheck{pointer-events:none}
-.flexComponentPanel{grid-column:1/-1;margin-top:8px;border-top:1px dashed var(--line);padding-top:7px}.flexComponentHead{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:9px}.flexComponentAdd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;margin-top:5px}.flexComponentRows{display:grid;gap:5px;margin-top:6px}.flexComponentRow{border:1px solid var(--line);border-radius:8px;padding:6px;background:#faf8fa}.flexComponentRowHead{display:flex;justify-content:space-between;gap:5px;align-items:center;font-size:9px;margin-bottom:5px}.flexComponentPreset{width:100%;height:25px!important;margin-bottom:5px}.flexComponentColors{display:grid;grid-template-columns:44px minmax(52px,1fr) 28px 44px minmax(52px,1fr) 28px;gap:4px;align-items:center;font-size:8px;color:var(--muted)}.flexComponentColors input[type=text]{height:25px!important}.flexComponentColors input[type=color]{width:28px;height:25px;border:1px solid var(--line);border-radius:6px;padding:1px;background:#fff}
+.flexComponentPanel{grid-column:1/-1;margin-top:8px;border-top:1px dashed var(--line);padding-top:7px}.sharedFlexiblePanel .flexComponentPanel{margin-top:0;border-top:0;padding-top:0}.flexComponentHead{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:9px}.flexComponentAdd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:5px;margin-top:5px}.flexComponentRows{display:grid;gap:5px;margin-top:6px}.flexComponentRow{border:1px solid var(--line);border-radius:8px;padding:6px;background:#faf8fa}.flexComponentRowHead{display:flex;justify-content:space-between;gap:5px;align-items:center;font-size:9px;margin-bottom:5px}.flexComponentPreset{width:100%;height:25px!important;margin-bottom:5px}.flexComponentColors{display:grid;grid-template-columns:44px minmax(52px,1fr) 28px 44px minmax(52px,1fr) 28px;gap:4px;align-items:center;font-size:8px;color:var(--muted)}.flexComponentColors input[type=text]{height:25px!important}.flexComponentColors input[type=color]{width:28px;height:25px;border:1px solid var(--line);border-radius:6px;padding:1px;background:#fff}
 .phase4CompatHidden{display:none!important}
 @media(max-width:1180px){.formBabyPair{grid-template-columns:1fr}.formBabyPair .fieldGrid{grid-template-columns:86px minmax(0,1fr)}}
 
@@ -2663,7 +2663,7 @@ function migrateBlankOrderAutoEarsV1(){
 function loadProductionState(){
   loadAssetCategories();
   try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
-  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderMultiAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6');o.environmentLight=normalizeHex(o.environmentLight||'')||'';o.componentColors=o.componentColors&&typeof o.componentColors==='object'?o.componentColors:{A:{},B:{}};o.componentColors.A=o.componentColors.A||{};o.componentColors.B=o.componentColors.B||{};o.assetComponentColors=o.assetComponentColors&&typeof o.assetComponentColors==='object'?o.assetComponentColors:{};o.flexibleComponents=o.flexibleComponents&&typeof o.flexibleComponents==='object'?o.flexibleComponents:{A:[],B:[]};o.flexibleComponents.A=Array.isArray(o.flexibleComponents.A)?o.flexibleComponents.A:[];o.flexibleComponents.B=Array.isArray(o.flexibleComponents.B)?o.flexibleComponents.B:[]});
+  S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderMultiAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6');o.environmentLight=normalizeHex(o.environmentLight||'')||'';o.componentColors=o.componentColors&&typeof o.componentColors==='object'?o.componentColors:{A:{},B:{}};o.componentColors.A=o.componentColors.A||{};o.componentColors.B=o.componentColors.B||{};o.assetComponentColors=o.assetComponentColors&&typeof o.assetComponentColors==='object'?o.assetComponentColors:{};o.flexibleComponents=o.flexibleComponents&&typeof o.flexibleComponents==='object'?o.flexibleComponents:{A:[],B:[],GLOBAL:[]};o.flexibleComponents.A=Array.isArray(o.flexibleComponents.A)?o.flexibleComponents.A:[];o.flexibleComponents.B=Array.isArray(o.flexibleComponents.B)?o.flexibleComponents.B:[];o.flexibleComponents.GLOBAL=Array.isArray(o.flexibleComponents.GLOBAL)?o.flexibleComponents.GLOBAL:[]});
   S.orders.forEach(o=>{o.backgroundMode=['COLOR','WHITE','TRANSPARENT'].includes(o.backgroundMode)?o.backgroundMode:(o.backgroundBaseVisible===false?'TRANSPARENT':String(o.backgroundManual||'').toUpperCase()==='#FFFFFF'?'WHITE':'COLOR');o.backgroundBaseVisible=o.backgroundMode!=='TRANSPARENT';o.backgroundLaceVisible=false});
   purgeLegacyOrderAssetState();persistOrders();
   migrateBlankOrderAutoEarsV1();
@@ -2730,7 +2730,7 @@ function newOrderData(){
     environmentLight:'',
     componentColors:{A:{},B:{}},
     assetComponentColors:{},
-    flexibleComponents:{A:[],B:[]},
+    flexibleComponents:{A:[],B:[],GLOBAL:[]},
     assetSelections:{A:{},B:{}},
     assetMultiSelections:{A:{},B:{}},
     autoTailSelections:{A:null,B:null},
@@ -4977,32 +4977,32 @@ function wireFormBackgroundQuick(){
 }
 
 function ensureFlexibleComponents(order,slot){
-  order.flexibleComponents=order.flexibleComponents&&typeof order.flexibleComponents==='object'?order.flexibleComponents:{A:[],B:[]};
+  order.flexibleComponents=order.flexibleComponents&&typeof order.flexibleComponents==='object'?order.flexibleComponents:{A:[],B:[],GLOBAL:[]};
   order.flexibleComponents[slot]=Array.isArray(order.flexibleComponents[slot])?order.flexibleComponents[slot]:[];return order.flexibleComponents[slot];
 }
 function templateFlexibleSchemaKey(signature=S.templateSignature){return signature?TEMPLATE_FLEX_SCHEMA_PREFIX+signature:''}
 function loadTemplateFlexibleSchema(signature=S.templateSignature){
-  const key=templateFlexibleSchemaKey(signature);if(!key)return {A:[],B:[]};
-  try{const parsed=JSON.parse(localStorage.getItem(key)||'{}');return {A:Array.isArray(parsed.A)?parsed.A:[],B:Array.isArray(parsed.B)?parsed.B:[]}}catch{return {A:[],B:[]}}
+  const key=templateFlexibleSchemaKey(signature);if(!key)return {A:[],B:[],GLOBAL:[]};
+  try{const parsed=JSON.parse(localStorage.getItem(key)||'{}');return {A:Array.isArray(parsed.A)?parsed.A:[],B:Array.isArray(parsed.B)?parsed.B:[],GLOBAL:Array.isArray(parsed.GLOBAL)?parsed.GLOBAL:[]}}catch{return {A:[],B:[],GLOBAL:[]}}
 }
 function mergeTemplateFlexibleSchema(order,signature=S.templateSignature){
   if(!order||!signature)return false;const schema=loadTemplateFlexibleSchema(signature);let changed=false;
-  ['A','B'].forEach(slot=>{let rows=ensureFlexibleComponents(order,slot),clean=rows.filter(x=>x.sourceType!=='TEMPLATE'||!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop()));if(clean.length!==rows.length){order.flexibleComponents[slot]=clean;rows=clean;changed=true}schema[slot].forEach(def=>{if(def?.sourceType!=='TEMPLATE'||!def.sourceKey||isFixedBodyComponentName(def.name||def.sourceKey.split('/').pop())||rows.some(x=>x.sourceType==='TEMPLATE'&&x.sourceKey===def.sourceKey))return;rows.push({id:`flex_tpl_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,sourceType:'TEMPLATE',sourceKey:def.sourceKey,name:def.name||def.sourceKey.split('/').pop(),base:'',shadow:''});changed=true})});
+  ['A','B','GLOBAL'].forEach(slot=>{let rows=ensureFlexibleComponents(order,slot),clean=rows.filter(x=>x.sourceType!=='TEMPLATE'||!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop()));if(clean.length!==rows.length){order.flexibleComponents[slot]=clean;rows=clean;changed=true}schema[slot].forEach(def=>{if(def?.sourceType!=='TEMPLATE'||!def.sourceKey||isFixedBodyComponentName(def.name||def.sourceKey.split('/').pop())||rows.some(x=>x.sourceType==='TEMPLATE'&&x.sourceKey===def.sourceKey))return;rows.push({id:`flex_tpl_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,sourceType:'TEMPLATE',sourceKey:def.sourceKey,name:def.name||def.sourceKey.split('/').pop(),base:'',shadow:''});changed=true})});
   if(changed)persistOrders();return changed;
 }
 function saveTemplateFlexibleSchema(order,signature=S.templateSignature){
   const key=templateFlexibleSchemaKey(signature);if(!order||!key)return;
-  const schema={A:ensureFlexibleComponents(order,'A').filter(x=>x.sourceType==='TEMPLATE'&&!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop())).map(x=>({sourceType:'TEMPLATE',sourceKey:x.sourceKey,name:x.name})),B:ensureFlexibleComponents(order,'B').filter(x=>x.sourceType==='TEMPLATE'&&!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop())).map(x=>({sourceType:'TEMPLATE',sourceKey:x.sourceKey,name:x.name}))};
+  const schema=Object.fromEntries(['A','B','GLOBAL'].map(slot=>[slot,ensureFlexibleComponents(order,slot).filter(x=>x.sourceType==='TEMPLATE'&&!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop())).map(x=>({sourceType:'TEMPLATE',sourceKey:x.sourceKey,name:x.name}))]));
   try{localStorage.setItem(key,JSON.stringify(schema))}catch{}
 }
 function isFixedBodyComponentName(value){return /(?:脸部|面部|肤色|皮肤|身体|手部|手臂|手掌|腿部|颈部|脖子)/.test(String(value||'').replace(/[\s_\-—－]/g,''))}
 function flexibleComponentCandidates(slot){
   const candidates=[];
   if(S.master){
-    S.flat.filter(n=>n.isGroup&&n.depth<=2&&guessSlot(n.path,n.name)===slot).forEach(n=>{
-      const label=String(n.name||n.path),excluded=isFixedBodyComponentName(label)||/(?:眼睛|虹膜|瞳孔|睫毛|头发|发型|脸部|肤色|身体|宝宝|水印|参考|定位|背景)/.test(label);
+    S.flat.filter(n=>{if(!n.isGroup||n.depth>2)return false;const namedSlot=guessSlot(n.path,n.name);return slot==='GLOBAL'?namedSlot==='NONE':namedSlot===slot}).forEach(n=>{
+      const label=String(n.name||n.path),excluded=isFixedBodyComponentName(label)||/(?:眼睛|虹膜|瞳孔|睫毛|眉毛|头发|发型|脸部|肤色|身体|宝宝|水印|参考|定位|背景|影子)/.test(label);
       const hasLeaves=S.flat.some(x=>!x.isGroup&&x.path.startsWith(n.path+'/'));
-      if(!excluded&&hasLeaves)candidates.push({key:`TEMPLATE::${n.path}`,sourceType:'TEMPLATE',sourceKey:n.path,name:label,label:`模板 · ${label}`});
+      if(!excluded&&hasLeaves)candidates.push({key:`TEMPLATE::${n.path}`,sourceType:'TEMPLATE',sourceKey:n.path,name:label,label:`${slot==='GLOBAL'?'模板公共':'模板'} · ${label}`});
     });
   }
   const seen=new Set();
@@ -5038,7 +5038,7 @@ function flexibleLayerChannel(name){
   if(/重色|阴影|暗部|shadow|shade/.test(text))return 'shadow';
   if(/线稿|轮廓|描边|lineart|outline|line/.test(text))return 'lineart';
   if(/高光|亮面|highlight|light/.test(text))return 'highlight';
-  if(/底色|基础色|base|fill/.test(text))return 'base';
+  if(/底色|基础色|base|fill|气球(?:底色)?$/.test(text))return 'base';
   return null;
 }
 function flexibleLegacyLineart(entry,base){
@@ -5048,7 +5048,7 @@ function flexibleLegacyLineart(entry,base){
   return null;
 }
 function applyFlexibleTemplateColors(order){
-  ['A','B'].forEach(slot=>ensureFlexibleComponents(order,slot).filter(x=>x.sourceType==='TEMPLATE').forEach(entry=>{
+  ['A','B','GLOBAL'].forEach(slot=>ensureFlexibleComponents(order,slot).filter(x=>x.sourceType==='TEMPLATE').forEach(entry=>{
     if(isFixedBodyComponentName(entry.name||entry.sourceKey.split('/').pop()))return;
     const base=normalizeHex(entry.base||'')||flexibleDefaultBase(entry,slot,order),shadow=normalizeHex(entry.shadow||''),lineart=flexibleLegacyLineart(entry,base),overrides={...(shadow?{shadow}:{}),...(lineart?{lineart}:{})},colors=PHASE4_COLOR.deriveBasicComponent(base,{overrides});
     S.flat.filter(n=>!n.isGroup&&(n.path===entry.sourceKey||n.path.startsWith(entry.sourceKey+'/'))).forEach(n=>{const channel=flexibleLayerChannel(n.name);if(channel)S.ruleColorOverrides[n.path]=colors[channel]});
@@ -5115,11 +5115,11 @@ function renderFlexibleComponentPanels(){
   const order=getActiveOrder();if(!order)return;
   mergeTemplateFlexibleSchema(order);
   let hairAnchorChanged=false;
-  ['A','B'].forEach(slot=>{
+  ['A','B','GLOBAL'].forEach(slot=>{
     if(syncSelectedHairFlexibleComponent(order,slot).changed)hairAnchorChanged=true;
     const panel=$('#flexComponentPanel'+slot);if(!panel)return;const rows=ensureFlexibleComponents(order,slot),candidates=flexibleComponentCandidates(slot),used=new Set(rows.map(x=>`${x.sourceType}::${x.sourceKey}`)),available=candidates.filter(x=>!used.has(`${x.sourceType}::${x.sourceKey}`));
     const presets=flexibleColorPresets();
-    panel.innerHTML=`<div class="flexComponentHead"><b>灵活组件</b><span>模板夹子随模板复用；素材选择随订单</span></div><div class="flexComponentAdd"><select data-flex-candidate><option value="">选择要加入的组件…</option>${available.map(x=>`<option value="${safe(x.key)}">${safe(x.label)}</option>`).join('')}</select><button class="btn" type="button" data-flex-add>加入</button></div><div class="flexComponentRows">${rows.length?rows.map(entry=>{const base=normalizeHex(entry.base||'')||flexibleDefaultBase(entry,slot,order),shadow=normalizeHex(entry.shadow||''),hairInfo=entry.sourceType==='ASSET'?flexibleHairColorState(entry,slot,order):null,hairOriginal=!!hairInfo&&hairInfo.state.useGeneratedColor!==true,entryPresets=hairInfo?hairColorPresets():presets,autoShadow=hairInfo?PHASE4_COLOR.deriveHairComponent(base).shadow:PHASE4_COLOR.deriveBasicComponent(base).shadow,hairNote=hairInfo?`<div class="legendMini">${hairOriginal?'当前保持 PSD 原色；选择或手调颜色后才会生色':'当前已启用头发专用生色'}${hairOriginal?'':` <button class="mini" type="button" data-flex-original>恢复原色</button>`}</div>`:'';return `<div class="flexComponentRow" data-flex-id="${safe(entry.id)}"><div class="flexComponentRowHead"><b>${safe(entry.name)}</b><button class="mini" type="button" data-flex-remove title="移除">✕</button></div>${hairNote}<select class="flexComponentPreset" data-flex-preset><option value="">${hairInfo?'头发预设 / 手选':'颜色预设 / 手选'}</option>${entryPresets.map(p=>`<option value="${p.hex}" ${!hairOriginal&&p.hex===base?'selected':''}>${safe(p.name)} · ${p.hex}</option>`).join('')}</select><div class="flexComponentColors"><span>底色</span><input type="text" data-flex-hex="base" value="${base}"><input type="color" data-flex-color="base" value="${base.toLowerCase()}"><span>重色</span><input type="text" data-flex-hex="shadow" value="${shadow}" placeholder="自动 ${autoShadow}"><input type="color" data-flex-color="shadow" value="${(shadow||autoShadow).toLowerCase()}"></div></div>`}).join(''):'<div class="legendMini">还没有额外组件。模板上传后，大夹子会自动出现在上方选择器。</div>'}</div>`;
+    const shared=slot==='GLOBAL';panel.innerHTML=`<div class="flexComponentHead"><b>${shared?'公共灵活组件':'灵活组件'}</b><span>${shared?'纯净模板装饰 / 公共素材':'模板夹子随模板复用；素材选择随订单'}</span></div><div class="flexComponentAdd"><select data-flex-candidate><option value="">选择要加入的组件…</option>${available.map(x=>`<option value="${safe(x.key)}">${safe(x.label)}</option>`).join('')}</select><button class="btn" type="button" data-flex-add>加入</button></div><div class="flexComponentRows">${rows.length?rows.map(entry=>{const base=normalizeHex(entry.base||'')||flexibleDefaultBase(entry,slot,order),shadow=normalizeHex(entry.shadow||''),hairInfo=entry.sourceType==='ASSET'?flexibleHairColorState(entry,slot,order):null,hairOriginal=!!hairInfo&&hairInfo.state.useGeneratedColor!==true,entryPresets=hairInfo?hairColorPresets():presets,autoShadow=hairInfo?PHASE4_COLOR.deriveHairComponent(base).shadow:PHASE4_COLOR.deriveBasicComponent(base).shadow,hairNote=hairInfo?`<div class="legendMini">${hairOriginal?'当前保持 PSD 原色；选择或手调颜色后才会生色':'当前已启用头发专用生色'}${hairOriginal?'':` <button class="mini" type="button" data-flex-original>恢复原色</button>`}</div>`:'';return `<div class="flexComponentRow" data-flex-id="${safe(entry.id)}"><div class="flexComponentRowHead"><b>${safe(entry.name)}</b><button class="mini" type="button" data-flex-remove title="移除">✕</button></div>${hairNote}<select class="flexComponentPreset" data-flex-preset><option value="">${hairInfo?'头发预设 / 手选':'颜色预设 / 手选'}</option>${entryPresets.map(p=>`<option value="${p.hex}" ${!hairOriginal&&p.hex===base?'selected':''}>${safe(p.name)} · ${p.hex}</option>`).join('')}</select><div class="flexComponentColors"><span>底色</span><input type="text" data-flex-hex="base" value="${base}"><input type="color" data-flex-color="base" value="${base.toLowerCase()}"><span>重色</span><input type="text" data-flex-hex="shadow" value="${shadow}" placeholder="自动 ${autoShadow}"><input type="color" data-flex-color="shadow" value="${(shadow||autoShadow).toLowerCase()}"></div></div>`}).join(''):'<div class="legendMini">还没有额外组件。模板上传后，大夹子会自动出现在上方选择器。</div>'}</div>`;
     panel.querySelector('[data-flex-add]').onclick=async()=>{
       const value=panel.querySelector('[data-flex-candidate]').value,candidate=candidates.find(x=>x.key===value);if(!candidate)return;
       const entry={id:`flex_${Date.now()}_${Math.random().toString(16).slice(2,6)}`,sourceType:candidate.sourceType,sourceKey:candidate.sourceKey,name:candidate.name,base:'',shadow:''};rows.push(entry);
@@ -5151,9 +5151,10 @@ function buildWorkspaceUI(){
   const orderBox=$('#orderList')?.closest('.orderBox'), formPanel=$('#orderForm')?.closest('.softPanel'), aCard=$('#aName')?.closest('.babyCard'), bCard=$('#bName')?.closest('.babyCard'), swatchPanel=$('#swatchCanvas')?.closest('.softPanel');
   [orderBox,formPanel].filter(Boolean).forEach(x=>tabs.form.appendChild(x));
   const bgQuick=makeFormBackgroundQuick();tabs.form.appendChild(bgQuick);
+  const sharedFlexible=document.createElement('div');sharedFlexible.className='softPanel sharedFlexiblePanel';sharedFlexible.appendChild(makeFlexibleComponentPanel('GLOBAL'));tabs.form.appendChild(sharedFlexible);
   const babyPair=document.createElement('div');babyPair.className='formBabyPair';[aCard,bCard].filter(Boolean).forEach((x,index)=>{x.appendChild(makeFlexibleComponentPanel(index===0?'A':'B'));babyPair.appendChild(x)});tabs.form.appendChild(babyPair);if(swatchPanel)tabs.form.appendChild(swatchPanel);
   ['aOutfitPreset','aHatPreset','aDecor','aDecorBaseHex','aDecorShadeHex','bOutfitPreset','bHatPreset','bDecor','bDecorBaseHex','bDecorShadeHex'].forEach(hideLegacyFixedField);
-  tabs.form.insertAdjacentHTML('afterbegin','<div class="tabIntro">粘顾客原表单 → 固定读取名字、瞳色和发色；衣服、帽子、耳朵、尾巴及原创素材可在 A/B 的“灵活组件”中按当前模板和素材库自由组合。背景支持彩色、纯白和透明三种输出。</div>');
+  tabs.form.insertAdjacentHTML('afterbegin','<div class="tabIntro">粘顾客原表单 → 固定读取名字、瞳色和发色；礼物盒、气球等无 A/B 的模板装饰进入“公共灵活组件”，衣服、帽子、耳朵、尾巴及原创素材在 A/B 灵活组件中组合。背景支持彩色、纯白和透明三种输出。</div>');
   wireFormBackgroundQuick();syncBackgroundQuickFromOrder(getActiveOrder());updateBackgroundRecommendationMeta(getActiveOrder());
   renderFlexibleComponentPanels();
 
@@ -5271,7 +5272,7 @@ async function loadMaster(file,{skipLocalSave=false}={}){
     renderTree();renderBuilder();updateKPIs();original();reconstruct();enableMaster(true);renderAssetLibrary();debug();
     stat($('#masterStatus'),'纯净主模板解析完成。A 固定左位 / B 固定右位；大夹子顺序可在模板上传页直接拖动。','good');
     stat($('#builderStatus'),restored?`✅ 已从${S._lastRestoreSource||'保存记录'}恢复模板绑定。`:'已建立默认绑定：全部锁定。未命名子层可用「子层继承父夹子部位」。',restored?'good':'');
-    $('#showAllAssets').disabled=S.assets.length===0;$('#hideAllAssets').disabled=S.assets.length===0;$('#exportAssetJson').disabled=S.assets.length===0;renderEditableLayerSelectors();renderHairInsertionControls();syncProductionPreview();
+    $('#showAllAssets').disabled=S.assets.length===0;$('#hideAllAssets').disabled=S.assets.length===0;$('#exportAssetJson').disabled=S.assets.length===0;renderEditableLayerSelectors();renderHairInsertionControls();renderFlexibleComponentPanels();syncProductionPreview();
     if(!skipLocalSave)persistMasterLocal(file,psd,S.templateSignature).then(()=>renderAssetLibrary()).catch(e=>{S.localPersistenceError=e;console.warn('persist master',e)});
   }catch(e){console.error(e);stat($('#masterStatus'),'解析失败：'+(e.message||e),'bad')}
 }
