@@ -915,6 +915,27 @@ test('body poses are packaged by pose with independent A/B male and female choic
     assert.ok(start >= 0 && end > start, `${name} should be extractable`);
     return html.slice(start, end);
   };
+  const bodyTemplatePart = new Function(`${sourceOf('bodyTemplatePart')}\nreturn bodyTemplatePart;`)();
+  const primaryBodyTemplatePart = new Function(`${sourceOf('primaryBodyTemplatePart')}\nreturn primaryBodyTemplatePart;`)();
+  const faceTemplatePart = new Function(`${sourceOf('faceTemplatePart')}\nreturn faceTemplatePart;`)();
+  const bodyReplacementSlot = new Function(
+    'faceTemplatePart','bodyTemplatePart','guessSlot','enabledBodyPoseForSlot',
+    `${sourceOf('templateBodyReplacementSlot')}\nreturn templateBodyReplacementSlot;`,
+  )(faceTemplatePart, bodyTemplatePart, path => /^A/.test(path) ? 'A' : /^B/.test(path) ? 'B' : 'NONE', () => ({}));
+  const namedRootSlot = new Function(
+    'guessSlot', `${sourceOf('namedRootSlot')}\nreturn namedRootSlot;`,
+  )(value => /^A/.test(value) ? 'A' : /^B/.test(value) ? 'B' : 'NONE');
+  const rootBodySlot = new Function(
+    'primaryBodyTemplatePart','faceTemplatePart','namedRootSlot',
+    `${sourceOf('rootBodyLayerSlot')}\nreturn rootBodyLayerSlot;`,
+  )(primaryBodyTemplatePart, faceTemplatePart, namedRootSlot);
+  assert.equal(bodyReplacementSlot('A脸部手部/面部底色', '面部底色'), null, 'combined face/hand folders must remain visible');
+  assert.equal(bodyReplacementSlot('A身体/A身体女', 'A身体女'), 'A');
+  assert.equal(bodyReplacementSlot('A手部前置/手部底色', '手部底色'), 'A');
+  assert.equal(rootBodySlot({ name: 'A脸部手部' }, 'layer:A脸部手部'), null);
+  assert.equal(rootBodySlot({ name: 'A手部前置' }, 'layer:A手部前置'), null);
+  assert.equal(rootBodySlot({ name: 'A身体' }, 'layer:A身体'), 'A');
+
   const flattenTree = (children, depth = 0, parentPath = '') => (children || []).flatMap((layer, index) => {
     const name = layer.name || `Layer ${index}`, path = parentPath ? `${parentPath}/${name}` : name;
     const node = { layer, name, path, depth, isGroup: !!(layer.children && layer.children.length) };

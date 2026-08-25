@@ -1414,8 +1414,11 @@ function defaultRootStackOrder(){
   if(clothes.length)ids.splice(hairBottom>=0?hairBottom+1:0,0,...clothes);
   bodyPoseStackIds().forEach(id=>{
     const asset=assetFromStackId(id);if(!asset)return;
-    let insertAt=ids.findIndex(layerId=>rootBodyLayerSlot(rootLayerFromId(layerId),layerId)===asset.slot);
-    if(insertAt<0){const faceIndexes=ids.map((layerId,index)=>rootFaceLayerSlot(rootLayerFromId(layerId),layerId)===asset.slot?index:-1).filter(index=>index>=0);insertAt=faceIndexes.length?Math.max(...faceIndexes)+1:ids.length;}
+    // 图层面板按“上→下”排列。身体姿势始终放在同位脸部下方；没有脸部夹子时，
+    // 才退回原身体/躯干夹子的位置。不能让“A手部前置”抢走定位锚点把身体抬到脸上。
+    const faceIndexes=ids.map((layerId,index)=>rootFaceLayerSlot(rootLayerFromId(layerId),layerId)===asset.slot?index:-1).filter(index=>index>=0);
+    let insertAt=faceIndexes.length?Math.max(...faceIndexes)+1:ids.findIndex(layerId=>rootBodyLayerSlot(rootLayerFromId(layerId),layerId)===asset.slot);
+    if(insertAt<0)insertAt=ids.length;
     ids.splice(insertAt,0,id);
   });
   const backHairs=availableHairStackIds('BACK');
@@ -1775,7 +1778,15 @@ function enabledEyeStateForSlot(slot){return S.assets.find(a=>a.enabled&&a.categ
 function enabledEyeLashForSlot(slot){return S.assets.find(a=>a.enabled&&a.categoryId==='EYE_LASH'&&a.slot===slot&&(a.composite||a.originalComposite))||null;}
 function enabledBodyPoseForSlot(slot){return S.assets.find(a=>a.enabled&&isBodyPoseCategory(a.categoryId)&&a.slot===slot&&(a.composite||a.originalComposite))||null;}
 function bodyTemplatePart(value){return /身体|躯干|手部|手臂|胳膊|腿部|颈部|body|torso|hand|arm|leg|neck/i.test(String(value||''));}
-function templateBodyReplacementSlot(path,name){if(!bodyTemplatePart(path)&&!bodyTemplatePart(name))return null;const slot=guessSlot(path,name);return (slot==='A'||slot==='B')&&enabledBodyPoseForSlot(slot)?slot:null;}
+function primaryBodyTemplatePart(value){return /身体|躯干|body|torso/i.test(String(value||''));}
+function faceTemplatePart(value){return /脸部|面部|face/i.test(String(value||''));}
+function templateBodyReplacementSlot(path,name){
+  // “A脸部手部”这类纯净模板夹子同时含有“脸部”和“手部”。启用身体姿势时，
+  // 脸部优先保留，不能因为“手部”二字把整组面部底色、线稿和腮红一起替换掉。
+  if(faceTemplatePart(path)||faceTemplatePart(name))return null;
+  if(!bodyTemplatePart(path)&&!bodyTemplatePart(name))return null;
+  const slot=guessSlot(path,name);return (slot==='A'||slot==='B')&&enabledBodyPoseForSlot(slot)?slot:null;
+}
 function templateLashReplacementSlot(path,name){
   const binding=S.bindings?.[path],role=binding?.role||'';
   const leaf=String(name||'').trim(),replacementRole=['EYE_LASH','EYE_LASH_HIGHLIGHT','LASH_FIXED','LASH_HIGHLIGHT','EYE_PUPIL_HIGHLIGHT','PUPIL_HIGHLIGHT_FIXED'].includes(role),replacementName=/睫毛|lash|眼皮|eyelid/i.test(leaf)||/^(?:瞳孔)?高光$|^pupil[\s_\-]*highlight$/i.test(leaf);
@@ -1785,8 +1796,8 @@ function templateLashReplacementSlot(path,name){
 }
 function rootEyeLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');if(!/眼睛|虹膜|瞳孔|eye/i.test(name))return null;if(/^(?:A)(?:位)?/i.test(name)||/左位/.test(name))return 'A';if(/^(?:B)(?:位)?/i.test(name)||/右位/.test(name))return 'B';return null;}
 function namedRootSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||''),guessed=guessSlot(name,name);if(guessed==='A'||guessed==='B')return guessed;if(/(?:A|左)(?:位)?$/i.test(name))return 'A';if(/(?:B|右)(?:位)?$/i.test(name))return 'B';return null;}
-function rootBodyLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');return bodyTemplatePart(name)?namedRootSlot(layer,id):null;}
-function rootFaceLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');return /脸部|面部|face/i.test(name)?namedRootSlot(layer,id):null;}
+function rootBodyLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');return primaryBodyTemplatePart(name)&&!faceTemplatePart(name)?namedRootSlot(layer,id):null;}
+function rootFaceLayerSlot(layer,id){const name=String(layer?.name||id?.slice?.(6)||'');return faceTemplatePart(name)?namedRootSlot(layer,id):null;}
 function renderMasterWithRootStack(skipStackId=null){
   const psd=S.master,c=makeCanvas(psd.width,psd.height),ctx=c.getContext('2d');ctx.clearRect(0,0,c.width,c.height);
   const panel=normalizeRootStackOrder(S.rootStackOrder?.length?S.rootStackOrder:defaultRootStackOrder());
