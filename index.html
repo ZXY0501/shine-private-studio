@@ -1780,7 +1780,19 @@ function sampledCanvasError(a,b){
   }
   return n?err/n:Infinity;
 }
+function assetUsesLiveBackdropBlend(a){
+  if(!isWatermarkAsset(a)||!a.psd)return false;
+  return flatten(a.psd.children||[]).some(n=>!n.isGroup&&assetLayerEffectivelyVisible(a,n)&&blendMode(n.layer.blendMode)!=='source-over');
+}
+function drawPsdAssetTransformed(ctx,a){
+  const psd=a.psd,t=assetTransformForTemplate(a),cx=psd.width/2,cy=psd.height/2,scale=Math.max(.05,Number(t.scale)||1),resolvedOrder=assetPsdDrawOrder(psd,a.order),map=assetOverrideMap(a,getActiveOrder()||newOrderData());a.order=resolvedOrder;
+  ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.translate((Number(t.x)||0)+cx,(Number(t.y)||0)+cy);ctx.rotate((Number(t.rotation)||0)*Math.PI/180);ctx.scale((t.flipX?-1:1)*scale,(t.flipY?-1:1)*scale);
+  // 柔光、叠加等模式必须直接看到成图中已经存在的底色。若先把水印 PSD
+  // 压到透明画布再贴上来，浏览器只能得到一张普通像素图，浮雕效果会丢失。
+  renderAssetSiblingStack(a,psd,ctx,psd.children||[],'',resolvedOrder.mode,true,map);ctx.restore();
+}
 function drawAssetTransformed(ctx,a){
+  if(assetUsesLiveBackdropBlend(a)){drawPsdAssetTransformed(ctx,a);return;}
   const src=a?.composite||a?.originalComposite;if(!src)return;
   const t=assetTransformForTemplate(a),cx=src.width/2,cy=src.height/2,scale=Math.max(.05,Number(t.scale)||1);
   ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.translate((Number(t.x)||0)+cx,(Number(t.y)||0)+cy);ctx.rotate((Number(t.rotation)||0)*Math.PI/180);ctx.scale((t.flipX?-1:1)*scale,(t.flipY?-1:1)*scale);ctx.drawImage(src,-cx,-cy);ctx.restore();
