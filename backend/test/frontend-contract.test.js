@@ -352,10 +352,13 @@ B：
 });
 
 test('heavy PSD color previews are debounced and final changes are flushed', () => {
-  assert.match(html, /const LIVE_COLOR_PREVIEW_DELAY=110;/);
+  assert.match(html, /const MANUAL_COLOR_PREVIEW_DELAY=160;/);
+  assert.match(html, /const LIVE_COLOR_PREVIEW_DELAY=MANUAL_COLOR_PREVIEW_DELAY;/);
   assert.match(html, /clearTimeout\(S\.liveColorTimer\);\s*S\.liveColorTimer=setTimeout\(paintPendingLiveProductionColors,LIVE_COLOR_PREVIEW_DELAY\)/);
   assert.match(html, /color\.onchange=\(\)=>\{(?:activateHair\(text\.value\);)?captureActiveOrder\(\);flushLiveProductionColors/);
-  assert.match(html, /const QUICK_COLOR_PREVIEW_DELAY=110;/);
+  assert.match(html, /frameColorTimer=setTimeout\(\(\)=>paintFrameColorPending\(\{persist:false,renderLibrary:false\}\),MANUAL_COLOR_PREVIEW_DELAY\)/);
+  assert.match(html, /assetComponentColorTimer=setTimeout\(\(\)=>paintAssetComponentColorPending\(\{persist:false,renderLibrary:false\}\),MANUAL_COLOR_PREVIEW_DELAY\)/);
+  assert.match(html, /const QUICK_COLOR_PREVIEW_DELAY=MANUAL_COLOR_PREVIEW_DELAY;/);
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:false\}\)/);
   assert.match(html, /setManualLayerOverride\(job\.path,job\.hex,\{persist:true\}\)/);
 });
@@ -837,18 +840,25 @@ test('template fingerprints separate same-structure PSD revisions', () => {
   assert.match(html, /await loadMaster\(file\);try\{localStorage\.setItem\(LOCAL_LAST_TEMPLATE_KEY,S\.templateSignature\|\|signature\)/);
 });
 
-test('session export history stays in tab memory and records every PNG or JPEG output', () => {
+test('session export history records explicit downloads while clipboard copies stay current', () => {
   assert.match(html, /exportHistory:\[\]/);
   assert.match(html, /function recordSessionExport\(order,blob,format,showWatermark,fileName\)/);
+  assert.match(html, /previous=S\.exportHistory\.find\(x=>x\.orderId===order\.id&&x\.format===format&&x\.showWatermark===showWatermark\)/);
   assert.match(html, /while\(mine\.length>8\)/);
   assert.match(html, /recordSessionExport\(o,requested,format,showWatermark,fileName\)/);
   assert.match(html, /recordSessionExport\(order,blob,'png'/);
   assert.match(html, /recordSessionExport\(order,blob,'jpeg'/);
   assert.match(html, /beforeunload[^\n]+S\.exportHistory\.forEach\(releaseSessionExport\)/);
   assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*exportHistory/);
-  assert.match(html, /if\(!S\.master\|\|S\.exportBusy\)return;S\.exportBusy=true/);
-  assert.match(html, /format==='png'\?requestedPromise:canvasBlob\(c,'image\/png'\)/);
-  assert.match(html, /copyCanvasImageToClipboard\(c,clipboardPng\)/);
+  assert.match(html, /if\(!S\.master\)return;if\(S\.exportBusy\)/);
+  assert.match(html, /function startCanvasImageClipboardCopy\(canvas,pngBlobPromise=null\)/);
+  assert.match(html, /new ClipboardItem\(\{'image\/png':png\}\)/);
+  assert.match(html, /flushPendingVisualUpdatesForExport\(\)/);
+  assert.match(html, /if\(forceDownload\)\{const requested=await canvasBlob/);
+  assert.match(html, /else\{const copyPromise=startCanvasImageClipboardCopy\(c,canvasBlob\(c,'image\/png'\)\)/);
+  assert.match(html, /本次没有自动下载/);
+  assert.match(html, /function exportModeJpeg\(showWatermark\)\{return exportProduction\('jpeg',showWatermark,true\);\}/);
+  assert.match(html, /本单同类型仅保留最新一张/);
 });
 
 test('original PSD watermarks are global, topmost, and controlled by preview or delivery mode', () => {

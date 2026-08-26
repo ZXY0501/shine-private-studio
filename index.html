@@ -122,6 +122,7 @@ select,input[type=text],input[type=password]{height:30px;border:1px solid var(--
 .fieldGrid input[type=text],.fieldGrid select{width:100%;height:31px}
 .colorLine{display:grid;grid-template-columns:1fr 38px;gap:5px}
 .colorLine input[type=color]{width:38px;height:31px;border:1px solid var(--line);border-radius:8px;padding:2px;background:#fff}
+input[type=color]{cursor:pointer;touch-action:manipulation;transition:border-color .12s,box-shadow .12s}input[type=color]:hover{border-color:#9b91a4!important}input[type=color]:focus-visible{outline:0;box-shadow:0 0 0 2px rgba(117,107,130,.22)}
 .prodWide{grid-column:1/-1}
 .formArea{width:100%;min-height:135px;resize:vertical;border:1px solid var(--line);border-radius:10px;padding:9px;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace}
 .quickGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:7px}
@@ -576,8 +577,8 @@ header .badge{display:none!important}
         <button id="leftBgInspect" class="btn">背景检查：关</button>
       </div>
       <div class="previewExport">
-        <button id="leftExportPng" class="btn" title="点击复制到剪贴板；Shift+点击下载文件">PNG 复制</button>
-        <button id="leftExportJpeg" class="btn primary" title="点击复制到剪贴板；Shift+点击下载文件">JPEG 复制</button>
+        <button id="leftExportPng" class="btn" title="点击只复制到剪贴板；Shift+点击才下载文件">PNG 复制</button>
+        <button id="leftExportJpeg" class="btn primary" title="点击复制当前白底图；Shift+点击才下载 JPEG 文件">JPEG 复制</button>
       </div>
     </div>
   </div>
@@ -980,7 +981,7 @@ header .badge{display:none!important}
         <div class="cv fit previewCv"><canvas id="overlayCanvas"></canvas></div>
       </div>
       <div class="meta">
-        PNG 保留透明；JPEG 自动铺白底并以 95% 质量导出。水印层后续会做成「样稿模式 ON / 交付模式 OFF」开关。
+        PNG 保留透明；JPEG 自动铺白底并以 95% 质量导出。普通点击只复制，Shift + 点击才下载；水印由「样稿模式 ON / 交付模式 OFF」开关统一控制。
       </div>
     </section>
 
@@ -2791,7 +2792,7 @@ function sessionExportsForOrder(orderId){return S.exportHistory.filter(x=>x.orde
 function releaseSessionExport(entry){if(entry?.objectUrl)URL.revokeObjectURL(entry.objectUrl)}
 function renderSessionExportHistory(){
   const host=$('#sessionExportHistory');if(!host)return;const order=getActiveOrder(),entries=order?sessionExportsForOrder(order.id):[];
-  host.innerHTML=entries.length?'':'<div class="meta" style="grid-column:1/-1">本单还没有出图。点任意 PNG / JPEG 后会临时留在这里。</div>';
+  host.innerHTML=entries.length?'':'<div class="meta" style="grid-column:1/-1">本单还没有下载出图。复制不会重复堆图；Shift + 点击下载后，同一类型只保留最新一张。</div>';
   entries.slice().reverse().forEach(entry=>{
     const card=document.createElement('div');card.className='sessionShot';const time=new Date(entry.createdAt).toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit'});
     card.innerHTML=`<img src="${safe(entry.objectUrl)}" alt="${safe(entry.format.toUpperCase())} 临时出图"><div class="sessionShotMeta">${safe(time)} · ${safe(entry.format.toUpperCase())}<br>${entry.showWatermark?'样稿':'交付'}</div><div class="sessionShotActions"><button class="btn" data-history-copy="${safe(entry.id)}">复制</button><button class="btn" data-history-download="${safe(entry.id)}">下载</button></div>`;
@@ -2801,7 +2802,7 @@ function renderSessionExportHistory(){
   host.querySelectorAll('[data-history-download]').forEach(button=>button.onclick=()=>downloadSessionExport(button.dataset.historyDownload));
 }
 function recordSessionExport(order,blob,format,showWatermark,fileName){
-  if(!order||!blob)return;const entry={id:'shot_'+Date.now()+'_'+Math.random().toString(16).slice(2,6),orderId:order.id,createdAt:new Date().toISOString(),format,showWatermark,blob,objectUrl:URL.createObjectURL(blob),fileName,orderSnapshot:clone(order)};
+  if(!order||!blob)return;const previous=S.exportHistory.find(x=>x.orderId===order.id&&x.format===format&&x.showWatermark===showWatermark);if(previous){releaseSessionExport(previous);S.exportHistory=S.exportHistory.filter(x=>x!==previous)}const entry={id:'shot_'+Date.now()+'_'+Math.random().toString(16).slice(2,6),orderId:order.id,createdAt:new Date().toISOString(),format,showWatermark,blob,objectUrl:URL.createObjectURL(blob),fileName,orderSnapshot:clone(order)};
   S.exportHistory.push(entry);const mine=sessionExportsForOrder(order.id);while(mine.length>8){const old=mine.shift(),index=S.exportHistory.indexOf(old);if(index>=0)S.exportHistory.splice(index,1);releaseSessionExport(old)}
   while(S.exportHistory.length>24)releaseSessionExport(S.exportHistory.shift());renderSessionExportHistory();renderOrders();
 }
@@ -3255,7 +3256,8 @@ function syncLiveControlsToOrder(){
   o.B.eye=safeHex($('#bEyeHex').value,o.B.eye||'#B990A0');o.B.pupilAccent=safeHex($('#bPupilAccentHex').value,o.B.pupilAccent||'#FFD6A6');o.B.hair=safeHex($('#bHairHex').value,o.B.hair||'#8A6F72');o.B.outfit=$('#bOutfitPreset').value;o.B.outfitManual=safeHex($('#bOutfitManualHex').value,o.B.outfitManual||'#C9D4E7');o.B.hat=$('#bHatPreset').value;o.B.hatManual=safeHex($('#bHatManualHex').value,o.B.hatManual||'#C85B5B');o.B.decor=$('#bDecor').value;o.B.decorBase=($('#bDecorBaseHex').value||'').trim();o.B.decorShade=($('#bDecorShadeHex').value||'').trim();
   o.background=$('#bgPreset').value;o.backgroundManual=normalizeHex($('#bgManualHexQuick')?.value||'');return o;
 }
-const LIVE_COLOR_PREVIEW_DELAY=110;
+const MANUAL_COLOR_PREVIEW_DELAY=160;
+const LIVE_COLOR_PREVIEW_DELAY=MANUAL_COLOR_PREVIEW_DELAY;
 function paintPendingLiveProductionColors(){
   if(S.liveColorTimer){clearTimeout(S.liveColorTimer);S.liveColorTimer=0;}
   const job=S.liveColorPending||{};S.liveColorPending=null;
@@ -3826,7 +3828,7 @@ function paintFrameColorPending({persist=false,renderLibrary=false}={}){
 function setFrameColor(familyKey,field,hex,{persist=true}={}){
   const order=getActiveOrder(),selection=frameSelection(order,familyKey);if(!selection||!['ribbonA','ribbonB','flowerBase','flowerShade'].includes(field))return;
   selection.colors[field]=normalizeHex(hex||'');frameColorPending={familyKey,field,hex};
-  if(persist)paintFrameColorPending({persist:true,renderLibrary:true});else{if(frameColorTimer)clearTimeout(frameColorTimer);frameColorTimer=setTimeout(()=>paintFrameColorPending({persist:false,renderLibrary:false}),110)}
+  if(persist)paintFrameColorPending({persist:true,renderLibrary:true});else{if(frameColorTimer)clearTimeout(frameColorTimer);frameColorTimer=setTimeout(()=>paintFrameColorPending({persist:false,renderLibrary:false}),MANUAL_COLOR_PREVIEW_DELAY)}
 }
 function armPreviewEyedrop(familyKey,field){
   const order=getActiveOrder(),selection=frameSelection(order,familyKey),body=$('#previewBody');if(!selection||!body)return;
@@ -4263,10 +4265,16 @@ function assetComponentControlsHtml(asset,order){
   const generated=asset.colorModeExplicit===true&&asset.colorMode==='FOLLOW_ORDER';
   return `<div class="frameColorGrid componentColorGrid compactComponentColors"><label class="frameColorControl">底色 <input type="color" data-component-color="base" data-family="${safe(assetFamilyKey(asset))}" data-slot="${safe(asset.slot)}" value="${base.toLowerCase()}"><span>${generated?base:'原色'}</span></label><label class="frameColorControl">重色 <input type="color" data-component-color="shadow" data-family="${safe(assetFamilyKey(asset))}" data-slot="${safe(asset.slot)}" value="${shadow.toLowerCase()}"><span>${generated?(normalizeHex(state.shadow||'')||'自动'):'自动'}</span></label><button class="btn" type="button" data-component-shadow-reset data-family="${safe(assetFamilyKey(asset))}" data-slot="${safe(asset.slot)}">重色自动</button><button class="btn" type="button" data-component-original data-family="${safe(assetFamilyKey(asset))}" data-slot="${safe(asset.slot)}">原色</button><span class="componentColorState">${generated?'已生色':'保持 PSD 原色'}</span></div>`;
 }
+const assetComponentColorPending=new Map();let assetComponentColorTimer=0;
+function paintAssetComponentColorPending({persist=false,renderLibrary=false}={}){
+  if(assetComponentColorTimer){clearTimeout(assetComponentColorTimer);assetComponentColorTimer=0}const jobs=[...assetComponentColorPending.values()];assetComponentColorPending.clear();if(!jobs.length)return;
+  const order=getActiveOrder();if(!order)return;const families=new Set();jobs.forEach(job=>{families.add(job.familyKey);S.assets.filter(a=>assetFamilyKey(a)===job.familyKey&&a.slot===job.slot).forEach(a=>refreshOneAssetComposite(a,order))});if(persist){persistOrders();families.forEach(queuePersistAssetFamilyLocal)}reconstruct();if(renderLibrary)renderAssetLibrary();
+}
 function setAssetComponentColor(familyKey,slot,channel,value,{persist=true}={}){
   const order=getActiveOrder(),asset=S.assets.find(a=>assetFamilyKey(a)===familyKey&&a.slot===slot);if(!order||!asset||!['base','shadow'].includes(channel))return;
   order.assetComponentColors=order.assetComponentColors||{};const key=`${familyKey}::${slot}`,state=order.assetComponentColors[key]||{};state[channel]=normalizeHex(value||'')||'';order.assetComponentColors[key]=state;
-  S.assets.filter(a=>assetFamilyKey(a)===familyKey&&a.slot===slot).forEach(a=>{a.colorMode='FOLLOW_ORDER';a.colorModeExplicit=true;refreshOneAssetComposite(a,order)});if(persist){persistOrders();queuePersistAssetFamilyLocal(familyKey)}reconstruct();if(persist)renderAssetLibrary();
+  S.assets.filter(a=>assetFamilyKey(a)===familyKey&&a.slot===slot).forEach(a=>{a.colorMode='FOLLOW_ORDER';a.colorModeExplicit=true});assetComponentColorPending.set(key,{familyKey,slot});
+  if(persist)paintAssetComponentColorPending({persist:true,renderLibrary:true});else{if(assetComponentColorTimer)clearTimeout(assetComponentColorTimer);assetComponentColorTimer=setTimeout(()=>paintAssetComponentColorPending({persist:false,renderLibrary:false}),MANUAL_COLOR_PREVIEW_DELAY)}
 }
 function resetAssetComponentToOriginal(familyKey,slot){
   const order=getActiveOrder();if(!order)return;const key=`${familyKey}::${slot}`;if(order.assetComponentColors)delete order.assetComponentColors[key];
@@ -4682,7 +4690,7 @@ function applyWatermarkMode(show){
     if(isWater)S.visOverride[n.path]=!!show;
   });
 }
-function exportModeJpeg(showWatermark){return exportProduction('jpeg',showWatermark);}
+function exportModeJpeg(showWatermark){return exportProduction('jpeg',showWatermark,true);}
 function syncProductionPreview(){
   const src=$('#overlayCanvas'),dst=$('#productionCanvas');
   if(!src.width)return;
@@ -4898,28 +4906,37 @@ function makeEyeSchemeStudio(){
   return box;
 }
 function canvasBlob(canvas,type='image/png',quality){return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Canvas 导出失败')),type,quality));}
-async function copyCanvasImageToClipboard(canvas,pngBlob=null){
-  if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')return false;
+function startCanvasImageClipboardCopy(canvas,pngBlobPromise=null){
+  if(!navigator.clipboard?.write||typeof ClipboardItem==='undefined')return null;
   try{
-    // 聊天软件粘贴兼容性以 PNG bitmap 最稳；JPEG 按钮的白底仍然保留在画布中。
-    const png=pngBlob||await canvasBlob(canvas,'image/png');
-    await navigator.clipboard.write([new ClipboardItem({'image/png':png})]);return true;
-  }catch(e){console.warn('clipboard image',e);return false;}
+    // 必须在点击事件尚未结束时就发起 write；把异步编码 Promise 交给 ClipboardItem，
+    // 避免大画布编码完成后丢失用户手势，进而留下旧剪贴板并误触发下载。
+    const png=Promise.resolve(pngBlobPromise||canvasBlob(canvas,'image/png'));
+    return navigator.clipboard.write([new ClipboardItem({'image/png':png})]).then(()=>true,e=>{console.warn('clipboard image',e);return false});
+  }catch(e){console.warn('clipboard image',e);return Promise.resolve(false)}
+}
+async function copyCanvasImageToClipboard(canvas,pngBlob=null){
+  const started=startCanvasImageClipboardCopy(canvas,pngBlob);return started?await started:false;
+}
+function setExportBusyUi(on){['leftExportPng','leftExportJpeg','exportSampleJpeg','exportDeliveryJpeg'].forEach(id=>{const el=$('#'+id);if(el)el.disabled=!!on||!S.master})}
+function flushPendingVisualUpdatesForExport(){
+  const hadLive=!!(S.liveColorTimer||S.liveColorPending);if(hadLive){paintPendingLiveProductionColors();if(frameColorTimer){clearTimeout(frameColorTimer);frameColorTimer=0}frameColorPending=null;if(assetComponentColorTimer){clearTimeout(assetComponentColorTimer);assetComponentColorTimer=0}assetComponentColorPending.clear()}
+  else{if(frameColorTimer||frameColorPending)paintFrameColorPending({persist:false,renderLibrary:false});if(assetComponentColorTimer||assetComponentColorPending.size)paintAssetComponentColorPending({persist:false,renderLibrary:false})}
+  if(quickColorTimer||quickColorPending)flushQuickColorPreview();
 }
 async function exportProduction(format,showWatermark,forceDownload=false){
-  if(!S.master||S.exportBusy)return;S.exportBusy=true;
+  if(!S.master)return;if(S.exportBusy){$('#prodPreviewInfo').textContent='上一张还在处理中，请稍等一下。';return}S.exportBusy=true;setExportBusyUi(true);
   const before={...S.visOverride},currentWatermark=$('#watermarkMode')?.value==='preview',temporaryWatermark=currentWatermark!==showWatermark;let feedback='';
   try{
+    flushPendingVisualUpdatesForExport();
     if(temporaryWatermark){applyWatermarkMode(showWatermark);reconstruct()}
-    const src=$('#overlayCanvas'),c=document.createElement('canvas');c.width=src.width;c.height=src.height;const ctx=c.getContext('2d');
+    const src=$('#productionCanvas')?.width?$('#productionCanvas'):$('#overlayCanvas'),c=document.createElement('canvas');c.width=src.width;c.height=src.height;const ctx=c.getContext('2d');
     if(format==='jpeg'){ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);}ctx.drawImage(src,0,0);
     const o=getActiveOrder()||captureActiveOrder(),name=(o?.customerName||'订单').replace(/[\\/:*?"<>|]/g,'_'),ext=format==='jpeg'?'jpg':'png',mime=format==='jpeg'?'image/jpeg':'image/png',fileName=`${name}_${showWatermark?'样稿':'交付'}.${ext}`;
-    const requestedPromise=canvasBlob(c,mime,format==='jpeg'?.95:undefined),canCopy=!forceDownload&&!!navigator.clipboard?.write&&typeof ClipboardItem!=='undefined',clipboardPromise=canCopy?(format==='png'?requestedPromise:canvasBlob(c,'image/png')):Promise.resolve(null),[requested,clipboardPng]=await Promise.all([requestedPromise,clipboardPromise]);
-    recordSessionExport(o,requested,format,showWatermark,fileName);
-    const copied=canCopy&&await copyCanvasImageToClipboard(c,clipboardPng);
-    if(copied){feedback=`${c.width}×${c.height} · 已复制，并记入当前订单临时图`;}else{dl(requested,fileName);feedback=`${c.width}×${c.height} · 已下载，并记入当前订单临时图`;}
+    if(forceDownload){const requested=await canvasBlob(c,mime,format==='jpeg'?.95:undefined);recordSessionExport(o,requested,format,showWatermark,fileName);dl(requested,fileName);feedback=`${c.width}×${c.height} · 已下载；本单同类型仅保留最新一张`}
+    else{const copyPromise=startCanvasImageClipboardCopy(c,canvasBlob(c,'image/png')),copied=copyPromise&&await copyPromise;if(copied)feedback=`${c.width}×${c.height} · ${format==='jpeg'?'白底图':'透明图'}已复制，可直接粘贴`;else feedback='复制失败，剪贴板没有更新；为避免堆满下载区，本次没有自动下载，请允许剪贴板权限后重试，或按 Shift + 点击下载。'}
   }catch(e){console.error(e);alert('导出失败：'+(e.message||e));}
-  finally{if(temporaryWatermark){S.visOverride=before;S.watermarkPreviewVisible=currentWatermark;reconstruct()}S.exportBusy=false;if(feedback)$('#prodPreviewInfo').textContent=feedback;}
+  finally{if(temporaryWatermark){S.visOverride=before;S.watermarkPreviewVisible=currentWatermark;reconstruct()}S.exportBusy=false;setExportBusyUi(false);if(feedback)$('#prodPreviewInfo').textContent=feedback;}
 }
 function makeFormBackgroundQuick(){
   const box=document.createElement('div');box.className='softPanel';box.id='formBackgroundQuick';
@@ -5579,7 +5596,7 @@ $('#exportDeliveryJpeg').onclick=()=>exportModeJpeg(false);
 $('#applyQuickColor').onclick=applyQuickColor;
 $('#clearQuickColor').onclick=clearQuickColor;
 let quickColorPending=null,quickColorTimer=null;
-const QUICK_COLOR_PREVIEW_DELAY=110;
+const QUICK_COLOR_PREVIEW_DELAY=MANUAL_COLOR_PREVIEW_DELAY;
 function scheduleQuickColorPreview(path,hex){
   quickColorPending={path,hex};
   if(quickColorTimer)clearTimeout(quickColorTimer);
