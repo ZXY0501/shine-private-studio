@@ -877,6 +877,7 @@ test('original PSD watermarks are global, topmost, and controlled by preview or 
   assert.match(html, /isWatermarkAsset\(a\).*a\.psd/);
   assert.match(html, /blendMode\(n\.layer\.blendMode\)!=='source-over'/);
   assert.match(html, /function drawPsdAssetTransformed\(ctx,a\)/);
+  assert.match(html, /ctx\.translate\(-cx,-cy\);\s*renderAssetSiblingStack\(a,psd,ctx/);
   assert.match(html, /renderAssetSiblingStack\(a,psd,ctx,psd\.children\|\|\[\],'',resolvedOrder\.mode,true,map\)/);
   assert.match(html, /if\(assetUsesLiveBackdropBlend\(a\)\)\{drawPsdAssetTransformed\(ctx,a\);return;\}/);
   assert.match(html, /!isWatermarkAsset\(a\)&&\['EAR','TAIL','CLOTHING'/);

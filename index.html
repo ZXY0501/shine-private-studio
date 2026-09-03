@@ -1789,6 +1789,10 @@ function drawPsdAssetTransformed(ctx,a){
   ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;ctx.translate((Number(t.x)||0)+cx,(Number(t.y)||0)+cy);ctx.rotate((Number(t.rotation)||0)*Math.PI/180);ctx.scale((t.flipX?-1:1)*scale,(t.flipY?-1:1)*scale);
   // 柔光、叠加等模式必须直接看到成图中已经存在的底色。若先把水印 PSD
   // 压到透明画布再贴上来，浏览器只能得到一张普通像素图，浮雕效果会丢失。
+  // 和普通素材一样，旋转/缩放原点在 PSD 中心；递归渲染画的是 0,0 开始的
+  // 整张 PSD 画布，因此必须先退回半个尺寸。少了这一步会把水印整体推到右下角，
+  // 最后只剩四分之一留在成图内。
+  ctx.translate(-cx,-cy);
   renderAssetSiblingStack(a,psd,ctx,psd.children||[],'',resolvedOrder.mode,true,map);ctx.restore();
 }
 function drawAssetTransformed(ctx,a){
