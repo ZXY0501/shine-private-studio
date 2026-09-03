@@ -5100,7 +5100,10 @@ function hairColorPresets(){
 }
 function flexibleLayerChannel(name){
   const text=String(name||'').toLowerCase();
-  if(/重色|阴影|暗部|shadow|shade/.test(text))return 'shadow';
+  // 趴趴模板的帽子使用“底色 / 白毛 / 绒边 / 线稿”四层。“绒边”是
+  // 白毛与帽身之间的中间重色，不是固定白毛；灵活表单改帽子底色时必须一起派生。
+  // 这个判断放在“线稿”前，同时兼容以后的“绒边线稿”命名。
+  if(/重色|阴影|暗部|绒边|毛边|fur[\s_\-]*trim|trim|shadow|shade/.test(text))return 'shadow';
   if(/线稿|轮廓|描边|lineart|outline|line/.test(text))return 'lineart';
   if(/高光|亮面|highlight|light/.test(text))return 'highlight';
   if(/底色|基础色|base|fill|气球(?:底色)?$/.test(text))return 'base';

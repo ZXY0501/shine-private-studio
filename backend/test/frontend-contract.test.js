@@ -1209,6 +1209,7 @@ test('flexible form binds template or asset components and derives four HSL chan
   assert.match(html, /data-flex-preset/);
   assert.match(html, /phase4CompatHidden/);
   assert.match(html, /syncParsedFlexibleComponents\(o,'A'\);syncParsedFlexibleComponents\(o,'B'\)/);
+  assert.match(html, /绒边\|毛边\|fur\[\\s_\\-\]\*trim\|trim\|shadow\|shade\/\.test\(text\)\)return 'shadow'/);
 });
 
 test('slotless template decorations such as gift boxes and balloons appear in a shared flexible form', () => {
