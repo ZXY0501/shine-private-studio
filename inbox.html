@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="color-scheme" content="light">
+  <title>发送到 SHINE · 素材收件口</title>
+  <link rel="stylesheet" href="inbox.css">
+  <script src="inbox-client.js" defer></script>
+</head>
+<body>
+  <main class="inbox-app">
+    <header class="page-header">
+      <div class="brand">SHINE <span>素材收件口</span></div>
+      <a class="quiet-link" href="./">电脑工作台</a>
+    </header>
+    <section class="intro" aria-labelledby="page-title">
+      <p class="eyebrow">画好了，就送过去。</p>
+      <h1 id="page-title">从 iPad 发到 SHINE</h1>
+      <p>这里只负责传文件，不是完整版 iPad 工作台。上传后，再到电脑收件箱确认订单和 A / B；不会自动换掉当前画面，也不会自动改色。</p>
+      <ol class="steps" aria-label="发送流程">
+        <li><span>1</span> Procreate 导出 PSD / PNG</li>
+        <li><span>2</span> 在这里选择并发送</li>
+        <li><span>3</span> 电脑确认接收</li>
+      </ol>
+    </section>
+
+    <section class="card" aria-labelledby="connect-title">
+      <div class="section-header"><h2 id="connect-title">连接你的账户</h2><span id="connection-badge" class="badge">未连接</span></div>
+      <p class="muted">密码只用于本次登录，不保存。登录凭据只留在本标签页的会话存储里，退出连接会清除。</p>
+      <div id="url-warning" class="notice bad" hidden></div>
+      <div id="connect-controls">
+        <label class="field">SHINE 后端地址
+          <input id="endpoint" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://你的后端地址" required>
+        </label>
+        <label class="check-line"><input id="endpoint-consent" type="checkbox"><span>我确认这是自己信任的 SHINE 后端。账户和上传请求将发送到这个地址。</span></label>
+        <div class="mode-switch" role="group" aria-label="连接方式">
+          <button id="account-mode" class="selected" type="button" aria-pressed="true">用户名登录</button>
+          <button id="device-mode" type="button" aria-pressed="false">仅上传令牌</button>
+        </div>
+        <form id="account-form">
+          <label class="field">用户名<input id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required maxlength="80"></label>
+          <label class="field">密码<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+          <button class="primary wide" type="submit">登录并连接</button>
+          <p class="small muted">没有用户名？请让管理员在电脑工作台创建账户。这里不接受管理员总口令。</p>
+        </form>
+        <form id="device-form" hidden>
+          <label class="field">本设备的仅上传令牌<input id="device-token" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" required placeholder="shine-inbox-device-v1.…"></label>
+          <button class="primary wide" type="submit">使用仅上传令牌</button>
+          <p class="small muted">在电脑收件箱创建设备令牌后粘贴到这里。它只能上传，不能读取素材、订单或管理账户；有效性在发送时检查。不要填管理员口令或 DeepSeek Key。</p>
+        </form>
+      </div>
+      <div id="connected-controls" hidden>
+        <p id="connected-as"></p><p id="connected-endpoint" class="small muted break"></p>
+        <button id="disconnect" type="button">退出连接并清除本页记录</button>
+      </div>
+      <p id="connection-status" class="notice" role="status" aria-live="polite">先确认后端地址，再连接。</p>
+    </section>
+
+    <section class="card" aria-labelledby="send-title">
+      <div class="section-header"><h2 id="send-title">选择本次素材</h2><span class="badge">PSD / PNG · 单个 ≤ 200 MB</span></div>
+      <p class="muted">需要分层改色用 PSD；不改色的小物用透明 PNG。不会解析或压缩你的原文件。</p>
+      <label class="check-line consent"><input id="transfer-consent" type="checkbox"><span>我同意将所选文件放入<strong>本账户的私有临时收件箱</strong>。有效期为创建收件记录后的 48 小时，不进入共用素材库；请保留自己的原稿。</span></label>
+      <p class="small muted">到期后不可通过收件箱读取。当前服务会在后续访问时清理过期文件，不保证恰好第 48 小时完成物理删除；需要立即清理可在电脑收件箱删除。中途取消不会自动删除已上传的部分。</p>
+      <div class="file-picker">
+        <input id="files" type="file" accept=".psd,.png,image/png,image/vnd.adobe.photoshop" multiple disabled>
+        <label for="files" id="file-label" class="button wide">选择 PSD / PNG 文件</label>
+        <p class="small muted">先在 Procreate：操作 → 分享 → PSD / PNG → 存储到“文件”，再点上方选择。配置快捷指令后可从分享菜单直传。</p>
+      </div>
+      <div class="actions"><button id="send" class="primary" type="button" disabled>发送待传素材</button><button id="pause" type="button" hidden>暂停发送</button><button id="refresh" type="button" disabled>检查接收状态</button></div>
+      <p id="transfer-status" class="notice" role="status" aria-live="polite">还没有选择文件。发送时请保持此页在前台。</p>
+      <ul id="queue" class="queue" aria-label="本标签页发送记录"></ul>
+      <p class="small muted">“已送达收件箱”不等于“电脑已接收”。刷新页面后，未完成的文件需重新选择；同一文件的重试会沿用原收件编号。</p>
+    </section>
+
+    <details class="card help">
+      <summary>想直接从 Procreate 分享？</summary>
+      <p>这份页面不是可安装的分享扩展。下一步可以配置苹果“快捷指令”：接收分享文件 → 申请上传地址 → 上传原文件 → 确认完成。首次设置需要在真实 iPad 上测试。</p>
+      <p>快捷指令只用本设备的<strong>仅上传令牌</strong>，不要保存管理员密码，也不要把带令牌的快捷指令分享给别人。</p>
+      <p><a href="docs/SHINE_IPAD_TRANSFER.md">查看设置说明与接口约定</a></p>
+    </details>
+    <footer>SHINE · 保留原色，确认后再用。</footer>
+  </main>
+</body>
+</html>

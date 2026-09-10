@@ -32,19 +32,20 @@ test('DeepSeek parsing is authenticated, gray-tested, and falls back locally', (
   assert.match(html, /headers\.Authorization=`Bearer \$\{proxy\.token\}`/);
   assert.match(html, /DEEPSEEK_NOT_CONFIGURED:'后端还没有配置 DeepSeek API Key。'/);
   assert.match(html, /const localUnresolved=localParseForm\(\{announce:false\}\)/);
-  assert.match(html, /\.\.\.apiReviewFields\(text\)/);
+  assert.match(html, /const unresolvedFields=\[\.\.\.new Set\(localUnresolved\)\]/);
+  assert.doesNotMatch(html, /const unresolvedFields=[^\n]*apiReviewFields\(text\)/, 'known local fields must not be sent for paid re-interpretation');
   assert.match(html, /strategy:'local-first-flash0731-pro0813'/);
-  assert.match(html, /if\(!unresolvedFields\.length\).*没有可交给 DeepSeek 复核的表单字段/);
+  assert.match(html, /if\(!unresolvedFields\.length\).*不需要调用 DeepSeek/);
   assert.match(html, /data\.parseMeta\?\.tier==='pro0813'/);
   assert.match(html, /decorCatalog:earDecorCatalog\(\)/);
   assert.match(html, /bestUploadedEarVariant\(original,slot,o\[slot\]\.decor\)\|\|bestUploadedEarVariant\(d\.decor,slot,o\[slot\]\.decor\)/);
   assert.match(html, /paletteEye=formAnchorHex\(field\(sec,\['瞳色'\]\),'eye'\)/);
-  assert.match(html, /if\(paletteEye\|\|d\.eyeHex&&\/\^#\[0-9a-f\]\{6\}\$\/i\.test\(d\.eyeHex\)\)\{o\[slot\]\.eye=paletteEye\|\|d\.eyeHex/);
+  assert.match(html, /if\(wanted\(slot\+'\.eyeHex'\)&&\(paletteEye\|\|d\.eyeHex/);
   assert.match(html, /paletteHair=formAnchorHex\(field\(sec,\['发色'\]\),'hair'\)/);
   assert.match(html, /o\[slot\]\.hair=paletteHair\|\|d\.hairHex/);
   assert.match(html, /const PRODUCTION_BACKEND_ENDPOINT='https:\/\/shine-backend-uxgyzdvkcv\.cn-hangzhou\.fcapp\.run'/);
   assert.match(html, /PRODUCTION_DEEPSEEK_ENDPOINT=PRODUCTION_BACKEND_ENDPOINT\+'\/api\/deepseek\/parse'/);
-  assert.match(html, /localStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
+  assert.match(html, /appStorage\.getItem\(CLOUD_PROFILE_ENDPOINT_KEY\)\|\|PRODUCTION_BACKEND_ENDPOINT/);
   assert.doesNotMatch(html, /DEEPSEEK_API_KEY\s*[:=]/);
 });
 
@@ -79,7 +80,7 @@ test('ear assets never auto-equip on upload and stale blank-order trial ears are
   const end = html.indexOf('\nfunction loadProductionState(', start);
   assert.ok(start >= 0 && end > start, 'blank-order ear migration should be extractable');
   const migrate = new Function(
-    'S', 'localStorage', 'NO_AUTO_EAR_MIGRATION_KEY', 'ensureOrderAssetSelections', 'ensureOrderAutoTailSelections', 'persistOrders',
+    'S', 'appStorage', 'NO_AUTO_EAR_MIGRATION_KEY', 'ensureOrderAssetSelections', 'ensureOrderAutoTailSelections', 'persistOrders',
     `${html.slice(start, end)}\nreturn migrateBlankOrderAutoEarsV1;`
   );
   const blank = {
@@ -651,11 +652,16 @@ test('phase two automatically keeps templates and assets in IndexedDB with lazy 
 });
 
 test('dedicated hair uploads stay reusable and isolated even when two orders use the same filename', () => {
-  const hairLoader = html.match(/async function loadHairAsset\(file,slot\)[\s\S]+?\/\/ ===== v0\.16/)?.[0] || '';
-  assert.match(html, /async function loadHairAsset\(file,slot\)/);
+  const hairStart = html.indexOf('async function loadHairAsset(');
+  const hairEnd = html.indexOf('\nfunction ', hairStart);
+  assert.ok(hairStart >= 0 && hairEnd > hairStart, 'the complete hair loader must be inspected');
+  const hairLoader = html.slice(hairStart, hairEnd);
+  assert.match(hairLoader, /async function loadHairAsset\(file,slot,\{sessionOnly=false\}=\{\}\)/);
   assert.match(html, /records\.forEach\(asset=>\{asset\.enabled=true;upsertAssetRecord\(asset\)\}\)/);
   assert.match(html, /const hairSelections=ensureOrderAssetSelections\(active\)\[slot\];delete hairSelections\.REUSABLE_HAIR;delete hairSelections\.TEMP_HAIR;hairSelections\[categoryId\]=assetFamilyKey\(asset\)/);
-  assert.match(html, /queuePersistAssetFamilyLocal\(assetFamilyKey\(asset\),40\)/);
+  assert.match(hairLoader, /if\(!sessionOnly\)queuePersistAssetFamilyLocal\(assetFamilyKey\(asset\),40\)/);
+  assert.match(hairLoader, /categoryId=sessionOnly\|\|[^\n]+\?'TEMP_HAIR':'REUSABLE_HAIR'/);
+  assert.match(hairLoader, /appStorage\.owner!==requestOwner\|\|S\.activeOrderId!==requestOrder/);
   assert.match(html, /if\(isHairCategory\(a\.categoryId\)\)return `\$\{a\.categoryId\}::\$\{a\.assetId\}`/);
   assert.match(html, /const idx=S\.assets\.findIndex\(a=>a\.assetId===rec\.assetId&&a\.slot===rec\.slot&&\(a\.groupPath\|\|null\)===\(rec\.groupPath\|\|null\)\)/);
   assert.doesNotMatch(hairLoader, /previous|sameVariant/);
@@ -837,7 +843,7 @@ test('template fingerprints separate same-structure PSD revisions', () => {
   assert.match(html, /order\?\.templateSignature===signature/);
   assert.match(html, /order\.layerOverrides=\{\};order\.rootStackOrder=\[\];order\.assetTransforms=\{\}/);
   assert.match(html, /restoreOrderTemplateState\(getActiveOrder\(\),S\.templateSignature\);mergeTemplateFlexibleSchema\(getActiveOrder\(\),S\.templateSignature\);persistOrders\(\)/);
-  assert.match(html, /await loadMaster\(file\);try\{localStorage\.setItem\(LOCAL_LAST_TEMPLATE_KEY,S\.templateSignature\|\|signature\)/);
+  assert.match(html, /await loadMaster\(file\);try\{appStorage\.setItem\(LOCAL_LAST_TEMPLATE_KEY,S\.templateSignature\|\|signature\)/);
 });
 
 test('session export history records explicit downloads while clipboard copies stay current', () => {
@@ -849,7 +855,7 @@ test('session export history records explicit downloads while clipboard copies s
   assert.match(html, /recordSessionExport\(order,blob,'png'/);
   assert.match(html, /recordSessionExport\(order,blob,'jpeg'/);
   assert.match(html, /beforeunload[^\n]+S\.exportHistory\.forEach\(releaseSessionExport\)/);
-  assert.doesNotMatch(html, /localStorage\.setItem\([^\n]*exportHistory/);
+  assert.doesNotMatch(html, /(?:localStorage|appStorage)\.setItem\([^\n]*exportHistory/);
   assert.match(html, /if\(!S\.master\)return;if\(S\.exportBusy\)/);
   assert.match(html, /function startCanvasImageClipboardCopy\(canvas,pngBlobPromise=null\)/);
   assert.match(html, /new ClipboardItem\(\{'image\/png':png\}\)/);

@@ -3,13 +3,17 @@ const { createApp } = require('./src/app');
 const { createOssProfileStore } = require('./src/oss-profile-store');
 const { createOssAssetStore } = require('./src/oss-asset-store');
 const { createOssAccountStore } = require('./src/oss-account-store');
+const { createOssInboxStore } = require('./src/oss-inbox-store');
+const { createOssHandbookStore } = require('./src/oss-handbook-store');
 
 const PORT = Number(process.env.PORT || 9000);
 
 const app = createApp({
   storeFactory: req => createOssProfileStore({ req }),
   assetStoreFactory: req => createOssAssetStore({ req }),
-  accountStoreFactory: req => createOssAccountStore({ req })
+  accountStoreFactory: req => createOssAccountStore({ req }),
+  inboxStoreFactory: req => createOssInboxStore({ req }),
+  handbookStoreFactory: req => createOssHandbookStore({ req })
 });
 
 const server = http.createServer(app);

@@ -996,9 +996,15 @@ header .badge{display:none!important}
 
 <script src="https://cdn.jsdelivr.net/npm/ag-psd@31.0.2/dist/bundle.js"></script>
 <script src="./phase4-color-engine.js?v=hair-hsl-v1-20260824"></script>
+<script src="./studio-storage.js?v=studio-v1"></script>
+<script src="./color-handbook.js?v=studio-v1"></script>
+<script src="./studio-color-link.js?v=studio-v1"></script>
 <script>
 const PHASE4_COLOR=globalThis.ShinePhase4Color;
 if(!PHASE4_COLOR)throw new Error('四期配色引擎加载失败，请强制刷新页面。');
+const appStorage=globalThis.ShineStudioStorage.create(window.localStorage,window.sessionStorage,{onError:()=>{
+  const status=document.querySelector('#accountStatus');if(status){status.textContent='本机保存失败，请先导出订单备份；不要关闭当前页面。';status.className='status bad';}
+}});
 const S={
   master:null, masterFile:null, flat:[], assets:[], showHidden:true, overlayBase:'recon',
   collapsed:{}, visOverride:{}, masterOrder:null, bindings:{}, templateSignature:null, builderCollapsed:{},
@@ -1141,15 +1147,15 @@ async function deleteLocalAssetFamily(familyKey){
 async function persistMasterLocal(file,psd,signature){
   if(!file||!psd||!signature)return;
   const meta={schemaVersion:'shine-local-template-v1',signature,fileName:file.name,byteSize:file.size,contentType:file.type||'application/octet-stream',width:psd.width,height:psd.height,updatedAt:new Date().toISOString()};
-  await localPut('templateSources',{signature,file});await localPut('templateCatalog',meta);S.localTemplateCatalog=S.localTemplateCatalog.filter(x=>x.signature!==signature);S.localTemplateCatalog.unshift(meta);try{localStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,signature)}catch{}
+  await localPut('templateSources',{signature,file});await localPut('templateCatalog',meta);S.localTemplateCatalog=S.localTemplateCatalog.filter(x=>x.signature!==signature);S.localTemplateCatalog.unshift(meta);try{appStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,signature)}catch{}
 }
 async function restoreLocalTemplate(signature){
   const source=await localGet('templateSources',signature),meta=S.localTemplateCatalog.find(x=>x.signature===signature)||await localGet('templateCatalog',signature);if(!source?.file||!meta)throw new Error('本机模板缓存不完整。');
-  const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'});await loadMaster(file);try{localStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,S.templateSignature||signature)}catch{}
+  const raw=source.file,file=raw instanceof File?raw:new File([raw],meta.fileName,{type:meta.contentType||raw.type||'application/octet-stream'});await loadMaster(file);try{appStorage.setItem(LOCAL_LAST_TEMPLATE_KEY,S.templateSignature||signature)}catch{}
 }
 async function deleteLocalTemplate(signature){
   const meta=S.localTemplateCatalog.find(x=>x.signature===signature);if(!meta||!confirm(`确定从本机模板库删除“${meta.fileName}”吗？`))return;
-  await Promise.all([localDelete('templateCatalog',signature),localDelete('templateSources',signature)]);S.localTemplateCatalog=S.localTemplateCatalog.filter(x=>x.signature!==signature);try{if(localStorage.getItem(LOCAL_LAST_TEMPLATE_KEY)===signature)localStorage.removeItem(LOCAL_LAST_TEMPLATE_KEY)}catch{}renderAssetLibrary();
+  await Promise.all([localDelete('templateCatalog',signature),localDelete('templateSources',signature)]);S.localTemplateCatalog=S.localTemplateCatalog.filter(x=>x.signature!==signature);try{if(appStorage.getItem(LOCAL_LAST_TEMPLATE_KEY)===signature)appStorage.removeItem(LOCAL_LAST_TEMPLATE_KEY)}catch{}renderAssetLibrary();
 }
 function purgeLegacyOrderAssetState(){
   S.orders.forEach(order=>{
@@ -1163,7 +1169,7 @@ function purgeLegacyOrderAssetState(){
   });
 }
 async function purgePhase4LegacyLocalLibrary(){
-  let migrated='';try{migrated=localStorage.getItem(PHASE4_ASSET_MIGRATION_KEY)||''}catch{}
+  let migrated='';try{migrated=appStorage.getItem(PHASE4_ASSET_MIGRATION_KEY)||''}catch{}
   if(migrated==='done')return {assets:0,templates:0,skipped:true};
   const [assets,templates]=await Promise.all([localGetAll('assetCatalog'),localGetAll('templateCatalog')]);
   const doomedAssets=assets.filter(meta=>LEGACY_PURGE_CATEGORIES.has(meta.categoryId)||(meta.records||[]).some(row=>LEGACY_PURGE_CATEGORIES.has(row.categoryId)));
@@ -1172,7 +1178,7 @@ async function purgePhase4LegacyLocalLibrary(){
   for(const meta of templates){await Promise.all([localDelete('templateCatalog',meta.signature),localDelete('templateSources',meta.signature)])}
   const afterAssets=await localGetAll('assetCatalog'),afterProtected=afterAssets.filter(meta=>meta.categoryId==='EAR'||meta.categoryId==='TAIL').length;
   if(afterProtected!==beforeProtected)throw new Error('清理保护检查失败：耳朵或尾巴数量发生变化，已停止迁移。');
-  try{localStorage.removeItem(LOCAL_LAST_TEMPLATE_KEY);localStorage.setItem(PHASE4_ASSET_MIGRATION_KEY,'done')}catch{}
+  try{appStorage.removeItem(LOCAL_LAST_TEMPLATE_KEY);appStorage.setItem(PHASE4_ASSET_MIGRATION_KEY,'done')}catch{}
   return {assets:doomedAssets.length,templates:templates.length,skipped:false};
 }
 async function initLocalPersistence(){
@@ -1181,7 +1187,7 @@ async function initLocalPersistence(){
     [S.localAssetCatalog,S.localTemplateCatalog]=await Promise.all([localGetAll('assetCatalog'),localGetAll('templateCatalog')]);
     S.localAssetCatalog.forEach(meta=>{if(!S.assets.some(a=>a.assetId===meta.assetId))S.assets.push(...localMetadataToPlaceholders(meta));});S.localTemplateCatalog.sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));S.localPersistenceReady=true;renderAssetRows();renderAssetLibrary();renderHairInsertionControls();
     try{navigator.storage?.persist?.()}catch{}
-    let last='';try{last=localStorage.getItem(LOCAL_LAST_TEMPLATE_KEY)||''}catch{}if(!S.master&&last&&S.localTemplateCatalog.some(x=>x.signature===last))await restoreLocalTemplate(last);
+    let last='';try{last=appStorage.getItem(LOCAL_LAST_TEMPLATE_KEY)||''}catch{}if(!S.master&&last&&S.localTemplateCatalog.some(x=>x.signature===last))await restoreLocalTemplate(last);
     if(!purge.skipped&&(purge.assets||purge.templates))stat($('#assetRuntimeStatus'),`已按新规范清理 ${purge.assets} 份旧头发/边框/小物素材和 ${purge.templates} 份旧模板；耳朵、尾巴已通过保护检查。`,'good');
     setTimeout(warmCurrentOrderAssets,30);
   }catch(e){S.localPersistenceError=e;console.warn('init local library',e);renderAssetLibrary();}
@@ -1500,23 +1506,23 @@ function loadRootStackOrder(){
   // 图层大夹子顺序属于订单：同一套模板下，不同订单可以独立决定头发/尾巴/配饰的上下关系。
   if(active&&Object.prototype.hasOwnProperty.call(active,'rootStackOrder'))saved=active.rootStackOrder;
   else if(active){
-    let legacy=null;try{legacy=JSON.parse(localStorage.getItem(rootStackStorageKey())||'null')}catch{}
-    let migrated=false;try{migrated=localStorage.getItem(rootStackStorageKey()+':order-migrated')==='1'}catch{}
+    let legacy=null;try{legacy=JSON.parse(appStorage.getItem(rootStackStorageKey())||'null')}catch{}
+    let migrated=false;try{migrated=appStorage.getItem(rootStackStorageKey()+':order-migrated')==='1'}catch{}
     saved=!migrated&&Array.isArray(legacy)?legacy:[];
-    active.rootStackOrder=Array.isArray(saved)?clone(saved):[];try{localStorage.setItem(rootStackStorageKey()+':order-migrated','1')}catch{};persistOrders()
+    active.rootStackOrder=Array.isArray(saved)?clone(saved):[];try{appStorage.setItem(rootStackStorageKey()+':order-migrated','1')}catch{};persistOrders()
   }
   S.rootStackOrder=normalizeRootStackOrder(Array.isArray(saved)&&saved.length?saved:defaultRootStackOrder());
   if(active){active.rootStackOrder=clone(S.rootStackOrder);persistOrders()}
 }
-function saveRootStackOrder(){const active=getActiveOrder();if(active){active.rootStackOrder=clone(S.rootStackOrder);persistOrders()}try{localStorage.setItem(rootStackStorageKey(),JSON.stringify(S.rootStackOrder))}catch{}}
+function saveRootStackOrder(){const active=getActiveOrder();if(active){active.rootStackOrder=clone(S.rootStackOrder);persistOrders()}try{appStorage.setItem(rootStackStorageKey(),JSON.stringify(S.rootStackOrder))}catch{}}
 function resetRootStackOrder(){S.rootStackOrder=defaultRootStackOrder();saveRootStackOrder();renderHairInsertionControls();reconstruct();renderOverlay();syncProductionPreview();}
 function loadHairInsertion(){
   // 兼容 v0.10 已保存的 anchor 数据；v0.11 日常改用“大夹子拖动层级”。
-  let x=null;try{x=JSON.parse(localStorage.getItem(hairInsertionStorageKey())||'null')}catch{}
+  let x=null;try{x=JSON.parse(appStorage.getItem(hairInsertionStorageKey())||'null')}catch{}
   S.hairInsertion=x||{A:{path:'',position:'below'},B:{path:'',position:'below'}};
   loadRootStackOrder();
 }
-function saveHairInsertion(){try{localStorage.setItem(hairInsertionStorageKey(),JSON.stringify(S.hairInsertion))}catch{}}
+function saveHairInsertion(){try{appStorage.setItem(hairInsertionStorageKey(),JSON.stringify(S.hairInsertion))}catch{}}
 function hairAnchorOptions(slot){return S.flat.filter(n=>{const b=S.bindings[n.path];const ss=b?.slot==='A'||b?.slot==='B'?b.slot:guessSlot(n.path,n.name);return ss===slot;});}
 function makeHairInsertionPanel(){
   const box=document.createElement('div');box.className='hairInsertBox';box.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;gap:6px"><b style="font-size:10px">模板插槽 / 大夹子顺序 · 可直接拖动</b><button id="resetRootStack" class="btn" type="button">恢复模板默认</button></div><div class="layerLinkHint">这里按 Procreate 图层面板的“上 → 下”显示；上面的会盖住下面。普通素材无需在 PSD 里写插槽提示；勾选的头发、衣服、身体姿势、耳朵、表情、眼睛状态和小物都会成为虚拟大夹子。身体姿势按 A男 / A女 / B男 / B女识别，默认在衣服下、后发上。</div><div id="rootStackList" class="rootStackList"></div><div class="assetTransformBox"><div class="libraryTransformTitle">整体调整素材</div><div class="assetTransformHead"><select id="transformAssetSelect" aria-label="自由变换素材"></select><button id="resetAssetTransform" class="btn" type="button">复位</button></div><div class="assetTransformGrid"><label>X</label><input id="assetTransformX" type="range" step="1"><output id="assetTransformXOut">0</output><label>Y</label><input id="assetTransformY" type="range" step="1"><output id="assetTransformYOut">0</output><label>缩放</label><input id="assetTransformScale" type="range" min="0.05" max="5" step="0.01"><output id="assetTransformScaleOut">1.00</output><label>旋转</label><input id="assetTransformRotation" type="range" min="-180" max="180" step="1"><output id="assetTransformRotationOut">0°</output></div><div class="assetTransformActions"><button id="assetTransformSmaller" class="btn" type="button">－ 缩小</button><button id="assetTransformLarger" class="btn" type="button">＋ 放大</button><button id="assetTransformRotateLeft" class="btn" type="button">↶ 左转 90°</button><button id="assetTransformRotateRight" class="btn" type="button">↷ 右转 90°</button><label><input id="assetTransformFlip" type="checkbox">水平翻转</label><label><input id="assetTransformFlipY" type="checkbox">垂直翻转</label><span class="layerLinkHint">在左侧预览任意空白处拖动即可移动整份素材。</span></div></div>`;return box;
@@ -1547,7 +1553,7 @@ function templateDefaultAssetTransform(a){
   ensureAssetRecordV2(a);const key=String(S.templateSignature||'default');
   if(!a.templateTransforms||typeof a.templateTransforms!=='object')a.templateTransforms={};
   if(!a.templateTransforms[key]){
-    let saved=null;try{saved=JSON.parse(localStorage.getItem('shine:asset-transform:'+key+':'+assetTransformKey(a))||localStorage.getItem('shine:asset-transform:'+key+':'+assetStackId(a))||'null')}catch{}
+    let saved=null;try{saved=JSON.parse(appStorage.getItem('shine:asset-transform:'+key+':'+assetTransformKey(a))||appStorage.getItem('shine:asset-transform:'+key+':'+assetStackId(a))||'null')}catch{}
     a.templateTransforms[key]=saved&&typeof saved==='object'?saved:initialAssetTransform(a);
   }
   const t=upgradeUntouchedBackdropTransform(a,a.templateTransforms[key]);t.x=Number(t.x)||0;t.y=Number(t.y)||0;t.scale=Math.max(.05,Number(t.scale)||1);t.rotation=Number(t.rotation)||0;t.flipX=!!t.flipX;t.flipY=!!t.flipY;return t;
@@ -2088,7 +2094,7 @@ function ensureBindings(forceGuess=false){
 function loadStoredBindings(){
   let parsed=null,source=null;
   try{
-    const raw=localStorage.getItem(bindingStorageKey());
+    const raw=appStorage.getItem(bindingStorageKey());
     if(raw){parsed=JSON.parse(raw);source='浏览器存储';}
   }catch(e){console.warn('load bindings',e)}
   if(!parsed && S._savedTemplate && S._savedTemplate.template?.signature===S.templateSignature){
@@ -2109,7 +2115,7 @@ function saveBindingsLocal(){
   payload.savedAt=new Date().toISOString();
   S._savedTemplate=JSON.parse(JSON.stringify(payload));
   let localOk=false;
-  try{localStorage.setItem(bindingStorageKey(),JSON.stringify(payload));localOk=true}catch(e){console.warn(e)}
+  try{appStorage.setItem(bindingStorageKey(),JSON.stringify(payload));localOk=true}catch(e){console.warn(e)}
   stat($('#builderStatus'),localOk
     ?'✅ 已保存。当前页面重新上传同一 PSD 会恢复；正式部署后浏览器也会长期记住。'
     :'✅ 已保存到当前页面内存。当前 ChatGPT 临时页面可能限制持久存储，建议同时导出 template.json。','good');
@@ -2199,7 +2205,7 @@ function saveAccountToken(token){
   const endpoint=($('#cloudProfileEndpoint')?.value||'').trim()||PRODUCTION_BACKEND_ENDPOINT;
   if($('#cloudProfileEndpoint'))$('#cloudProfileEndpoint').value=endpoint;
   if($('#cloudProfileToken'))$('#cloudProfileToken').value=token||'';
-  try{localStorage.setItem(CLOUD_PROFILE_ENDPOINT_KEY,endpoint);if(token)sessionStorage.setItem(CLOUD_PROFILE_TOKEN_KEY,token);else sessionStorage.removeItem(CLOUD_PROFILE_TOKEN_KEY)}catch{}
+  try{appStorage.setItem(CLOUD_PROFILE_ENDPOINT_KEY,endpoint);if(token)sessionStorage.setItem(CLOUD_PROFILE_TOKEN_KEY,token);else sessionStorage.removeItem(CLOUD_PROFILE_TOKEN_KEY)}catch{}
 }
 function renderAccountAccess(){
   const signedIn=!!S.authAccount,out=$('#accountSignedOut'),inside=$('#accountSignedIn'),admin=$('#accountAdminBox');
@@ -2214,10 +2220,19 @@ async function loadAccountRows(){
   catch(e){host.innerHTML='';stat($('#accountStatus'),e.message||String(e),'bad')}
 }
 async function acceptAccountSession(token,{successMessage='登录成功。'}={}){
-  saveAccountToken(token);const data=await accountRequest('/api/auth/me');S.authAccount=data.account;S.authPermissions=data.permissions||{};renderAccountAccess();stat($('#accountStatus'),`${successMessage} 云端素材库已连接。`,'good');if(S.authAccount.role==='admin')await loadAccountRows();refreshCloudAssetCatalog().catch(e=>stat($('#cloudAssetStatus'),e.message||String(e),'bad'));
+  const data=await accountRequest('/api/auth/me',{token});saveAccountToken(token);S.authAccount=data.account;S.authPermissions=data.permissions||{};switchStudioOwner(data.account.accountId);renderAccountAccess();stat($('#accountStatus'),`${successMessage} 个人订单与配色已隔离，云端素材仍共用。`,'good');if(S.authAccount.role==='admin')await loadAccountRows();refreshCloudAssetCatalog().catch(e=>stat($('#cloudAssetStatus'),e.message||String(e),'bad'));
 }
 function clearAccountSession(message='已退出。本机订单和素材缓存不受影响。'){
-  saveAccountToken('');S.authAccount=null;S.authPermissions=null;renderAccountAccess();if($('#accountRows'))$('#accountRows').innerHTML='';stat($('#accountStatus'),message,'');
+  saveAccountToken('');S.authAccount=null;S.authPermissions=null;switchStudioOwner('local');renderAccountAccess();if($('#accountRows'))$('#accountRows').innerHTML='';stat($('#accountStatus'),message,'');
+}
+function switchStudioOwner(owner){
+  if(appStorage.owner===owner)return;
+  if(S.orders.length)captureActiveOrder();
+  appStorage.setOwner(owner);S.activeOrderId=null;S.orders=[];S.manualLayerOverrides={};S.ruleColorOverrides={};S.layerColorOverrides={};S.autoDecorSlots={A:null,B:null};S.rootStackOrder=[];
+  S.exportHistory.forEach(releaseSessionExport);S.exportHistory=[];
+  S.assets.forEach(a=>a.enabled=false);loadProductionState();
+  if(!S.orders.length){const order=newOrderData();S.orders.push(order);S.activeOrderId=order.id;persistOrders();selectOrder(order.id);}
+  window.dispatchEvent(new CustomEvent('shine:owner-changed',{detail:{owner}}));
 }
 function initAccountAccess(){
   const login=$('#accountLogin'),adminLogin=$('#accountAdminLogin'),logout=$('#accountLogout'),create=$('#createAccount');if(!login)return;
@@ -2341,7 +2356,7 @@ function initCloudProfiles(){
   const panel=$('#cloudProfilePanel');if(!panel)return;
   panel.hidden=!CLOUD_PROFILE_ENABLED;if($('#cloudAssetPanel'))$('#cloudAssetPanel').hidden=!CLOUD_PROFILE_ENABLED;
   if(!CLOUD_PROFILE_ENABLED)return;
-  try{$('#cloudProfileEndpoint').value=localStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||PRODUCTION_BACKEND_ENDPOINT}catch{$('#cloudProfileEndpoint').value=PRODUCTION_BACKEND_ENDPOINT}
+  try{$('#cloudProfileEndpoint').value=appStorage.getItem(CLOUD_PROFILE_ENDPOINT_KEY)||PRODUCTION_BACKEND_ENDPOINT}catch{$('#cloudProfileEndpoint').value=PRODUCTION_BACKEND_ENDPOINT}
   try{$('#cloudProfileToken').value=sessionStorage.getItem(CLOUD_PROFILE_TOKEN_KEY)||''}catch{}
   if($('#cloudAssetRefresh'))$('#cloudAssetRefresh').onclick=refreshCloudAssetCatalog;
   if($('#cloudTemplateUpload'))$('#cloudTemplateUpload').onclick=uploadMasterToCloud;
@@ -2350,7 +2365,7 @@ function initCloudProfiles(){
     try{
       if(!config.endpoint||!config.token)throw new Error('请完整填写后端地址和测试口令。');
       if(!/^https:\/\//i.test(config.endpoint)&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(config.endpoint))throw new Error('后端地址必须使用 HTTPS。');
-      localStorage.setItem(CLOUD_PROFILE_ENDPOINT_KEY,config.endpoint);sessionStorage.setItem(CLOUD_PROFILE_TOKEN_KEY,config.token);
+      appStorage.setItem(CLOUD_PROFILE_ENDPOINT_KEY,config.endpoint);sessionStorage.setItem(CLOUD_PROFILE_TOKEN_KEY,config.token);
       updateCloudProfileControls();stat($('#cloudProfileStatus'),'测试配置已保存。口令会在关闭当前标签页后清除。','good');
     }catch(e){stat($('#cloudProfileStatus'),e.message||String(e),'bad')}
   };
@@ -2558,12 +2573,12 @@ function officialStyleSchemes(){
 function defaultStyleSchemesFromLegacy(){
   return officialStyleSchemes();
 }
-function persistStyleSchemes(){try{localStorage.setItem(STYLE_SCHEME_KEY,JSON.stringify(S.styleSchemes))}catch{}}
+function persistStyleSchemes(){try{appStorage.setItem(STYLE_SCHEME_KEY,JSON.stringify(S.styleSchemes))}catch{}}
 function loadStoredStyleSchemes(){
   let current=null,legacy=null;
-  try{current=JSON.parse(localStorage.getItem(STYLE_SCHEME_KEY)||'null')}catch{}
+  try{current=JSON.parse(appStorage.getItem(STYLE_SCHEME_KEY)||'null')}catch{}
   if(current?.hat?.length&&current?.outfit?.length)return current;
-  try{legacy=JSON.parse(localStorage.getItem(LEGACY_STYLE_SCHEME_KEY)||'null')}catch{}
+  try{legacy=JSON.parse(appStorage.getItem(LEGACY_STYLE_SCHEME_KEY)||'null')}catch{}
   if(!legacy?.hat?.length&&!legacy?.outfit?.length)return officialStyleSchemes();
   const known=new Set(Object.keys(OFFICIAL_COLOR_SCHEMES));
   const legacyNames=new Set(['红白','橙白','黄白','绿白','青白','蓝白','紫白','黑白','白色','粉白','红色','橙色','黄色','绿色','青色','蓝色','紫色','黑色']);
@@ -2660,7 +2675,7 @@ function migrateDefaultOutfitSchemesV18(){
 }
 function migrateBackgroundPresetsV21(){
   const migrationKey='shine:migration:phase4-background-v1';
-  if(localStorage.getItem(migrationKey)==='done')return;
+  if(appStorage.getItem(migrationKey)==='done')return;
   const legacyNames=new Set(['冷蓝','冷绿','冷紫','暖粉','暖杏','暖黄','暖紫']);
   const custom=Object.fromEntries(Object.entries(S.presets.background||{}).filter(([name])=>!legacyNames.has(name)&&!Object.hasOwn(DEFAULT_PRESETS.background,name)));
   S.presets.background={...DEFAULT_PRESETS.background,...custom};
@@ -2668,7 +2683,7 @@ function migrateBackgroundPresetsV21(){
     const mapped={冷蓝:'蓝色',冷绿:'灰色',冷紫:'紫色',暖粉:'粉色',暖杏:'橙色',暖黄:'米黄',暖紫:'紫色'}[order.background];
     if(mapped)order.background=mapped;
   });
-  persistPresets();persistOrders();localStorage.setItem(migrationKey,'done');
+  persistPresets();persistOrders();appStorage.setItem(migrationKey,'done');
 }
 function migrateLogicDefaultsV21(){
   const oldDefaults={eyeDarkL:-0.13,eyeDarkC:1.08,eyeOutlineL:-0.19,eyeOutlineC:0.84};
@@ -2680,7 +2695,7 @@ function migrateLogicDefaultsV21(){
   if(changed)persistLogic();
 }
 function migrateBlankOrderAutoEarsV1(){
-  let migrated='';try{migrated=localStorage.getItem(NO_AUTO_EAR_MIGRATION_KEY)||''}catch{}
+  let migrated='';try{migrated=appStorage.getItem(NO_AUTO_EAR_MIGRATION_KEY)||''}catch{}
   if(migrated==='done')return;
   let changed=false;
   S.orders.forEach(order=>{
@@ -2696,41 +2711,41 @@ function migrateBlankOrderAutoEarsV1(){
     });
     if(orderChanged&&Array.isArray(order.rootStackOrder))order.rootStackOrder=order.rootStackOrder.filter(id=>!/^asset:EAR:/.test(id));
   });
-  try{localStorage.setItem(NO_AUTO_EAR_MIGRATION_KEY,'done')}catch{}
+  try{appStorage.setItem(NO_AUTO_EAR_MIGRATION_KEY,'done')}catch{}
   if(changed)persistOrders();
 }
 function loadProductionState(){
   loadAssetCategories();
-  try{S.orders=JSON.parse(localStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
+  try{S.orders=JSON.parse(appStorage.getItem(ORDER_KEY)||'[]')}catch{S.orders=[]}
   S.orders.forEach(o=>{ensureOrderAssetSelections(o);ensureOrderMultiAssetSelections(o);ensureOrderAutoTailSelections(o);ensureOrderGlobalAssetSelections(o);if(!o.assetTransforms||typeof o.assetTransforms!=='object')o.assetTransforms={};o.A=o.A||{};o.B=o.B||{};o.A.pupilAccent=safeHex(o.A.pupilAccent||'#E6F9FF','#E6F9FF');o.B.pupilAccent=safeHex(o.B.pupilAccent||'#FFD6A6','#FFD6A6');o.environmentLight=normalizeHex(o.environmentLight||'')||'';o.componentColors=o.componentColors&&typeof o.componentColors==='object'?o.componentColors:{A:{},B:{}};o.componentColors.A=o.componentColors.A||{};o.componentColors.B=o.componentColors.B||{};o.assetComponentColors=o.assetComponentColors&&typeof o.assetComponentColors==='object'?o.assetComponentColors:{};o.flexibleComponents=o.flexibleComponents&&typeof o.flexibleComponents==='object'?o.flexibleComponents:{A:[],B:[],GLOBAL:[]};o.flexibleComponents.A=Array.isArray(o.flexibleComponents.A)?o.flexibleComponents.A:[];o.flexibleComponents.B=Array.isArray(o.flexibleComponents.B)?o.flexibleComponents.B:[];o.flexibleComponents.GLOBAL=Array.isArray(o.flexibleComponents.GLOBAL)?o.flexibleComponents.GLOBAL:[]});
   S.orders.forEach(o=>{o.backgroundMode=['COLOR','WHITE','TRANSPARENT'].includes(o.backgroundMode)?o.backgroundMode:(o.backgroundBaseVisible===false?'TRANSPARENT':String(o.backgroundManual||'').toUpperCase()==='#FFFFFF'?'WHITE':'COLOR');o.backgroundBaseVisible=o.backgroundMode!=='TRANSPARENT';o.backgroundLaceVisible=false});
   purgeLegacyOrderAssetState();persistOrders();
   migrateBlankOrderAutoEarsV1();
-  try{S.presets=JSON.parse(localStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
+  try{S.presets=JSON.parse(appStorage.getItem(PRESET_KEY)||'null')||clone(DEFAULT_PRESETS)}catch{S.presets=clone(DEFAULT_PRESETS)}
   try{S.styleSchemes=loadStoredStyleSchemes()}catch{S.styleSchemes=officialStyleSchemes()}
   if(!S.styleSchemes?.hat?.length||!S.styleSchemes?.outfit?.length)S.styleSchemes=officialStyleSchemes();
   migrateDefaultOutfitSchemesV18();
   migrateBackgroundPresetsV21();
-  try{S.apiConfig=Object.assign(S.apiConfig,JSON.parse(localStorage.getItem(API_KEY)||'{}'))}catch{}
-  try{S.logic=Object.assign({},DEFAULT_LOGIC,JSON.parse(localStorage.getItem(LOGIC_KEY)||'{}'))}catch{S.logic=clone(DEFAULT_LOGIC)}
+  try{S.apiConfig=Object.assign(S.apiConfig,JSON.parse(appStorage.getItem(API_KEY)||'{}'))}catch{}
+  try{S.logic=Object.assign({},DEFAULT_LOGIC,JSON.parse(appStorage.getItem(LOGIC_KEY)||'{}'))}catch{S.logic=clone(DEFAULT_LOGIC)}
   migrateLogicDefaultsV21();
-  try{S.eyeSchemes=JSON.parse(localStorage.getItem(EYE_SCHEME_KEY)||'[]')}catch{S.eyeSchemes=[]}
+  try{S.eyeSchemes=JSON.parse(appStorage.getItem(EYE_SCHEME_KEY)||'[]')}catch{S.eyeSchemes=[]}
   migrateEyeSchemesV2();
   $('#apiEndpoint').value=S.apiConfig.endpoint||PRODUCTION_DEEPSEEK_ENDPOINT;
   $('#apiModel').value='本地 → flash0731 → pro0813';
   renderPresetOptions();renderPresetEditor();renderLogicEditor();renderOrders();renderAssetLibrary();renderEyeSchemeOptions();renderEyeSchemeList();
   if(S.orders[0])selectOrder(S.orders[0].id);
 }
-function persistOrders(){try{localStorage.setItem(ORDER_KEY,JSON.stringify(S.orders))}catch{}}
-function persistPresets(){try{localStorage.setItem(PRESET_KEY,JSON.stringify(S.presets))}catch{}}
-function persistLogic(){try{localStorage.setItem(LOGIC_KEY,JSON.stringify(S.logic))}catch{}}
+function persistOrders(){try{appStorage.setItem(ORDER_KEY,JSON.stringify(S.orders))}catch{}}
+function persistPresets(){try{appStorage.setItem(PRESET_KEY,JSON.stringify(S.presets))}catch{}}
+function persistLogic(){try{appStorage.setItem(LOGIC_KEY,JSON.stringify(S.logic))}catch{}}
 
-function persistEyeSchemes(){try{localStorage.setItem(EYE_SCHEME_KEY,JSON.stringify(S.eyeSchemes))}catch{}}
+function persistEyeSchemes(){try{appStorage.setItem(EYE_SCHEME_KEY,JSON.stringify(S.eyeSchemes))}catch{}}
 
 function persistApi(){
   S.apiConfig.endpoint=$('#apiEndpoint').value.trim();
   delete S.apiConfig.model;
-  try{localStorage.setItem(API_KEY,JSON.stringify(S.apiConfig))}catch{}
+  try{appStorage.setItem(API_KEY,JSON.stringify(S.apiConfig))}catch{}
 }
 
 function deepSeekProxyConfig(){
@@ -3146,7 +3161,7 @@ function localParseForm({announce=true}={}){
   o.A.outfit=localPreset(ao,'outfit','A.outfitPreset',o.A.outfit);o.A.hat=localPreset(ah,'hat','A.hatPreset',o.A.hat);o.A.decor=localDecor(ad,'A.decor',o.A.decor);
   o.B.outfit=localPreset(bo,'outfit','B.outfitPreset',o.B.outfit);o.B.hat=localPreset(bh,'hat','B.hatPreset',o.B.hat);o.B.decor=localDecor(bd,'B.decor',o.B.decor);
   const aeRaw=field(a,['瞳色']),afRaw=field(a,['发色']),beRaw=field(b,['瞳色']),bfRaw=field(b,['发色']);
-  const ae=formAnchorHex(aeRaw,'eye'),af=formAnchorHex(afRaw,'hair'),be=formAnchorHex(beRaw,'eye'),bf=formAnchorHex(bfRaw,'hair'),aProfile=eyeProfileForCharacter(o.A.name,'A'),bProfile=eyeProfileForCharacter(o.B.name,'B');
+  const ae=formAnchorHex(aeRaw,'eye'),af=formAnchorHex(afRaw,'hair'),be=formAnchorHex(beRaw,'eye'),bf=formAnchorHex(bfRaw,'hair'),aProfile=aeRaw?null:eyeProfileForCharacter(o.A.name,'A'),bProfile=beRaw?null:eyeProfileForCharacter(o.B.name,'B');
   if(aProfile)o.A.eyeSchemeId=aProfile.id;else if(ae){o.A.eye=ae;o.A.eyeSchemeId='AUTO_V3';}else if(aeRaw)unresolved.push('A.eyeHex');
   if(af){o.A.hair=af;enableSelectedHairGeneratedColor('A',af,o)}else if(afRaw)unresolved.push('A.hairHex');
   if(bProfile)o.B.eyeSchemeId=bProfile.id;else if(be){o.B.eye=be;o.B.eyeSchemeId='AUTO_V3';}else if(beRaw)unresolved.push('B.eyeHex');
@@ -3157,7 +3172,9 @@ function localParseForm({announce=true}={}){
   const bg=field(text,['背景倾向']);if(/冷/.test(bg)){o.background=S.presets.background?.蓝色?'蓝色':o.background;o.backgroundSource='local';}
   if(/暖/.test(bg)){o.background=S.presets.background?.米黄?'米黄':o.background;o.backgroundSource='local';}
   if((bg&&!/[冷暖]/.test(bg))||(!bg&&(ah||bh)))unresolved.push('backgroundPreset');
+  globalThis.ShineStudio?.readForm(o,text,unresolved);
   o.formText=text;persistOrders();selectOrder(o.id);
+  globalThis.ShineStudio?.startReview('local');
   if(announce)stat($('#apiStatus'),unresolved.length?(choiceNotes.length?`本地规则已读取；${choiceNotes.join('；')}。`:'本地规则已先读取；仍有少数字段需人工处理。'):(choiceNotes.length?`本地规则已完整读取；${choiceNotes.join('；')}。`:'本地规则已完整读取，不需要调用 AI。'),'good');
   return [...new Set(unresolved)];
 }
@@ -3166,8 +3183,10 @@ async function apiParseForm(){
   const text=$('#orderForm').value;
   if(!text.trim()){stat($('#apiStatus'),'请先粘贴顾客表单。','bad');return}
   const localUnresolved=localParseForm({announce:false});
-  const unresolvedFields=[...new Set([...localUnresolved,...apiReviewFields(text)])];
-  if(!unresolvedFields.length){stat($('#apiStatus'),'本地规则已读取；这段文字里没有可交给 DeepSeek 复核的表单字段。','good');return}
+  const requestOwner=appStorage.owner,requestOrderId=S.activeOrderId;
+  const requestState=apiOrderColorRevision();
+  const unresolvedFields=[...new Set(localUnresolved)];
+  if(!unresolvedFields.length){stat($('#apiStatus'),'本地规则已完整读取，本次不需要调用 DeepSeek。','good');return}
   const proxy=deepSeekProxyConfig();
   if(!proxy.endpoint){stat($('#apiStatus'),'本地规则已先读取；还没配置后端地址，未解析字段保留人工处理。','good');return}
   if(proxy.usesCloud&&!proxy.token){stat($('#apiStatus'),'本地规则已先读取；还没填写云端测试口令，未解析字段保留人工处理。','good');return}
@@ -3188,6 +3207,7 @@ async function apiParseForm(){
       warm:['米黄','粉色','橙色'].filter(k=>S.presets.background?.[k])
     },
     decorCatalog:earDecorCatalog(),
+    colorRecipeCatalog:globalThis.ShineStudio?.apiCatalog()||{},
     instructions:[
       '只返回结构化选择，不绘画、不生成图片',
       '帽子/衣服/背景只能从 presetCatalog 对应列表里选择已有方案名，不要编造',
@@ -3206,31 +3226,39 @@ async function apiParseForm(){
     const r=await fetch(proxy.endpoint,{method:'POST',headers,body:JSON.stringify(payload),cache:'no-store',signal:controller.signal});
     let data={};try{data=await r.json()}catch{}
     if(!r.ok)throw new Error(deepSeekErrorMessage(data.error,r.status));
-    applyApiOrder(data);
+    if(appStorage.owner!==requestOwner||S.activeOrderId!==requestOrderId||$('#orderForm').value!==text||apiOrderColorRevision()!==requestState){
+      stat($('#apiStatus'),'读取期间已切换账号、订单或修改表单，本次 API 结果未覆盖当前内容。请在目标订单重新读取。','');return;
+    }
+    applyApiOrder(data,{fields:unresolvedFields});
+    globalThis.ShineStudio?.applyApiRecipes(data,unresolvedFields,payload.colorRecipeCatalog);
+    globalThis.ShineStudio?.startReview('api');
     const tier=data.parseMeta?.tier==='pro0813'?'flash0731 仍有问题，已由 pro0813 补齐':'flash0731 已补齐';
     stat($('#apiStatus'),`本地规则优先完成；${tier}。请你最后审稿。`,'good');
   }catch(e){const message=e?.name==='AbortError'?'API 请求超时。':(e.message||e);stat($('#apiStatus'),message+' 已保留先前完成的本地解析结果。','bad')}
   finally{clearTimeout(timer);if(button)button.disabled=false}
 }
-function applyApiOrder(data){
+function apiOrderColorRevision(){const o=getActiveOrder();return JSON.stringify([S.templateSignature,o?.A,o?.B,o?.flexibleComponents,o?.assetComponentColors,S.manualLayerOverrides,o?.assetSelections,o?.assetMultiSelections,o?.background,o?.backgroundManual,globalThis.ShineStudio?.version()]);}
+function applyApiOrder(data,{fields=null}={}){
   let o=getActiveOrder();if(!o){o=newOrderData();S.orders.unshift(o);S.activeOrderId=o.id}
-  if(data.customerName)o.customerName=data.customerName;
+  const wanted=field=>!fields||fields.includes(field);
+  if(wanted('customerName')&&data.customerName)o.customerName=data.customerName;
   ['A','B'].forEach(slot=>{
     const d=data[slot]||data[slot.toLowerCase()]||{};
     const sec=characterSection($('#orderForm').value,slot),paletteEye=formAnchorHex(field(sec,['瞳色']),'eye'),paletteHair=formAnchorHex(field(sec,['发色']),'hair');
-    if(d.name)o[slot].name=d.name;
-    if(paletteEye||d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex)){o[slot].eye=paletteEye||d.eyeHex;if(!o[slot].eyeSchemeId||o[slot].eyeSchemeId==='AUTO')o[slot].eyeSchemeId='AUTO_V3';}
-    if(paletteHair||d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex)){o[slot].hair=paletteHair||d.hairHex;enableSelectedHairGeneratedColor(slot,o[slot].hair,o)}
-    if(d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
-    if(d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
-    if(d.decor){
+    if(wanted(slot+'.name')&&d.name)o[slot].name=d.name;
+    if(wanted(slot+'.eyeHex')&&(paletteEye||d.eyeHex&&/^#[0-9a-f]{6}$/i.test(d.eyeHex))){o[slot].eye=paletteEye||d.eyeHex;if(!o[slot].eyeSchemeId||o[slot].eyeSchemeId==='AUTO')o[slot].eyeSchemeId='AUTO_V3';}
+    if(wanted(slot+'.hairHex')&&(paletteHair||d.hairHex&&/^#[0-9a-f]{6}$/i.test(d.hairHex))){o[slot].hair=paletteHair||d.hairHex;enableSelectedHairGeneratedColor(slot,o[slot].hair,o)}
+    if(wanted(slot+'.outfitPreset')&&d.outfitPreset&&styleSchemeIdFromName('outfit',d.outfitPreset))o[slot].outfit=styleSchemeIdFromName('outfit',d.outfitPreset);
+    if(wanted(slot+'.hatPreset')&&d.hatPreset&&styleSchemeIdFromName('hat',d.hatPreset))o[slot].hat=styleSchemeIdFromName('hat',d.hatPreset);
+    if(wanted(slot+'.decor')&&d.decor){
       const original=splitEarAnswer(field(sec,['耳朵类型','帽饰','耳朵'])).type;
       const requested=bestUploadedEarVariant(original,slot,o[slot].decor)||bestUploadedEarVariant(d.decor,slot,o[slot].decor)||d.decor;
       setOrderEarVariant(o,slot,requested,{source:'api'});
     }
   });
-  if(data.backgroundPreset&&S.presets.background[data.backgroundPreset]){o.background=data.backgroundPreset;o.backgroundManual='';o.backgroundSource='api';o.backgroundReason=String(data.backgroundReason||'').slice(0,80);}
+  if(wanted('backgroundPreset')&&data.backgroundPreset&&S.presets.background[data.backgroundPreset]){o.background=data.backgroundPreset;o.backgroundManual='';o.backgroundSource='api';o.backgroundReason=String(data.backgroundReason||'').slice(0,80);}
   syncParsedFlexibleComponents(o,'A');syncParsedFlexibleComponents(o,'B');
+  globalThis.ShineStudio?.readForm(o,$('#orderForm').value,[]);
   o.formText=$('#orderForm').value;persistOrders();selectOrder(o.id);
 }
 
@@ -3579,11 +3607,13 @@ function assetOverrideMap(asset,order){
       if(linkedOutline)map[path]=hatOutlineColor(asset.slot,order);
     }
   }
+  globalThis.ShineStudio?.assetColors(asset,order,map);
   // 明确的单层微调始终优先；这是用户主动改色，不属于自动跟色。
   if(assetIndex>=0){
     assetRelevantLeaves(asset).forEach(n=>{
       const manualKey=assetLayerKey(asset,n.path);
-      if(S.manualLayerOverrides?.[manualKey])map[n.path]=S.manualLayerOverrides[manualKey];
+      const manual=assetManualColor(asset,n.path);
+      if(manual)map[n.path]=manual;
     });
   }
   return map;
@@ -3657,14 +3687,14 @@ function refreshAllAssetComposites(order=getActiveOrder()||newOrderData()){
 }
 function assetRoleLabel(role){return ({NONE:'固定/不改',COMPONENT_BASE:'组件底色',COMPONENT_SHADOW:'组件重色',COMPONENT_LINEART:'组件线稿',COMPONENT_HIGHLIGHT:'组件高光',DECOR_BASE:'帽饰底色',DECOR_SHADOW:'帽饰重色（仅明确重色层）',DECOR_INNER:'帽饰内耳（由底色计算）',DECOR_OUTLINE:'帽饰线稿',DECOR_ACCENT:'帽饰强调',DECOR_FUR:'帽饰白毛/绒毛固定',HAIR_BASE:'头发底色',HAIR_SHADE_MASK:'头发重色',HAIR_OUTLINE:'头发线稿',HAIR_HIGHLIGHT:'头发高光',BROW_BASE:'眉毛',HAIR_HIGHLIGHT_FIXED:'头发高光固定',HAIR_SKIN_AIR_FIXED:'肤色喷枪固定',EYE_IRIS_BASE:'虹膜主色',EYE_IRIS_MID:'虹膜藏色',EYE_IRIS_DARK:'虹膜暗色',EYE_IRIS_DEEP:'虹膜深色',EYE_IRIS_HIGHLIGHT_MID:'虹膜高光藏色',EYE_IRIS_HIGHLIGHT:'虹膜高光',EYE_PUPIL:'瞳孔',EYE_PUPIL_DARK:'瞳孔暗部',EYE_PUPIL_HIGHLIGHT:'瞳孔高光固定',EYE_OUTLINE:'眼睛轮廓',EYE_LASH:'睫毛',EYE_LASH_HIGHLIGHT:'睫毛高光',TAIL_BASE:'尾巴底色',TAIL_SHADE:'尾巴重色',TAIL_TIP:'尾尖',TAIL_OUTLINE:'尾巴线稿',TAIL_FUR:'尾巴绒毛线稿固定'}[role]||role);}
 function loadAssetCategories(){
-  let saved=[];try{saved=JSON.parse(localStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
+  let saved=[];try{saved=JSON.parse(appStorage.getItem(ASSET_CATEGORY_KEY)||'[]')}catch{}
   const builtinIds=new Set(BUILTIN_ASSET_CATEGORIES.map(x=>x.id));
   const custom=Array.isArray(saved)?saved.filter(x=>x&&typeof x.id==='string'&&typeof x.name==='string'&&!builtinIds.has(x.id)&&!LEGACY_PURGE_CATEGORIES.has(x.id)).map(x=>({id:x.id,name:x.name,builtin:false})):[];
   S.assetCategories=[...BUILTIN_ASSET_CATEGORIES.map(x=>({...x})),...custom];
-  try{S.assetCategoryCollapsed=JSON.parse(localStorage.getItem(ASSET_CATEGORY_COLLAPSE_KEY)||'{}')||{}}catch{S.assetCategoryCollapsed={}}
+  try{S.assetCategoryCollapsed=JSON.parse(appStorage.getItem(ASSET_CATEGORY_COLLAPSE_KEY)||'{}')||{}}catch{S.assetCategoryCollapsed={}}
 }
-function persistAssetCategories(){try{localStorage.setItem(ASSET_CATEGORY_KEY,JSON.stringify(S.assetCategories.filter(x=>!x.builtin)))}catch{}}
-function persistAssetCategoryCollapse(){try{localStorage.setItem(ASSET_CATEGORY_COLLAPSE_KEY,JSON.stringify(S.assetCategoryCollapsed))}catch{}}
+function persistAssetCategories(){try{appStorage.setItem(ASSET_CATEGORY_KEY,JSON.stringify(S.assetCategories.filter(x=>!x.builtin)))}catch{}}
+function persistAssetCategoryCollapse(){try{appStorage.setItem(ASSET_CATEGORY_COLLAPSE_KEY,JSON.stringify(S.assetCategoryCollapsed))}catch{}}
 function renderLibraryCategoryOptions(){const el=$('#libraryType');if(!el)return;const old=el.value||'AUTO';el.innerHTML='<option value="AUTO">自动识别分类</option>'+S.assetCategories.filter(x=>x.id!=='CLEAN_TEMPLATE').map(x=>`<option value="${safe(x.id)}">${safe(x.name)}</option>`).join('');el.value=[...el.options].some(x=>x.value===old)?old:'AUTO'}
 function categoryLabel(t){
   const aliases={HAT_DECOR:'EAR',HAIR:'REUSABLE_HAIR',CLOTHING:'CLOTHING',BODY_POSE:'BODY_POSE',BACKDROP:'BACKDROP',ORIGINAL_ASSET:'ORIGINAL_ASSET',AUXILIARY_ASSET:'AUXILIARY_ASSET'};const id=aliases[t]||t;
@@ -4538,16 +4568,29 @@ function assetUiLabel(a){
   return `${a.slot}${type} · ${a.variant||'未命名'}`;
 }
 function assetLayerKey(asset,path){
+  if(asset.assetId)return `asset2::${encodeURIComponent(asset.assetId)}::${asset.version||1}::${asset.slot}::${encodeURIComponent(asset.groupPath||'')}::${encodeURIComponent(path)}`;
+  return legacyAssetLayerKey(asset,path);
+}
+function legacyAssetLayerKey(asset,path){
   return `asset::${asset.slot}::${asset.type}::${encodeURIComponent(normalizeVariantName(asset.variant||''))}::${encodeURIComponent(path)}`;
 }
+function assetManualColor(asset,path){
+  const current=S.manualLayerOverrides?.[assetLayerKey(asset,path)];if(current)return current;
+  const legacy=S.manualLayerOverrides?.[legacyAssetLayerKey(asset,path)];if(!legacy)return null;
+  const matches=(S.assets||[]).filter(a=>a.enabled&&a.slot===asset.slot&&a.type===asset.type&&sameVariant(a.variant,asset.variant)&&assetRelevantLeaves(a).some(n=>n.path===path));
+  return matches.length===1&&matches[0]===asset?legacy:null;
+}
 function parseAssetLayerKey(value){
+  const current=String(value||'').match(/^asset2::([^:]+)::([^:]+)::([^:]+)::([^:]*)::([\s\S]+)$/);
+  if(current){try{return {assetId:decodeURIComponent(current[1]),version:current[2],slot:current[3],groupPath:decodeURIComponent(current[4]),path:decodeURIComponent(current[5])};}catch{return null;}}
   const m=String(value||'').match(/^asset::([^:]+)::([^:]+)::([^:]+)::([\s\S]+)$/);
   if(!m)return null;
-  return {slot:m[1],type:m[2],variant:decodeURIComponent(m[3]),path:decodeURIComponent(m[4])};
+  try{return {slot:m[1],type:m[2],variant:decodeURIComponent(m[3]),path:decodeURIComponent(m[4])};}catch{return null;}
 }
 function assetFromLayerKey(sel){
   if(!sel)return null;
-  return (S.assets||[]).find(a=>a.slot===sel.slot&&a.type===sel.type&&sameVariant(a.variant,sel.variant))||null;
+  if(sel.assetId)return (S.assets||[]).find(a=>a.assetId===sel.assetId&&String(a.version||1)===sel.version&&a.slot===sel.slot&&(a.groupPath||'')===sel.groupPath)||null;
+  const matches=(S.assets||[]).filter(a=>a.enabled&&a.slot===sel.slot&&a.type===sel.type&&sameVariant(a.variant,sel.variant));return matches.length===1?matches[0]:null;
 }
 
 function editableQuickGroups(){
@@ -4625,6 +4668,7 @@ function syncQuickColorFromSelection(){
 }
 function setManualLayerOverride(path,hex,{persist=true}={}){
   const v=safeHex(hex,'');if(!path||!v)return false;
+  globalThis.ShineStudio?.beforeManual(path);
   const assetSel=parseAssetLayerKey(path);
   if(assetSel){
     S.manualLayerOverrides[path]=v;rebuildLayerOverrideMap();S.recolorCache.clear();
@@ -4683,6 +4727,7 @@ function applyOrderColors(options={}){
     if(color)S.ruleColorOverrides[path]=color;
   });
   applyFlexibleTemplateColors(o);
+  globalThis.ShineStudio?.templateColors(o,S.ruleColorOverrides);
   rebuildLayerOverrideMap();
   applyBackgroundVisibility(o);
   refreshAllAssetComposites(o);
@@ -4694,9 +4739,10 @@ function renderQuickLayerOptions(){renderEditableLayerSelectors();}
 function applyQuickColor(){const p=$('#quickLayer').value;if(!p)return;setManualLayerOverride(p,$('#quickHex').value);}
 function clearQuickColor(){
   const p=$('#quickLayer').value;if(!p)return;
+  const parsed=parseAssetLayerKey(p),asset=parsed&&assetFromLayerKey(parsed);if(asset)delete S.manualLayerOverrides[legacyAssetLayerKey(asset,parsed.path)];
   delete S.manualLayerOverrides[p];rebuildLayerOverrideMap();S.recolorCache.clear();
   const o=getActiveOrder();if(o){o.layerOverrides=clone(S.manualLayerOverrides);persistOrders();}
-  const sel=parseAssetLayerKey(p),asset=assetFromLayerKey(sel);if(asset)refreshOneAssetComposite(asset,o||getActiveOrder()||newOrderData());
+  if(asset)refreshOneAssetComposite(asset,o||getActiveOrder()||newOrderData());
   reconstruct();renderOverlay();syncProductionPreview();syncQuickColorFromSelection();
 }
 function applyWatermarkMode(show){
@@ -4817,19 +4863,22 @@ async function loadPngCanvas(file){
   }
   return new Promise((resolve,reject)=>{const url=URL.createObjectURL(file),img=new Image();img.onload=()=>{const canvas=makeCanvas(img.naturalWidth||img.width,img.naturalHeight||img.height);canvas.getContext('2d').drawImage(img,0,0);URL.revokeObjectURL(url);resolve(canvas)};img.onerror=()=>{URL.revokeObjectURL(url);reject(new Error('PNG 图片无法解码'))};img.src=url});
 }
-async function loadHairAsset(file,slot){
+async function loadHairAsset(file,slot,{sessionOnly=false}={}){
+  const requestOwner=appStorage.owner,requestOrder=S.activeOrderId,requestTemplate=S.templateSignature;
   try{
     const psd=await parsePsd(file),order=assetPsdDrawOrder(psd);
-    const now=new Date().toISOString(),rawVariant=file.name.replace(/\.psd$/i,''),variant=familyName(file),categoryId=/^(?:头发|HAIR)$/i.test(rawVariant.trim())?'TEMP_HAIR':'REUSABLE_HAIR',assetId='asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),records=makeHairPackageRecords(file,psd,order,slot,variant,{assetId,categoryId,createdAt:now});
+    if(appStorage.owner!==requestOwner||S.activeOrderId!==requestOrder||S.templateSignature!==requestTemplate)throw new Error('载入期间切换了账号、订单或模板，请回到目标订单重新接收');
+    const now=new Date().toISOString(),rawVariant=file.name.replace(/\.psd$/i,''),variant=familyName(file),categoryId=sessionOnly||/^(?:头发|HAIR)$/i.test(rawVariant.trim())?'TEMP_HAIR':'REUSABLE_HAIR',assetId='asset_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),records=makeHairPackageRecords(file,psd,order,slot,variant,{assetId,categoryId,createdAt:now});
     records.forEach(asset=>{asset.enabled=true;upsertAssetRecord(asset)});const asset=records.find(a=>hairPlacementForAsset(a)==='FRONT')||records[0];
     let active=getActiveOrder();if(!active){active=newOrderData();S.orders.unshift(active);S.activeOrderId=active.id;renderOrders()}
     const hairSelections=ensureOrderAssetSelections(active)[slot];delete hairSelections.REUSABLE_HAIR;delete hairSelections.TEMP_HAIR;hairSelections[categoryId]=assetFamilyKey(asset);syncSelectedHairFlexibleComponent(active,slot,asset,true);syncAssetEnabledFromOrder(active);persistOrders();
-    queuePersistAssetFamilyLocal(assetFamilyKey(asset),40);
+    if(!sessionOnly)queuePersistAssetFamilyLocal(assetFamilyKey(asset),40);
     S.selectedTransformStackId=assetStackId(asset);
     renderAssetRows();renderAssetLibrary();renderHairInsertionControls();reconstruct();
     const split=records.some(a=>hairPlacementForAsset(a)==='BACK');
     stat($('#apiStatus'),`${slot} 位头发已载入；${split?'已自动拆成前头发 / 后头发，并共用一套发色。':'未发现“后头发”夹子，已按旧素材作为前头发兼容。'}`,'good');
-  }catch(e){stat($('#apiStatus'),'头发 PSD 解析失败：'+(e.message||e),'bad')}
+    return records;
+  }catch(e){stat($('#apiStatus'),'头发 PSD 解析失败：'+(e.message||e),'bad');if(sessionOnly)throw e;return null;}
 }
 
 
@@ -5048,7 +5097,7 @@ function ensureFlexibleComponents(order,slot){
 function templateFlexibleSchemaKey(signature=S.templateSignature){return signature?TEMPLATE_FLEX_SCHEMA_PREFIX+signature:''}
 function loadTemplateFlexibleSchema(signature=S.templateSignature){
   const key=templateFlexibleSchemaKey(signature);if(!key)return {A:[],B:[],GLOBAL:[]};
-  try{const parsed=JSON.parse(localStorage.getItem(key)||'{}');return {A:Array.isArray(parsed.A)?parsed.A:[],B:Array.isArray(parsed.B)?parsed.B:[],GLOBAL:Array.isArray(parsed.GLOBAL)?parsed.GLOBAL:[]}}catch{return {A:[],B:[],GLOBAL:[]}}
+  try{const parsed=JSON.parse(appStorage.getItem(key)||'{}');return {A:Array.isArray(parsed.A)?parsed.A:[],B:Array.isArray(parsed.B)?parsed.B:[],GLOBAL:Array.isArray(parsed.GLOBAL)?parsed.GLOBAL:[]}}catch{return {A:[],B:[],GLOBAL:[]}}
 }
 function mergeTemplateFlexibleSchema(order,signature=S.templateSignature){
   if(!order||!signature)return false;const schema=loadTemplateFlexibleSchema(signature);let changed=false;
@@ -5058,7 +5107,7 @@ function mergeTemplateFlexibleSchema(order,signature=S.templateSignature){
 function saveTemplateFlexibleSchema(order,signature=S.templateSignature){
   const key=templateFlexibleSchemaKey(signature);if(!order||!key)return;
   const schema=Object.fromEntries(['A','B','GLOBAL'].map(slot=>[slot,ensureFlexibleComponents(order,slot).filter(x=>x.sourceType==='TEMPLATE'&&!isFixedBodyComponentName(x.name||x.sourceKey.split('/').pop())).map(x=>({sourceType:'TEMPLATE',sourceKey:x.sourceKey,name:x.name}))]));
-  try{localStorage.setItem(key,JSON.stringify(schema))}catch{}
+  try{appStorage.setItem(key,JSON.stringify(schema))}catch{}
 }
 function isFixedBodyComponentName(value){return /(?:脸部|面部|肤色|皮肤|身体|手部|手臂|手掌|腿部|颈部|脖子|(?:固定)?前置(?:项|层|组)?)/.test(String(value||'').replace(/[\s_\-—－]/g,''))}
 function flexibleComponentCandidates(slot){
@@ -5706,5 +5755,7 @@ requestAnimationFrame(refreshHealthScrollBars);
 window.addEventListener("resize",()=>{lockThreeColumnShell();refreshHealthScrollBars();});
 window.addEventListener('beforeunload',()=>S.exportHistory.forEach(releaseSessionExport));
 </script>
+<script src="./studio-backup.js?v=studio-backup-v2"></script>
+<script src="./studio-next.js?v=studio-backup-v2"></script>
 </body>
 </html>

@@ -8,7 +8,8 @@ const ORDER_SCHEMA_VERSION = 'shine-order-0.6';
 const PARSE_STRATEGY = 'local-first-flash0731-pro0813';
 const RESOLVABLE_FIELDS = new Set([
   'customerName', 'A.name', 'A.outfitPreset', 'A.hatPreset', 'A.decor',
-  'B.name', 'B.outfitPreset', 'B.hatPreset', 'B.decor', 'backgroundPreset'
+  'B.name', 'B.outfitPreset', 'B.hatPreset', 'B.decor', 'backgroundPreset',
+  'A.eyeHex', 'A.hairHex', 'B.eyeHex', 'B.hairHex'
 ]);
 
 class DeepSeekError extends Error {
@@ -69,6 +70,33 @@ function cleanPalette(value, allowedNames, code, { maxItems = 128 } = {}) {
   });
 }
 
+function cleanColorRecipeCatalog(value) {
+  const code = 'INVALID_COLOR_RECIPE_CATALOG';
+  if (value === undefined) value = {};
+  if (!isPlainObject(value) || Object.keys(value).some(key => !['A', 'B'].includes(key))) fail(400, code);
+  const result = {};
+  for (const slot of ['A', 'B']) {
+    const groups = value[slot] === undefined ? {} : value[slot];
+    if (!isPlainObject(groups) || Object.keys(groups).some(key => !['HAIR', 'EYE'].includes(key))) fail(400, code);
+    result[slot] = {};
+    for (const category of ['HAIR', 'EYE']) {
+      const entries = groups[category] === undefined ? [] : groups[category];
+      if (!Array.isArray(entries) || entries.length > 20) fail(400, code);
+      const seen = new Set();
+      result[slot][category] = entries.map(entry => {
+        if (!isPlainObject(entry) || Object.keys(entry).some(key => !['id', 'name', 'anchorHex', 'aliases'].includes(key))) fail(400, code);
+        if (typeof entry.id !== 'string' || !/^[A-Za-z0-9._:-]{1,160}$/.test(entry.id) || seen.has(entry.id)) fail(400, code);
+        seen.add(entry.id);
+        const anchorHex = cleanOptionalHex(entry.anchorHex, code);
+        if (!anchorHex) fail(400, code);
+        return { id: entry.id, name: cleanText(entry.name, code, 80), anchorHex,
+          aliases: entry.aliases === undefined ? [] : cleanStringList(entry.aliases, code, { maxItems: 12, maxLength: 40, allowEmpty: true }) };
+      });
+    }
+  }
+  return result;
+}
+
 function validateDeepSeekRequest(body) {
   if (!isPlainObject(body)) fail(400, 'INVALID_DEEPSEEK_REQUEST');
   if (body.schemaVersion !== ORDER_SCHEMA_VERSION || body.task !== 'parse_commission_form') {
@@ -115,7 +143,8 @@ function validateDeepSeekRequest(body) {
     hatPresetPalette,
     outfitPresetPalette,
     backgroundPresetPalette,
-    decorCatalog
+    decorCatalog,
+    colorRecipeCatalog: cleanColorRecipeCatalog(body.colorRecipeCatalog)
   };
 }
 
@@ -134,12 +163,42 @@ function catalogChoice(value, catalog, code) {
   return text;
 }
 
+function explicitFieldHexes(formText, slot, field) {
+  const text = String(formText || '').replace(/\r\n?/g, '\n').replace(/Ａ/g, 'A').replace(/Ｂ/g, 'B');
+  const headings = [...text.matchAll(/(?:^|\n)\s*([AB])\s*(?:宝宝)?\s*(?=[:：\n]|$)/g)];
+  const fields = field === 'eyeHex' ? '(?:瞳色|眼睛(?:颜色|主色)?|虹膜(?:颜色|主色)?)' : '(?:发色|头发(?:颜色|主色)?)';
+  const values = [];
+  for (let i = 0; i < headings.length; i++) {
+    if (headings[i][1] !== slot) continue;
+    const section = text.slice(headings[i].index + headings[i][0].length, headings[i + 1]?.index ?? text.length);
+    const pattern = new RegExp('(?:^|\\n)[ \\t]*' + fields + '[ \\t]*[:：][ \\t]*(?:\\n[ \\t]*)?([^\\n]*)', 'g');
+    for (const match of section.matchAll(pattern)) {
+      for (const hex of match[1].matchAll(/#[0-9a-f]{6}(?![0-9a-f])/gi)) values.push(hex[0].toUpperCase());
+    }
+  }
+  return new Set(values);
+}
+
+function outputRecipe(value, input, slot, category) {
+  const id = nullableOutputText(value, 'DEEPSEEK_OUTPUT_INVALID', 160);
+  if (id === null) return null;
+  if (!(input.colorRecipeCatalog?.[slot]?.[category] || []).some(recipe => recipe.id === id)) fail(502, 'DEEPSEEK_OUTPUT_INVALID');
+  return id;
+}
+
 function validateCharacterOutput(value, input, slot) {
   if (!isPlainObject(value)) fail(502, 'DEEPSEEK_OUTPUT_INVALID');
+  const explicitHex = field => {
+    const hex = cleanOptionalHex(value[field], 'DEEPSEEK_OUTPUT_INVALID', 502);
+    return hex && explicitFieldHexes(input.formText, slot, field).has(hex) ? hex : null;
+  };
+  const eyeHex = explicitHex('eyeHex'), hairHex = explicitHex('hairHex');
   return {
     name: nullableOutputText(value.name, 'DEEPSEEK_OUTPUT_INVALID', 120),
-    eyeHex: cleanOptionalHex(value.eyeHex, 'DEEPSEEK_OUTPUT_INVALID', 502),
-    hairHex: cleanOptionalHex(value.hairHex, 'DEEPSEEK_OUTPUT_INVALID', 502),
+    eyeHex,
+    hairHex,
+    eyeRecipeId: eyeHex ? null : outputRecipe(value.eyeRecipeId, input, slot, 'EYE'),
+    hairRecipeId: hairHex ? null : outputRecipe(value.hairRecipeId, input, slot, 'HAIR'),
     outfitPreset: catalogChoice(value.outfitPreset, input.presetCatalog.outfit, 'DEEPSEEK_OUTPUT_INVALID'),
     hatPreset: catalogChoice(value.hatPreset, input.presetCatalog.hat, 'DEEPSEEK_OUTPUT_INVALID'),
     decor: catalogChoice(value.decor, input.decorCatalog, 'DEEPSEEK_OUTPUT_INVALID'),
@@ -175,16 +234,18 @@ function buildMessages(input) {
     '“保持/更换已有表情/开发新表情”以及用斜杠并列的多个选项是候选列表；只有顾客明确保留、勾选或另写了某一个选项时，才视为答案。',
     'hatPreset、outfitPreset、decor、backgroundPreset 只能逐字选择所给目录中的值；不确定时返回 null，绝不编造。',
     'decorCatalog 可能包含用户已经上传的具体耳朵素材名。顾客写了动物和姿态时，优先选择同时匹配两者的最具体素材名，例如“小狗耳、趴着的”应优先匹配“趴狗耳”，不要降级成笼统的“犬耳”或“狗耳”。',
-    '顾客只写“紫色”且未指定蓝紫或粉紫时，从目录中的“蓝紫”或“粉紫”选择一个；明确指定时必须遵从。',
+    '顾客只写宽泛颜色且多个候选同样合适时返回 null，不随机挑选；明确指定时必须遵从。',
     'eyeHex 和 hairHex 仅在客单明确给出 #RRGGBB 时返回，否则返回 null，不把普通颜色词擅自转换为色值。',
+    'colorRecipeCatalog 按 A/B 与 HAIR/EYE 隔离，只包含当前模板适用的稳定配色。hairRecipeId、eyeRecipeId 只能选择本位置相应大类中的 id；不允许跨 A/B、大类借用或编造。它们只代表配色，不代表素材，不得自动选择头发素材。',
+    '普通颜色或模糊审美描述可匹配本位置 colorRecipeCatalog 的名称和 aliases；无匹配、明确否定或仍有歧义时返回 null。用户明确 HEX 优先于配色方案。',
     '背景若有明确冷暖倾向则优先遵从；否则结合 A/B 帽子底色，选择更浅、更低饱和且不抢人物的现有背景。',
     'backgroundReason 用一句不超过 80 个汉字的简短理由；不确定时返回 null。',
     `本次本地规则未能确定这些字段，请优先解决：${input.unresolvedFields.join('、')}。`,
     `JSON 必须严格使用这个结构：${JSON.stringify({
       schemaVersion: ORDER_SCHEMA_VERSION,
       customerName: null,
-      A: { name: null, eyeHex: null, hairHex: null, outfitPreset: null, hatPreset: null, decor: null },
-      B: { name: null, eyeHex: null, hairHex: null, outfitPreset: null, hatPreset: null, decor: null },
+      A: { name: null, eyeHex: null, hairHex: null, eyeRecipeId: null, hairRecipeId: null, outfitPreset: null, hatPreset: null, decor: null },
+      B: { name: null, eyeHex: null, hairHex: null, eyeRecipeId: null, hairRecipeId: null, outfitPreset: null, hatPreset: null, decor: null },
       backgroundPreset: null,
       backgroundReason: null
     })}`
@@ -196,7 +257,8 @@ function buildMessages(input) {
     hatPresetPalette: input.hatPresetPalette,
     outfitPresetPalette: input.outfitPresetPalette,
     backgroundPresetPalette: input.backgroundPresetPalette,
-    decorCatalog: input.decorCatalog
+    decorCatalog: input.decorCatalog,
+    colorRecipeCatalog: input.colorRecipeCatalog
   };
   return [
     { role: 'system', content: system },
@@ -222,6 +284,8 @@ function outputValue(output, path) {
 
 function unresolvedAfterModel(output, fields) {
   return fields.filter(path => {
+    const color = /^([AB])\.(eye|hair)Hex$/.exec(path);
+    if (color && output?.[color[1]]?.[color[2] + 'RecipeId']) return false;
     const value = outputValue(output, path);
     return value === null || value === undefined || value === '';
   });
@@ -230,11 +294,16 @@ function unresolvedAfterModel(output, fields) {
 function mergeModelOutputs(base, stronger) {
   if (!base) return stronger;
   const prefer = (next, previous) => next === null || next === undefined || next === '' ? previous : next;
+  const mergeCharacter = slot => {
+    const value = Object.fromEntries(Object.keys(base[slot]).map(key => [key, prefer(stronger[slot][key], base[slot][key])]));
+    for (const category of ['eye', 'hair']) if (value[category + 'Hex']) value[category + 'RecipeId'] = null;
+    return value;
+  };
   return {
     schemaVersion: ORDER_SCHEMA_VERSION,
     customerName: prefer(stronger.customerName, base.customerName),
-    A: Object.fromEntries(Object.keys(base.A).map(key => [key, prefer(stronger.A[key], base.A[key])])),
-    B: Object.fromEntries(Object.keys(base.B).map(key => [key, prefer(stronger.B[key], base.B[key])])),
+    A: mergeCharacter('A'),
+    B: mergeCharacter('B'),
     backgroundPreset: prefer(stronger.backgroundPreset, base.backgroundPreset),
     backgroundReason: prefer(stronger.backgroundReason, base.backgroundReason)
   };

@@ -1,5 +1,7 @@
 const crypto = require('crypto');
 const { createDeepSeekOrderParser, validateDeepSeekRequest } = require('./deepseek-order-parser');
+const { createInboxHandler } = require('./inbox-api');
+const { createHandbookApi, isHandbookPath } = require('./handbook-api');
 const {
   createAccountRecord,
   publicAccount,
@@ -383,6 +385,16 @@ function createApp(options = {}) {
     timeoutMs: options.deepSeekTimeoutMs,
     fetchImpl: options.fetchImpl
   });
+  const inboxHandler = createInboxHandler({
+    storeFactory: options.inboxStoreFactory,
+    authorize: req => authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory),
+    accountStoreFactory, profileToken, secret: sessionSecret || profileToken, now, logger,
+    maxBytes: maxAssetBytes,
+    readBody: req => readJsonBody(req, 16 * 1024, 'INBOX_REQUEST_TOO_LARGE')
+  });
+  const handbookHandler = createHandbookApi({
+    storeFactory: options.handbookStoreFactory, readJsonBody, sendJson, allowedOrigin
+  });
 
   return async function app(req, res) {
     try {
@@ -473,6 +485,14 @@ function createApp(options = {}) {
         const input = validateDeepSeekRequest(body);
         const parsed = await deepSeekParser(input);
         return sendJson(req, res, 200, parsed, allowedOrigin, { 'Cache-Control': 'no-store' });
+      }
+
+      const inboxResult = await inboxHandler(req, url);
+      if (inboxResult) return sendJson(req, res, inboxResult.status, inboxResult.body, allowedOrigin, { 'Cache-Control': 'no-store' });
+
+      if (isHandbookPath(url.pathname)) {
+        const auth = await authorizeProfileRequest(req, profileToken, sessionSecret, now, accountStoreFactory);
+        return await handbookHandler(req, res, url, auth);
       }
 
       const assetRoute = parseAssetRoute(url.pathname);
@@ -621,7 +641,7 @@ function createApp(options = {}) {
           ...(error?.ossRequestId ? { ossRequestId: error.ossRequestId } : {})
         });
       }
-      return sendJson(req, res, status, { ok: false, error: code }, allowedOrigin);
+      return sendJson(req, res, status, { ok: false, error: code }, allowedOrigin, { 'Cache-Control': 'no-store' });
     }
   };
 }

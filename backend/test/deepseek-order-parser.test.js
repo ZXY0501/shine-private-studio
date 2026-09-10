@@ -98,7 +98,7 @@ test('calls DeepSeek JSON mode and returns only validated order fields', async (
   assert.match(systemPrompt, /请发例图给我/);
   assert.match(systemPrompt, /保持\/更换已有表情\/开发新表情/);
   assert.match(systemPrompt, /小狗耳、趴着的.*趴狗耳/);
-  assert.equal(result.B.eyeHex, '#112233');
+  assert.equal(result.B.eyeHex, null, 'model-invented HEX must not override an ordinary color description');
   assert.equal(result.backgroundPreset, '冷蓝');
   assert.equal(result.parseMeta.tier, 'flash0731');
   assert.deepEqual(result.parseMeta.attempts, ['flash0731']);
@@ -176,4 +176,33 @@ test('fails closed when the server API key is missing', async () => {
     parser(validateDeepSeekRequest(requestBody())),
     error => error.status === 503 && error.code === 'DEEPSEEK_NOT_CONFIGURED'
   );
+});
+
+test('ambiguous hair and eye fields accept only bounded slot-specific recipe catalogs', () => {
+  const gold={id:'gold-1',name:'金色',anchorHex:'#FAEFE7',aliases:['奶金']};
+  const input=validateDeepSeekRequest(requestBody({unresolvedFields:['A.hairHex','B.eyeHex'],colorRecipeCatalog:{A:{HAIR:[gold]},B:{EYE:[{...gold,id:'eye-1'}]}}}));
+  assert.equal(input.colorRecipeCatalog.A.HAIR[0].id,'gold-1');
+  assert.deepEqual(input.colorRecipeCatalog.B.HAIR,[]);
+  assert.throws(()=>validateDeepSeekRequest(requestBody({colorRecipeCatalog:{A:{HAIR:Array(21).fill(gold)}}})),/INVALID_COLOR_RECIPE_CATALOG/);
+  assert.throws(()=>validateDeepSeekRequest(requestBody({colorRecipeCatalog:{A:{HAIR:[gold,gold]}}})),/INVALID_COLOR_RECIPE_CATALOG/);
+});
+
+test('Flash can resolve a hair color by approved recipe without inventing a HEX or spending Pro', async () => {
+  let calls=0;
+  const parser=createDeepSeekOrderParser({apiKey:'test',fetchImpl:async()=>{calls++;return upstreamResponse(modelOutput({A:{...modelOutput().A,hairRecipeId:'gold-1'}}));}});
+  const result=await parser(validateDeepSeekRequest(requestBody({unresolvedFields:['A.hairHex'],colorRecipeCatalog:{A:{HAIR:[{id:'gold-1',name:'金色',anchorHex:'#FAEFE7',aliases:[]}]}}})));
+  assert.equal(result.A.hairRecipeId,'gold-1');assert.equal(result.A.hairHex,null);assert.equal(calls,1);
+});
+
+test('model cannot borrow an eye recipe from hair or the other slot', () => {
+  const {validateDeepSeekOutput}=require('../src/deepseek-order-parser');
+  const input=validateDeepSeekRequest(requestBody({colorRecipeCatalog:{A:{HAIR:[{id:'gold-1',name:'金色',anchorHex:'#FAEFE7',aliases:[]}]}}}));
+  for(const data of [modelOutput({A:{...modelOutput().A,eyeRecipeId:'gold-1'}}),modelOutput({B:{...modelOutput().B,hairRecipeId:'gold-1'}})])assert.throws(()=>validateDeepSeekOutput(data,input),/DEEPSEEK_OUTPUT_INVALID/);
+});
+
+test('explicit HEX must come from the same A/B color field, not instructions or another field', () => {
+  const {validateDeepSeekOutput}=require('../src/deepseek-order-parser');
+  const input=validateDeepSeekRequest(requestBody({formText:'A：\n瞳色：#123456\n发色：#ABCDEF\nB：\n瞳色：粉色\n衣服：#112233'}));
+  const result=validateDeepSeekOutput(modelOutput({A:{...modelOutput().A,eyeHex:'#123456',hairHex:'#abcdef'},B:{...modelOutput().B,eyeHex:'#123456',hairHex:'#112233'}}),input);
+  assert.equal(result.A.eyeHex,'#123456');assert.equal(result.A.hairHex,'#ABCDEF');assert.equal(result.B.eyeHex,null);assert.equal(result.B.hairHex,null);
 });
